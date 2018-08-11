@@ -2,7 +2,7 @@ from Qt import QtGui, QtCore, QtWidgets
 
 # import shiboken2 as shiboken
 from maya import cmds
-
+import blurdev
 
 from tools.skinData import DataOfSkin
 from tools.tableWidget import TableView, TableModel
@@ -13,6 +13,19 @@ styleSheet = """
 QWidget {
 background:  #aba8a6;
 }
+QPushButton {
+    color:  black;
+}
+QPushButton:checked{
+    background-color: rgb(80, 80, 80);
+    color:white;
+    border: none; 
+}
+QPushButton:hover{  
+    background-color: grey; 
+    border-style: outset;  
+}  
+
 TableView {
      selection-background-color: #a0a0ff;
      background : #aba8a6;
@@ -69,6 +82,11 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.setAllowedAreas( QtCore.Qt.DockWidgetAreas ())
         self.isDockable = False
         """
+        import __main__
+
+        __main__.__dict__["weightEditor"] = self
+
+        blurdev.gui.loadUi(__file__, self)
 
         # QtWidgets.QWidget.__init__(self, parent)
         self.dataOfSkin = DataOfSkin()
@@ -120,7 +138,7 @@ class SkinWeightWin(QtWidgets.QDialog):
         super(SkinWeightWin, self).keyPressEvent(event)
 
     def createWindow(self):
-        theLayout = QtWidgets.QVBoxLayout(self)
+        theLayout = self.layout()  # QtWidgets.QVBoxLayout(self)
         theLayout.setContentsMargins(10, 10, 10, 10)
         theLayout.setSpacing(3)
 
@@ -131,9 +149,7 @@ class SkinWeightWin(QtWidgets.QDialog):
         self._tv.setModel(self._tm)
         # self._tm._tv = self._tv
 
-        refreshBTN = QtWidgets.QPushButton("refresh")
-        refreshBTN.clicked.connect(self.refreshBtn)
-        theLayout.addWidget(refreshBTN)
+        self.refreshBTN.clicked.connect(self.refreshBtn)
 
         self.valueSetter = ValueSetting(self)  # ProgressItem("BlendShape", szrad = 0, value = 0)
         Hlayout = QtWidgets.QHBoxLayout(self)

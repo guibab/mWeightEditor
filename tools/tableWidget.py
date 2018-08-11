@@ -150,6 +150,26 @@ class MyHeaderView(QtWidgets.QHeaderView):
         self.setHighlightSections(True)
         self.setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
 
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.showMenu)
+
+    def showMenu(self, pos):
+        popMenu = QtWidgets.QMenu(self)
+        newAction = popMenu.addAction("hello")
+        # newAction.triggered.connect (self.doSetDockable)
+        # newAction .setCheckable (True)
+        # newAction .setChecked (self.isDockable)
+        model = self.model()
+        hideColumnIndices = model.datatable.hideColumnIndices
+        if len(hideColumnIndices) > 0:
+            columnNames = model.columnNames()
+            subMenuFollow = popMenu.addMenu("show Columns")
+            for ind in hideColumnIndices:
+                newAction = subMenuFollow.addAction(columnNames[ind])
+                newAction.setCheckable(True)
+                newAction.setChecked(False)
+        popMenu.exec_(self.mapToGlobal(pos))
+
     def paintSection(self, painter, rect, index):
         # https://github.com/openwebos/qt/blob/master/src/gui/itemviews/qheaderview.cpp
         if not rect.isValid():
