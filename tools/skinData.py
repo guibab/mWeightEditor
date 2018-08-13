@@ -31,6 +31,7 @@ class DataOfSkin(object):
         self.theSkinCluster = ""
         self.vertices = []
         self.driverNames = []
+        self.shortDriverNames = []
         self.skinningMethod = ""
         self.normalizeWeights = []
 
@@ -386,6 +387,11 @@ class DataOfSkin(object):
 
         return weights
 
+    def addLockVerticesAttribute(self):
+        if not cmds.attributeQuery("lockedVertices", node=self.deformedShape, exists=True):
+            cmds.addAttr(self.deformedShape, longName="lockedVertices", dataType="Int32Array")
+            # cmds.makePaintable( "mesh", "lockedVertices")
+
     def getSkinClusterFromSel(self, sel):
         if sel:
             hist = cmds.listHistory(sel, lv=0, pruneDagObjects=True)
@@ -396,6 +402,7 @@ class DataOfSkin(object):
                     theDeformedMesh = cmds.ls(
                         cmds.listHistory(skinCluster, af=True, f=True), type="mesh"
                     )
+
                     return skinCluster, theDeformedMesh[0]
         return "", ""
 
@@ -459,6 +466,8 @@ class DataOfSkin(object):
             self.vertices = []
             self.lockedColumns = []
             self.lockedVertices = []
+            self.driverNames = []
+            self.shortDriverNames = []
             self.rowCount = 0
             self.columnCount = 0
             self.meshIsUsed = False
@@ -507,19 +516,18 @@ class DataOfSkin(object):
             if cmds.attributeQuery("lockInfluenceWeights", node=driver, exists=True):
                 isLocked = cmds.getAttr(driver + ".lockInfluenceWeights")
             self.lockedColumns.append(isLocked)
+        # now vertices ------------------
+        self.addLockVerticesAttribute()
+        self.lockedVertices = cmds.getAttr(self.deformedShape + ".lockedVertices") or []
 
     def isLocked(self, row, columnIndex):
-        return self.isColumnLocked(columnIndex)
+        return self.isColumnLocked(columnIndex) or self.isRowLocked(row)
+
+    def isRowLocked(self, row):
+        return self.vertices[row] in self.lockedVertices
 
     def isColumnLocked(self, columnIndex):
         return self.lockedColumns[columnIndex]
-        """
-        driver = self.driverNames[column]#"Dfm_L_Arm_TwLwrStart"
-        #if cmds.attributeQuery("lockInfluenceWeights", node = driver, exists = True)  :
-        #    return cmds.getAttr (driver +".lockInfluenceWeights")
-        if cmds.objExists (driver +".lockInfluenceWeights") : return cmds.getAttr (driver +".lockInfluenceWeights")
-        return False
-        """
 
     def unLockColumns(self, selectedIndices):
         self.lockColumns(selectedIndices, doLock=False)
@@ -531,10 +539,25 @@ class DataOfSkin(object):
                 cmds.setAttr(driver + ".lockInfluenceWeights", doLock)
                 self.lockedColumns[column] = doLock
 
+    def unLockRows(self, selectedIndices):
+        self.lockRows(selectedIndices, doLock=False)
+
+    def lockRows(self, selectedIndices, doLock=True):
+        lockVtx = cmds.getAttr(self.deformedShape + ".lockedVertices") or []
+        lockVtx = set(lockVtx)
+
+        selectedVertices = set([self.vertices[ind] for ind in selectedIndices])
+        if doLock:
+            lockVtx.update(selectedVertices)
+        else:
+            lockVtx.difference_update(selectedVertices)
+
+        self.lockedVertices = sorted(list(lockVtx))
+        cmds.setAttr(self.deformedShape + ".lockedVertices", self.lockedVertices, type="Int32Array")
+
     def getValue(self, row, column):
         # return self.raw2dArray [row][column] if self.raw2dArray !=None else self.rawSkinValues [row*self.nbDrivers+column]
         return self.raw2dArray[row][column]
-        # return
 
     def setValue(self, row, column, value):
         vertexIndex = self.vertices[row]

@@ -103,10 +103,12 @@ class TableModel(QtCore.QAbstractTableModel):
             return QtCore.Qt.ItemIsEnabled
         # sresult = super(TableModel,self).flags(index)
         # result = sresult | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
-        result = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
-        return QtCore.Qt.ItemFlags(result)
 
-        # return QtCore.Qt.ItemIsEnabled
+        if self.isLocked(index):
+            result = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+        else:
+            result = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
+        return QtCore.Qt.ItemFlags(result)
 
 
 class HighlightDelegate(QtWidgets.QStyledItemDelegate):
@@ -155,7 +157,59 @@ class HighlightDelegate(QtWidgets.QStyledItemDelegate):
         return super(HighlightDelegate, self).paint(painter, option, index)
 
 
-class MyHeaderView(QtWidgets.QHeaderView):
+class VertHeaderView(QtWidgets.QHeaderView):
+    def __init__(self, parent=None):
+        super(VertHeaderView, self).__init__(QtCore.Qt.Vertical, parent)
+        self.setSectionsClickable(True)
+        self.setHighlightSections(True)
+        self.setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
+
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.showMenu)
+
+        self.regularBG = QtGui.QBrush(QtGui.QColor(130, 130, 130))
+        self.greyBG = QtGui.QBrush(QtGui.QColor(100, 100, 100))
+
+    def showMenu(self, pos):
+        popMenu = QtWidgets.QMenu(self)
+
+        lockAction = popMenu.addAction("lock selected")
+        lockAction.triggered.connect(self.lockSelectedRows)
+
+        unlockAction = popMenu.addAction("unlock selected")
+        unlockAction.triggered.connect(self.unlockSelectedRows)
+
+        clearLocksAction = popMenu.addAction("clear all Locks")
+        clearLocksAction.triggered.connect(self.clearLocks)
+        popMenu.exec_(self.mapToGlobal(pos))
+
+    def getSelectedRows(self):
+        """
+        RowsSelected = self.selectionModel ().selectedRows()
+        selectedIndices = [ modelIndex.column() for modelIndex in RowsSelected if not self.isSectionHidden(modelIndex.column()) ]
+        return selectedIndices
+        """
+        sel = self.selectionModel().selection()
+        chunks = np.array([], dtype=int)
+        for item in sel:
+            chunks = np.union1d(chunks, range(item.top(), item.bottom() + 1))
+
+        # selectedIndices = [indRow for indRow in chunks if not self.isSectionHidden(indRow) ]
+        return chunks
+
+    def lockSelectedRows(self):
+        selectedIndices = self.getSelectedRows()
+        self.model().datatable.lockRows(selectedIndices)
+
+    def unlockSelectedRows(self):
+        selectedIndices = self.getSelectedRows()
+        self.model().datatable.unLockRows(selectedIndices)
+
+    def clearLocks(self):
+        self.model().datatable.unLockRows(range(self.count()))
+
+
+class HorizHeaderView(QtWidgets.QHeaderView):
     _colors = [
         (161, 105, 48),
         (159, 161, 48),
@@ -168,7 +222,7 @@ class MyHeaderView(QtWidgets.QHeaderView):
     ]
 
     def __init__(self, colWidth=10, parent=None):
-        super(MyHeaderView, self).__init__(QtCore.Qt.Horizontal, parent)
+        super(HorizHeaderView, self).__init__(QtCore.Qt.Horizontal, parent)
         self.colWidth = colWidth
         self._font = QtGui.QFont("Myriad Pro", 10)
         self._font.setBold(False)
@@ -187,7 +241,7 @@ class MyHeaderView(QtWidgets.QHeaderView):
         self.greyBG = QtGui.QBrush(QtGui.QColor(100, 100, 100))
 
     def mousePressEvent(self, event):
-        super(MyHeaderView, self).mousePressEvent(event)
+        super(HorizHeaderView, self).mousePressEvent(event)
         nbShown = 0
         for ind in range(self.count()):
             if not self.isSectionHidden(ind):
@@ -342,8 +396,11 @@ class TableView(QtWidgets.QTableView):
         # self.sizeHintForRow = QtCore.QSize (0,10)
         self._hd = HighlightDelegate(self)
         self.setItemDelegate(self._hd)
-        self.headerView = MyHeaderView(colWidth)
-        self.setHorizontalHeader(self.headerView)
+        self.HHeaderView = HorizHeaderView(colWidth)
+        self.VHeaderView = VertHeaderView()
+        self.setHorizontalHeader(self.HHeaderView)
+        self.setVerticalHeader(self.VHeaderView)
+
         self.verticalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
 
         # self.setUniformRowHeights (True)
