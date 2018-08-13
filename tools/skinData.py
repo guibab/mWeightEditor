@@ -33,6 +33,10 @@ class DataOfSkin(object):
         self.driverNames = []
         self.skinningMethod = ""
         self.normalizeWeights = []
+
+        self.lockedColumns = []
+        self.lockedVertices = []
+
         self.rowCount = 0
         self.columnCount = 0
 
@@ -453,6 +457,8 @@ class DataOfSkin(object):
             self.usedDeformersIndices = []
             self.hideColumnIndices = []
             self.vertices = []
+            self.lockedColumns = []
+            self.lockedVertices = []
             self.rowCount = 0
             self.columnCount = 0
             self.meshIsUsed = False
@@ -482,8 +488,8 @@ class DataOfSkin(object):
         self.rowCount = len(self.vertices)
         self.columnCount = self.nbDrivers
 
+        self.getLocksInfo()
         self.getZeroColumns()
-
         return True
 
     def rebuildRawSkin(self):
@@ -491,6 +497,39 @@ class DataOfSkin(object):
             self.rawSkinValues = self.exposeSkinData(self.theSkinCluster)
         else:
             self.rawSkinValues = self.exposeSkinData(self.theSkinCluster, indices=self.vertices)
+
+    def getLocksInfo(self):
+        self.lockedColumns = []
+        self.lockedVertices = []
+
+        for driver in self.driverNames:
+            isLocked = False
+            if cmds.attributeQuery("lockInfluenceWeights", node=driver, exists=True):
+                isLocked = cmds.getAttr(driver + ".lockInfluenceWeights")
+            self.lockedColumns.append(isLocked)
+
+    def isLocked(self, row, columnIndex):
+        return self.isColumnLocked(columnIndex)
+
+    def isColumnLocked(self, columnIndex):
+        return self.lockedColumns[columnIndex]
+        """
+        driver = self.driverNames[column]#"Dfm_L_Arm_TwLwrStart"
+        #if cmds.attributeQuery("lockInfluenceWeights", node = driver, exists = True)  :
+        #    return cmds.getAttr (driver +".lockInfluenceWeights")
+        if cmds.objExists (driver +".lockInfluenceWeights") : return cmds.getAttr (driver +".lockInfluenceWeights")
+        return False
+        """
+
+    def unLockColumns(self, selectedIndices):
+        self.lockColumns(selectedIndices, doLock=False)
+
+    def lockColumns(self, selectedIndices, doLock=True):
+        for column in selectedIndices:
+            driver = self.driverNames[column]
+            if cmds.objExists(driver + ".lockInfluenceWeights"):
+                cmds.setAttr(driver + ".lockInfluenceWeights", doLock)
+                self.lockedColumns[column] = doLock
 
     def getValue(self, row, column):
         # return self.raw2dArray [row][column] if self.raw2dArray !=None else self.rawSkinValues [row*self.nbDrivers+column]

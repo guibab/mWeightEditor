@@ -10,14 +10,20 @@ from tools.spinnerSlider import ValueSetting
 from tools.utils import GlobalContext
 
 styleSheet = """
+
 QWidget {
     background:  #aba8a6;
     color:black;
+    selection-background-color: #a0a0ff;
+
 }
 
 QMenu::item:disabled {
     color:grey;
     font: italic;
+}
+QMenu::item:selected  {
+    background-color:rgb(120, 120, 120);  
 }
 QPushButton {
     color:  black;

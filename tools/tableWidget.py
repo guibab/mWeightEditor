@@ -1,14 +1,16 @@
 from Qt import QtGui, QtCore, QtWidgets
 from functools import partial
 from maya import cmds
+import numpy as np
 
 
 class TableModel(QtCore.QAbstractTableModel):
     def __init__(self, parent=None, *args):
         super(TableModel, self).__init__()
         self.datatable = None
-        brown = QtGui.QColor(130, 130, 90)
-        self.brownBrush = QtGui.QBrush(brown)
+        self.brownBrush = QtGui.QBrush(QtGui.QColor(130, 130, 90))
+        self.greyBrush = QtGui.QBrush(QtGui.QColor(140, 140, 140))
+        self.greyDarkerBrush = QtGui.QBrush(QtGui.QColor(80, 80, 80))
 
     def update(self, dataIn):
         print "Updating Model"
@@ -40,8 +42,13 @@ class TableModel(QtCore.QAbstractTableModel):
         elif role == QtCore.Qt.TextAlignmentRole:
             return QtCore.Qt.AlignCenter  # | QtCore.Qt.AlignVCenter)
         elif role == QtCore.Qt.BackgroundRole:
-            if self.realData(index) != 0.0:
+            if self.isLocked(index):
+                return self.greyBrush
+            elif self.realData(index) != 0.0:
                 return self.brownBrush
+        elif role == QtCore.Qt.ForegroundRole:
+            if self.isLocked(index):
+                return self.greyDarkerBrush
         else:
             return None
 
@@ -66,6 +73,11 @@ class TableModel(QtCore.QAbstractTableModel):
             pass
         return False             
         """
+
+    def isLocked(self, index):
+        row = index.row()
+        column = index.column()
+        return self.datatable.isLocked(row, column)
 
     def realData(self, index):
         row = index.row()
@@ -171,6 +183,9 @@ class MyHeaderView(QtWidgets.QHeaderView):
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.showMenu)
 
+        self.regularBG = QtGui.QBrush(QtGui.QColor(130, 130, 130))
+        self.greyBG = QtGui.QBrush(QtGui.QColor(100, 100, 100))
+
     def mousePressEvent(self, event):
         super(MyHeaderView, self).mousePressEvent(event)
         nbShown = 0
@@ -189,25 +204,56 @@ class MyHeaderView(QtWidgets.QHeaderView):
 
     def setColor(self, pos, index):
         menu = ColorMenu(self)
-
         pos = self.mapToGlobal(pos)  # + QtCore.QPoint(30,310)
         menu.exec_(pos)
-
         color = menu.color()
         if color is None:
             return
         else:
             cmds.setAttr(self.model().fullColumnNames()[index] + ".objectColor", color)
 
+    def getSelectedColumns(self):
+        """
+        columnsSelected = self.selectionModel ().selectedColumns()
+        selectedIndices = [ modelIndex.column() for modelIndex in columnsSelected if not self.isSectionHidden(modelIndex.column()) ]
+        return selectedIndices
+        """
+
+        sel = self.selectionModel().selection()
+        chunks = np.array([], dtype=int)
+        for item in sel:
+            chunks = np.union1d(chunks, range(item.left(), item.right() + 1))
+
+        selectedIndices = [indCol for indCol in chunks if not self.isSectionHidden(indCol)]
+        return selectedIndices
+
+    def lockSelectedColumns(self):
+        selectedIndices = self.getSelectedColumns()
+        self.model().datatable.lockColumns(selectedIndices)
+
+    def unlockSelectedColumns(self):
+        selectedIndices = self.getSelectedColumns()
+        self.model().datatable.unLockColumns(selectedIndices)
+
+    def clearLocks(self):
+        self.model().datatable.unLockColumns(range(self.count()))
+
     def showMenu(self, pos):
         popMenu = QtWidgets.QMenu(self)
-        columnsSelected = self.selectionModel().selectedColumns()
+        selectionIsEmpty = self.selectionModel().selection().isEmpty()
+        # columnsSelected = self.selectionModel ().selectedColumns()
 
-        newAction = popMenu.addAction("lock selected")
-        if not columnsSelected:
-            newAction.setEnabled(False)
-        newAction = popMenu.addAction("clear all Locks")
-        # newAction.triggered.connect (self.doSetDockable)
+        lockAction = popMenu.addAction("lock selected")
+        lockAction.triggered.connect(self.lockSelectedColumns)
+        lockAction.setEnabled(not selectionIsEmpty)
+
+        unlockAction = popMenu.addAction("unlock selected")
+        unlockAction.triggered.connect(self.unlockSelectedColumns)
+        unlockAction.setEnabled(not selectionIsEmpty)
+
+        clearLocksAction = popMenu.addAction("clear all Locks")
+        clearLocksAction.triggered.connect(self.clearLocks)
+
         # newAction .setCheckable (True)
         # newAction .setChecked (self.isDockable)
         model = self.model()
@@ -255,7 +301,10 @@ class MyHeaderView(QtWidgets.QHeaderView):
         x = -rect.height()
         y = rect.left()
 
-        painter.setBrush(QtGui.QBrush(QtGui.QColor(130, 130, 130)))
+        theBGBrush = self.greyBG if self.model().datatable.isColumnLocked(index) else self.regularBG
+        # theBGBrush = self.regularBG
+
+        painter.setBrush(theBGBrush)
         painter.drawRect(x + 1, y - 1, rect.height() - 1, rect.width())
 
         theColor = self.color(index)
