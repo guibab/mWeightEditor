@@ -460,6 +460,8 @@ class DataOfSkin(object):
         self.driverNames, self.skinningMethod, self.normalizeWeights = self.getSkinClusterValues(
             self.theSkinCluster
         )
+        self.shortDriverNames = [el.split(":")[-1].split("|")[-1] for el in self.driverNames]
+
         self.nbDrivers = len(self.driverNames)
 
         with GlobalContext(message="rawSkinValues"):
