@@ -11,7 +11,13 @@ from tools.utils import GlobalContext
 
 styleSheet = """
 QWidget {
-background:  #aba8a6;
+    background:  #aba8a6;
+    color:black;
+}
+
+QMenu::item:disabled {
+    color:grey;
+    font: italic;
 }
 QPushButton {
     color:  black;
@@ -145,7 +151,7 @@ class SkinWeightWin(QtWidgets.QDialog):
         self._tm = TableModel(self)
         self._tm.update(self.dataOfSkin)
 
-        self._tv = TableView(self)
+        self._tv = TableView(self, colWidth=self.colWidth)
         self._tv.setModel(self._tm)
         # self._tm._tv = self._tv
 
@@ -220,9 +226,7 @@ class SkinWeightWin(QtWidgets.QDialog):
         # self.dataOfSkin.getZeroColumns ()
         for ind in self.dataOfSkin.hideColumnIndices:
             self._tv.hideColumn(ind)
-        self._tv.headerView.setMaximumWidth(
-            self.colWidth * len(self.dataOfSkin.usedDeformersIndices)
-        )
+        # self._tv.headerView.setMaximumWidth(self.colWidth*len (self.dataOfSkin.usedDeformersIndices))
 
     def get_data_frame(self):
         with GlobalContext(message="get_data_frame"):

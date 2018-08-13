@@ -1,4 +1,5 @@
 from Qt import QtGui, QtCore, QtWidgets
+from functools import partial
 
 
 class TableModel(QtCore.QAbstractTableModel):
@@ -139,8 +140,9 @@ class HighlightDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class MyHeaderView(QtWidgets.QHeaderView):
-    def __init__(self, parent=None):
+    def __init__(self, colWidth=10, parent=None):
         super(MyHeaderView, self).__init__(QtCore.Qt.Horizontal, parent)
+        self.colWidth = colWidth
         self._font = QtGui.QFont("Myriad Pro", 10)
         self._font.setBold(False)
         self._metrics = QtGui.QFontMetrics(self._font)
@@ -153,9 +155,24 @@ class MyHeaderView(QtWidgets.QHeaderView):
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.showMenu)
 
+    def mousePressEvent(self, event):
+        super(MyHeaderView, self).mousePressEvent(event)
+        nbShown = 0
+        for ind in range(self.count()):
+            if not self.isSectionHidden(ind):
+                nbShown += 1
+        outClick = event.pos().x() > self.colWidth * nbShown
+        if outClick:
+            self.parent().clearSelection()
+
     def showMenu(self, pos):
         popMenu = QtWidgets.QMenu(self)
-        newAction = popMenu.addAction("hello")
+        columnsSelected = self.selectionModel().selectedColumns()
+
+        newAction = popMenu.addAction("lock selected")
+        if not columnsSelected:
+            newAction.setEnabled(False)
+        newAction = popMenu.addAction("clear all Locks")
         # newAction.triggered.connect (self.doSetDockable)
         # newAction .setCheckable (True)
         # newAction .setChecked (self.isDockable)
@@ -165,10 +182,26 @@ class MyHeaderView(QtWidgets.QHeaderView):
             columnNames = model.columnNames()
             subMenuFollow = popMenu.addMenu("show Columns")
             for ind in hideColumnIndices:
-                newAction = subMenuFollow.addAction(columnNames[ind])
-                newAction.setCheckable(True)
-                newAction.setChecked(False)
+                # newAction = subMenuFollow .addAction(columnNames [ind])
+                # newAction.setCheckable (True)
+                # newAction.setChecked (False)
+                chbox = QtWidgets.QCheckBox(columnNames[ind], subMenuFollow)
+
+                chbox.setChecked(not self.isSectionHidden(ind))
+                chbox.toggled.connect(partial(self.toggledColumn, ind, columnNames[ind]))
+
+                checkableAction = QtWidgets.QWidgetAction(subMenuFollow)
+                checkableAction.setDefaultWidget(chbox)
+                subMenuFollow.addAction(checkableAction)
         popMenu.exec_(self.mapToGlobal(pos))
+
+    def toggledColumn(self, ind, ColumnName, checked):
+        print checked, ind, ColumnName
+        # theShow -----------------
+        if not checked:
+            self.parent().hideColumn(ind)
+        else:
+            self.parent().showColumn(ind)
 
     def paintSection(self, painter, rect, index):
         # https://github.com/openwebos/qt/blob/master/src/gui/itemviews/qheaderview.cpp
@@ -214,11 +247,12 @@ class TableView(QtWidgets.QTableView):
     """
 
     def __init__(self, *args, **kwargs):
+        colWidth = kwargs.pop("colWidth", None)
         QtWidgets.QTableView.__init__(self, *args, **kwargs)
         # self.sizeHintForRow = QtCore.QSize (0,10)
         self._hd = HighlightDelegate(self)
         self.setItemDelegate(self._hd)
-        self.headerView = MyHeaderView()
+        self.headerView = MyHeaderView(colWidth)
         self.setHorizontalHeader(self.headerView)
         self.verticalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
 
