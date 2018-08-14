@@ -173,7 +173,9 @@ class DataOfSkin(object):
             # --------------------------------------------------------------------
             # with GlobalContext (message = "prepareSkinfn numpy"):
             new2dArray = np.copy(self.orig2dArray)
-            np.putmask(new2dArray, self.maskArray, new2dArray + val)
+            # addValues ------------------------
+            selectedValues + val
+            # np.putmask(new2dArray ,self.maskArray , new2dArray+val)
 
             # get number selected columns ------------------------------------
             nbColumnsSelected = np.count_nonzero(self.maskArray[0])
@@ -538,6 +540,20 @@ class DataOfSkin(object):
             if cmds.objExists(driver + ".lockInfluenceWeights"):
                 cmds.setAttr(driver + ".lockInfluenceWeights", doLock)
                 self.lockedColumns[column] = doLock
+
+    def selectDeformers(self, selectedIndices):
+        toSel = [
+            self.driverNames[column]
+            for column in selectedIndices
+            if cmds.objExists(self.driverNames[column])
+        ]
+        cmds.select(toSel)
+
+    def selectVerts(self, selectedIndices):
+        selectedVertices = set([self.vertices[ind] for ind in selectedIndices])
+        toSel = self.orderMelList(selectedVertices, onlyStr=True)
+        toSel = ["{0}.vtx[{1}]".format(self.deformedShape, vtx) for vtx in toSel]
+        cmds.select(toSel)
 
     def unLockRows(self, selectedIndices):
         self.lockRows(selectedIndices, doLock=False)

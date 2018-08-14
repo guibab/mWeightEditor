@@ -163,6 +163,8 @@ class HighlightDelegate(QtWidgets.QStyledItemDelegate):
 class VertHeaderView(QtWidgets.QHeaderView):
     def __init__(self, parent=None):
         super(VertHeaderView, self).__init__(QtCore.Qt.Vertical, parent)
+        self.setMinimumWidth(20)
+
         self.setSectionsClickable(True)
         self.setHighlightSections(True)
         self.setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
@@ -176,6 +178,11 @@ class VertHeaderView(QtWidgets.QHeaderView):
     def showMenu(self, pos):
         popMenu = QtWidgets.QMenu(self)
         selectionIsEmpty = self.selectionModel().selection().isEmpty()
+
+        selAction = popMenu.addAction("select vertices")
+        selAction.triggered.connect(self.selectVerts)
+        selAction.setEnabled(not selectionIsEmpty)
+        popMenu.addSeparator()
 
         lockAction = popMenu.addAction("lock selected")
         lockAction.triggered.connect(self.lockSelectedRows)
@@ -218,6 +225,10 @@ class VertHeaderView(QtWidgets.QHeaderView):
 
         # selectedIndices = [indRow for indRow in chunks if not self.isSectionHidden(indRow) ]
         return chunks
+
+    def selectVerts(self):
+        selectedIndices = self.getSelectedRows()
+        self.model().datatable.selectVerts(selectedIndices)
 
     def lockSelectedRows(self):
         selectedIndices = self.getSelectedRows()
@@ -311,6 +322,10 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         selectedIndices = self.getSelectedColumns()
         self.model().datatable.unLockColumns(selectedIndices)
 
+    def selectDeformers(self):
+        selectedIndices = self.getSelectedColumns()
+        self.model().datatable.selectDeformers(selectedIndices)
+
     def clearLocks(self):
         self.model().datatable.unLockColumns(range(self.count()))
 
@@ -318,6 +333,11 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         popMenu = QtWidgets.QMenu(self)
         selectionIsEmpty = self.selectionModel().selection().isEmpty()
         # columnsSelected = self.selectionModel ().selectedColumns()
+
+        selAction = popMenu.addAction("select deformers")
+        selAction.triggered.connect(self.selectDeformers)
+        selAction.setEnabled(not selectionIsEmpty)
+        popMenu.addSeparator()
 
         lockAction = popMenu.addAction("lock selected")
         lockAction.triggered.connect(self.lockSelectedColumns)
@@ -336,6 +356,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         hideColumnIndices = model.datatable.hideColumnIndices
         if len(hideColumnIndices) > 0:
             columnNames = model.columnNames()
+            popMenu.addSeparator()
             subMenuFollow = popMenu.addMenu("show Columns")
             for ind in hideColumnIndices:
                 # newAction = subMenuFollow .addAction(columnNames [ind])
