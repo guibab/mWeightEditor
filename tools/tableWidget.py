@@ -98,6 +98,9 @@ class TableModel(QtCore.QAbstractTableModel):
     def getColumnText(self, col):
         return self.datatable.shortDriverNames[col]
 
+    def getRowText(self, row):
+        return str(self.datatable.vertices[row])
+
     def flags(self, index):
         if not index.isValid():
             return QtCore.Qt.ItemIsEnabled
@@ -172,16 +175,35 @@ class VertHeaderView(QtWidgets.QHeaderView):
 
     def showMenu(self, pos):
         popMenu = QtWidgets.QMenu(self)
+        selectionIsEmpty = self.selectionModel().selection().isEmpty()
 
         lockAction = popMenu.addAction("lock selected")
         lockAction.triggered.connect(self.lockSelectedRows)
+        lockAction.setEnabled(not selectionIsEmpty)
 
         unlockAction = popMenu.addAction("unlock selected")
         unlockAction.triggered.connect(self.unlockSelectedRows)
+        unlockAction.setEnabled(not selectionIsEmpty)
 
         clearLocksAction = popMenu.addAction("clear all Locks")
         clearLocksAction.triggered.connect(self.clearLocks)
         popMenu.exec_(self.mapToGlobal(pos))
+
+    def paintSection(self, painter, rect, index):
+        theBGBrush = self.greyBG if self.model().datatable.isRowLocked(index) else self.regularBG
+        if self.model().datatable.isRowLocked(index):
+            text = self.model().getRowText(index)
+            painter.save()
+            painter.setBrush(self.greyBG)
+            pen = QtGui.QPen(QtGui.QColor(0, 0, 0))
+            pen.setWidth(2)
+            painter.setPen(pen)
+            painter.drawRect(rect)
+            painter.restore()
+            painter.drawText(rect, QtCore.Qt.AlignCenter, text)
+            return
+        else:
+            return super(VertHeaderView, self).paintSection(painter, rect, index)
 
     def getSelectedRows(self):
         """

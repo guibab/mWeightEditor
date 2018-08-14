@@ -60,10 +60,15 @@ QHeaderView::section {
     color: black;
     border : 1px solid black;
 }
-MyHeaderView{
+VertHeaderView{
     color: black;
     border : 0px solid black;
 }
+HorizHeaderView{
+    color: black;
+    border : 0px solid black;
+}
+
 """
 """
 MyHeaderView{
