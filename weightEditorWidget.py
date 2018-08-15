@@ -5,8 +5,10 @@ self = __main__.weightEditor
 from Qt import QtGui, QtCore, QtWidgets
 
 # import shiboken2 as shiboken
+from functools import partial
 from maya import cmds
 import blurdev
+
 
 from tools.skinData import DataOfSkin
 from tools.tableWidget import TableView, TableModel
@@ -95,6 +97,7 @@ class SkinWeightWin(QtWidgets.QDialog):
     """
 
     colWidth = 30
+    maxWidthCentralWidget = 340
 
     def __init__(self, parent=None):
         super(SkinWeightWin, self).__init__(parent)
@@ -168,6 +171,30 @@ class SkinWeightWin(QtWidgets.QDialog):
             return
         super(SkinWeightWin, self).keyPressEvent(event)
 
+    def addButtonsDirectSet(self):
+        lstBtns = [0, 25, 100.0 / 3, 50, 200 / 3.0, 75, 100]
+        lstStr = ["0", "1/4", "1/3", "1/2", "2/3", "3/4", "1"]
+
+        Hlayout = QtWidgets.QHBoxLayout(self)
+        Hlayout.setContentsMargins(0, 0, 0, 0)
+        Hlayout.setSpacing(0)
+
+        theCarryWidget = QtWidgets.QWidget()
+        Hlayout.addWidget(theCarryWidget)
+
+        carryWidgLayoutlayout = QtWidgets.QHBoxLayout(theCarryWidget)
+        carryWidgLayoutlayout.setContentsMargins(40, 0, 0, 0)
+        carryWidgLayoutlayout.setSpacing(0)
+
+        for theVal in lstBtns:
+            newBtn = QtWidgets.QPushButton("{0:.0f}".format(theVal))
+            newBtn.clicked.connect(self.prepareToSetValue)
+            newBtn.clicked.connect(partial(self.doAddValue, theVal / 100.0))
+            carryWidgLayoutlayout.addWidget(newBtn)
+        theCarryWidget.setMaximumSize(self.maxWidthCentralWidget, 14)
+
+        return Hlayout
+
     def createWindow(self):
         theLayout = self.layout()  # QtWidgets.QVBoxLayout(self)
         theLayout.setContentsMargins(10, 10, 10, 10)
@@ -185,8 +212,9 @@ class SkinWeightWin(QtWidgets.QDialog):
         Hlayout.setContentsMargins(0, 0, 0, 0)
         Hlayout.setSpacing(0)
         Hlayout.addWidget(self.valueSetter)
-        self.valueSetter.setMaximumWidth(300)
+        self.valueSetter.setMaximumWidth(self.maxWidthCentralWidget)
 
+        theLayout.addLayout(self.addButtonsDirectSet())
         theLayout.addLayout(Hlayout)
         theLayout.addWidget(self._tv)
 
