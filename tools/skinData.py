@@ -31,6 +31,7 @@ class DataOfSkin(object):
         self.theSkinCluster = ""
         self.vertices = []
         self.driverNames = []
+        self.nbDrivers = 0
         self.shortDriverNames = []
         self.skinningMethod = ""
         self.normalizeWeights = []
@@ -450,6 +451,7 @@ class DataOfSkin(object):
         )
 
         np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), new2dArrayDiv)
+        self.computeSumArray()
 
     def callUndo(self):
         if self.UNDOstack:

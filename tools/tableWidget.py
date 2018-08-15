@@ -11,6 +11,9 @@ class TableModel(QtCore.QAbstractTableModel):
         self.brownBrush = QtGui.QBrush(QtGui.QColor(130, 130, 90))
         self.greyBrush = QtGui.QBrush(QtGui.QColor(140, 140, 140))
         self.greyDarkerBrush = QtGui.QBrush(QtGui.QColor(80, 80, 80))
+        self.sumBrush = QtGui.QBrush(QtGui.QColor(100, 100, 100))
+        self.redBrush = QtGui.QBrush(QtGui.QColor(150, 100, 100))
+        self.whiteBrush = QtGui.QBrush(QtGui.QColor(200, 200, 200))
 
     def update(self, dataIn):
         print "Updating Model"
@@ -42,12 +45,18 @@ class TableModel(QtCore.QAbstractTableModel):
         elif role == QtCore.Qt.TextAlignmentRole:
             return QtCore.Qt.AlignCenter  # | QtCore.Qt.AlignVCenter)
         elif role == QtCore.Qt.BackgroundRole:
-            if self.isLocked(index):
+            if self.isSumColumn(index):
+                return (
+                    self.sumBrush if round(self.realData(index) * 100, 1) == 100 else self.redBrush
+                )
+            elif self.isLocked(index):
                 return self.greyBrush
             elif self.realData(index) != 0.0:
                 return self.brownBrush
         elif role == QtCore.Qt.ForegroundRole:
-            if self.isLocked(index):
+            if self.isSumColumn(index):
+                return self.whiteBrush
+            elif self.isLocked(index):
                 return self.greyDarkerBrush
         else:
             return None
@@ -83,6 +92,10 @@ class TableModel(QtCore.QAbstractTableModel):
         row = index.row()
         column = index.column()
         return self.datatable.getValue(row, column)
+
+    def isSumColumn(self, index):
+        column = index.column()
+        return column >= self.datatable.nbDrivers
 
     def headerData(self, col, orientation, role):
         if role == QtCore.Qt.DisplayRole:
@@ -400,6 +413,8 @@ class HorizHeaderView(QtWidgets.QHeaderView):
             painter.setPen(pen)
             painter.drawRect(rect)
             painter.restore()
+
+            painter.setPen(QtGui.QColor(200, 200, 200))
             painter.drawText(rect, QtCore.Qt.AlignCenter, data)
         else:
             isBold = False

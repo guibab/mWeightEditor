@@ -248,9 +248,10 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.setColumnVisSize()
 
     def setColumnVisSize(self):
-        for i in range(self.dataOfSkin.columnCount):
-            self._tv.setColumnWidth(i, self.colWidth)
-        self._tv.setColumnWidth(i + 1, self.colWidth + 10)  # sum column
+        if self.dataOfSkin.columnCount:
+            for i in range(self.dataOfSkin.columnCount):
+                self._tv.setColumnWidth(i, self.colWidth)
+            self._tv.setColumnWidth(i + 1, self.colWidth + 10)  # sum column
         self.hideColumns()
 
     def hideColumns(self):
