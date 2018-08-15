@@ -156,7 +156,14 @@ class SkinWeightWin(QtWidgets.QDialog):
         ctrlPressed = event.modifiers() == QtCore.Qt.ControlModifier
 
         if ctrlPressed and event.key() == QtCore.Qt.Key_Z:
+            self.storeSelection()
+            self._tm.beginResetModel()
+
             self.dataOfSkin.callUndo()
+
+            self._tm.endResetModel()
+            self.retrieveSelection()
+
             # super(SkinWeightWin, self).keyPressEvent(event)
             return
         super(SkinWeightWin, self).keyPressEvent(event)
