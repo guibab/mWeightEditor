@@ -10,7 +10,7 @@ from maya import cmds
 class ValueSetting(QtWidgets.QWidget):
     theStyleSheet = "QDoubleSpinBox {color: black; background-color:rgb(200,200,200) ; border: 1px solid black;text-align: center;}"
 
-    def __init__(self, parent=None, singleStep=0.1, precision=2):
+    def __init__(self, parent=None, singleStep=0.1, precision=1):
         super(ValueSetting, self).__init__(parent=None)
         self.theProgress = ProgressItem("skinVal", szrad=0, value=50)
         self.theProgress.mainWindow = parent
@@ -55,6 +55,8 @@ class ValueSetting(QtWidgets.QWidget):
             if isinstance(chd, QtWidgets.QLineEdit):
                 self.theLineEdit = chd
                 break
+        self.theLineEdit.returnPressed.connect(self.spinnerValueEntered)
+
         self.theSpinner.focusInEvent = self.theSpinner_focusInEvent
 
         layout.addWidget(self.theSpinner)
@@ -72,10 +74,10 @@ class ValueSetting(QtWidgets.QWidget):
 
     def spinnerValueEntered(self):
         theVal = self.theSpinner.value()
-        print "value Set {0}".format(theVal)
+        # print "value Set {0}".format (theVal)
 
         self.mainWindow.prepareToSetValue()
-        self.mainWindow.doAddValue(theVal)
+        self.mainWindow.doAddValue(theVal / 100.0)
         self.setVal(self.theProgress.releasedValue)
 
     def setVal(self, val):
@@ -89,7 +91,7 @@ class ValueSetting(QtWidgets.QWidget):
 
         # else : # wheelEvent
 
-        self.theSpinner.setValue(theVal)
+        self.theSpinner.setValue(theVal * 100.0)
 
     """
     def valueEntered (self, theVal) : 

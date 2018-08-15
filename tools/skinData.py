@@ -151,7 +151,7 @@ class DataOfSkin(object):
         self.nbIndicesSettable = np.sum(self.sumMasks, axis=1)
         self.rmMasks = ~np.add(~maskOppSelection, lockedMask)
 
-        toNormalizeTo = np.ma.array(self.orig2dArray, mask=~lockedMask, fill_value=0)
+        toNormalizeTo = np.ma.array(self.orig2dArray, mask=lockedMask, fill_value=0)
         self.toNormalizeToSum = toNormalizeTo.sum(axis=1)
         # ---------------------------------------------------------------------------------------------
         # NOW Prepare for settingSkin Cluster ---------------------------------------------------------
@@ -241,12 +241,17 @@ class DataOfSkin(object):
             sumValues = myMaskedData + arrayofVals
 
             sumValues = sumValues.clip(min=0, max=1.0)
-            """
+
             # normalize the sum to the max value unLocked ----------
             fullSum = sumValues.sum(axis=1)
-            sumValuesNormalized =  sumValues / fullSum[:, np.newaxis] * self.toNormalizeToSum [:, np.newaxis]
-            np.copyto (sumValues , sumValuesNormalized, where = fullSum[:, np.newaxis]>self.toNormalizeToSum [:, np.newaxis])
-            """
+            sumValuesNormalized = (
+                sumValues / fullSum[:, np.newaxis] * self.toNormalizeToSum[:, np.newaxis]
+            )
+            np.copyto(
+                sumValues,
+                sumValuesNormalized,
+                where=fullSum[:, np.newaxis] > self.toNormalizeToSum[:, np.newaxis],
+            )
 
             # remove the values -----------------------------------
             remainingMaskedData = np.ma.array(new2dArray, mask=~self.rmMasks, fill_value=0)
