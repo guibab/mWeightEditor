@@ -79,6 +79,7 @@ class ValueSetting(QtWidgets.QWidget):
         self.mainWindow.prepareToSetValue()
         self.mainWindow.doAddValue(theVal / 100.0)
         self.setVal(self.theProgress.releasedValue)
+        self.mainWindow.dataOfSkin.postSkinSet()
 
     def setVal(self, val):
         # theVal = val/100.

@@ -40,8 +40,8 @@ class TableModel(QtCore.QAbstractTableModel):
             # return '{0:.2f}'.format(self.realData(index))
             return round(self.realData(index) * 100, 1)
         elif role == QtCore.Qt.EditRole:
-            ff = self.realData(index)
-            return "{0:.5f}".format(ff).rstrip("0") + "0"[0 : (ff % 1 == 0)]
+            ff = self.realData(index) * 100
+            return "{0:.3f}".format(ff).rstrip("0") + "0"[0 : (ff % 1 == 0)]
         elif role == QtCore.Qt.TextAlignmentRole:
             return QtCore.Qt.AlignCenter  # | QtCore.Qt.AlignVCenter)
         elif role == QtCore.Qt.BackgroundRole:
@@ -64,7 +64,7 @@ class TableModel(QtCore.QAbstractTableModel):
     def setData(self, index, value, role=QtCore.Qt.EditRole):
         row = index.row()
         column = index.column()
-        self.datatable.setValue(row, column, value)
+        self.datatable.setValue(row, column, float(value) / 100.0)
 
         self.beginResetModel()
         self.datatable.rebuildRawSkin()

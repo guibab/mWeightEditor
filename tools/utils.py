@@ -9,11 +9,19 @@ import time, datetime
 
 
 class GlobalContext(object):
-    def __init__(self, raise_error=True, message="processing", openUndo=True, suspendRefresh=False):
+    def __init__(
+        self,
+        raise_error=True,
+        message="processing",
+        openUndo=True,
+        suspendRefresh=False,
+        doPrint=True,
+    ):
         self.raise_error = raise_error
         self.openUndo = openUndo
         self.suspendRefresh = suspendRefresh
         self.message = message
+        self.doPrint = doPrint
 
     def __enter__(self):
         self.startTime = time.time()
@@ -33,9 +41,9 @@ class GlobalContext(object):
             cmds.refresh()
         completionTime = time.time() - self.startTime
         timeRes = str(datetime.timedelta(seconds=int(completionTime))).split(":")
-        result = "{0} hours {1} mins {2} secs".format(*timeRes)
-        print "{0} executed in {1} [{2:.2f} secs]".format(self.message, result, completionTime)
-
+        if self.doPrint:
+            result = "{0} hours {1} mins {2} secs".format(*timeRes)
+            print "{0} executed in {1} [{2:.2f} secs]".format(self.message, result, completionTime)
         if exc_type is not None:
             if self.raise_error:
                 import traceback

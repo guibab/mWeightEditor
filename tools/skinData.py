@@ -90,7 +90,17 @@ class DataOfSkin(object):
             return listInds
 
     def getIndicesFromSelection(self, sel):
-        indices = [el.split(".vtx[")[-1][:-1] for el in sel if ".vtx" in el]
+        selectedVertices = [el for el in sel if ".vtx[" in el]
+        indices = [el.split(".vtx[")[-1][:-1] for el in selectedVertices if ".vtx" in el]
+
+        selectedFaces = [el for el in sel if ".f[" in el]
+        if selectedFaces:
+            convertedVertices = cmds.polyListComponentConversion(selectedFaces, ff=True, tv=True)
+            indices += [el.split(".vtx[")[-1][:-1] for el in convertedVertices if ".vtx" in el]
+        selectedEdges = [el for el in sel if ".e[" in el]
+        if selectedEdges:
+            convertedVertices = cmds.polyListComponentConversion(selectedEdges, fe=True, tv=True)
+            indices += [el.split(".vtx[")[-1][:-1] for el in convertedVertices if ".vtx" in el]
         allIndices = set()
         for index in indices:
             if ":" in index:
@@ -232,17 +242,17 @@ class DataOfSkin(object):
     """
 
     def setSkinData(self, val):
-        with GlobalContext(message="prepareSkinfn numpy"):
+        with GlobalContext(message="prepareSkinfn numpy", doPrint=False):
             new2dArray = np.copy(self.orig2dArray)
 
-            # add the values ---------------------------------------
+            # add the values ------------------------------------------------------------------------------------------------
             arrayofVals = val / self.nbIndicesSettable[:, np.newaxis]
             myMaskedData = np.ma.array(new2dArray, mask=~self.sumMasks, fill_value=0)
             sumValues = myMaskedData + arrayofVals
 
             sumValues = sumValues.clip(min=0, max=1.0)
 
-            # normalize the sum to the max value unLocked ----------
+            # normalize the sum to the max value unLocked -------------------------------------------------------------------
             fullSum = sumValues.sum(axis=1)
             sumValuesNormalized = (
                 sumValues / fullSum[:, np.newaxis] * self.toNormalizeToSum[:, np.newaxis]
@@ -253,22 +263,20 @@ class DataOfSkin(object):
                 where=fullSum[:, np.newaxis] > self.toNormalizeToSum[:, np.newaxis],
             )
 
-            # remove the values -----------------------------------
+            # remove the values ---------------------------------------------------------------------------------------------
             remainingMaskedData = np.ma.array(new2dArray, mask=~self.rmMasks, fill_value=0)
             sumToNormalizeTo = remainingMaskedData.sum(axis=1)
 
             restVals = sumToNormalizeTo - val
             toMult = restVals / sumToNormalizeTo
             removeValues = remainingMaskedData * toMult[:, np.newaxis]
-            # clip it --------------------
-            removeValues = removeValues.clip(min=0, max=1.0)
+            # clip it --------------------------------------------------------------------------------------------------------
+            removeValues = removeValues.clip(min=0.0, max=1.0)
+            # renormalize ---------------------------
 
-            # add with the mask -----------------------------------
-            # np.putmask(new2dArray ,sumValues.mask , sumValues)
-            # np.putmask(new2dArray ,removeValues.mask , removeValues)
+            # add with the mask ---------------------------------------------------------------------------------------------
             np.copyto(new2dArray, sumValues, where=~sumValues.mask)
             np.copyto(new2dArray, removeValues, where=~removeValues.mask)
-
             # new2dArray = new2dArray.clip (min=0, max=1.0)
 
             """

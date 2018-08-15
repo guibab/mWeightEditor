@@ -172,8 +172,21 @@ class SkinWeightWin(QtWidgets.QDialog):
         super(SkinWeightWin, self).keyPressEvent(event)
 
     def addButtonsDirectSet(self):
-        lstBtns = [0, 25, 100.0 / 3, 50, 200 / 3.0, 75, 100]
-        lstStr = ["0", "1/4", "1/3", "1/2", "2/3", "3/4", "1"]
+        # lstBtns = [0,25,100./3,50,200/3.,75,100]
+        lstBtns = [
+            -100,
+            -75,
+            -200 / 3.0,
+            -50,
+            -100.0 / 3,
+            -25,
+            25,
+            100.0 / 3,
+            50,
+            200 / 3.0,
+            75,
+            100,
+        ]
 
         Hlayout = QtWidgets.QHBoxLayout(self)
         Hlayout.setContentsMargins(0, 0, 0, 0)
@@ -188,8 +201,11 @@ class SkinWeightWin(QtWidgets.QDialog):
 
         for theVal in lstBtns:
             newBtn = QtWidgets.QPushButton("{0:.0f}".format(theVal))
+
             newBtn.clicked.connect(self.prepareToSetValue)
             newBtn.clicked.connect(partial(self.doAddValue, theVal / 100.0))
+            newBtn.clicked.connect(self.dataOfSkin.postSkinSet)
+
             carryWidgLayoutlayout.addWidget(newBtn)
         theCarryWidget.setMaximumSize(self.maxWidthCentralWidget, 14)
 
