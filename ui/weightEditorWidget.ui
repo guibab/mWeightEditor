@@ -142,14 +142,14 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="pushButton_9">
+      <widget class="QPushButton" name="averageBTN">
        <property name="text">
         <string>Average</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="pushButton_10">
+      <widget class="QPushButton" name="smoothBTN">
        <property name="text">
         <string>Smooth</string>
        </property>

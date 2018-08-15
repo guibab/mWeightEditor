@@ -1,3 +1,7 @@
+"""
+import __main__
+self = __main__.weightEditor
+"""
 from Qt import QtGui, QtCore, QtWidgets
 
 # import shiboken2 as shiboken
@@ -103,6 +107,9 @@ class SkinWeightWin(QtWidgets.QDialog):
 
         __main__.__dict__["weightEditor"] = self
 
+        if not cmds.pluginInfo("blurSkin", query=True, loaded=True):
+            cmds.loadPlugin("blurSkin")
+
         blurdev.gui.loadUi(__file__, self)
 
         # QtWidgets.QWidget.__init__(self, parent)
@@ -166,8 +173,6 @@ class SkinWeightWin(QtWidgets.QDialog):
         self._tv.setModel(self._tm)
         # self._tm._tv = self._tv
 
-        self.refreshBTN.clicked.connect(self.refreshBtn)
-
         self.valueSetter = ValueSetting(self)  # ProgressItem("BlendShape", szrad = 0, value = 0)
         Hlayout = QtWidgets.QHBoxLayout(self)
         Hlayout.setContentsMargins(0, 0, 0, 0)
@@ -178,15 +183,26 @@ class SkinWeightWin(QtWidgets.QDialog):
         theLayout.addLayout(Hlayout)
         theLayout.addWidget(self._tv)
 
-        for i in range(self.dataOfSkin.columnCount):
-            self._tv.setColumnWidth(i, self.colWidth)
-        self.hideColumns()
+        self.setColumnVisSize()
+        # -----------------------------------------------------------
+
+        self.refreshBTN.clicked.connect(self.refreshBtn)
+        self.smoothBTN.clicked.connect(self.smooth)
+
+    def smooth(self):
+        cmds.blurSkinCmd(command="smooth", repeat=3)
 
     def prepareToSetValue(self):
         # with GlobalContext (message = "prepareValuesforSetSkinData"):
         chunks = self.getRowColumnsSelected()
+
+        actualyVisibleColumns = [
+            indCol
+            for indCol in self.dataOfSkin.hideColumnIndices
+            if not self._tv.HHeaderView.isSectionHidden(indCol)
+        ]
         if chunks:
-            self.dataOfSkin.prepareValuesforSetSkinData(chunks)
+            self.dataOfSkin.prepareValuesforSetSkinData(chunks, actualyVisibleColumns)
             return True
         return False
 
@@ -229,8 +245,12 @@ class SkinWeightWin(QtWidgets.QDialog):
             self._tv.showColumn(ind)
         self.dataOfSkin.getAllData()
         self._tm.endResetModel()
+        self.setColumnVisSize()
+
+    def setColumnVisSize(self):
         for i in range(self.dataOfSkin.columnCount):
             self._tv.setColumnWidth(i, self.colWidth)
+        self._tv.setColumnWidth(i + 1, self.colWidth + 10)  # sum column
         self.hideColumns()
 
     def hideColumns(self):

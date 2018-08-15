@@ -21,7 +21,7 @@ class TableModel(QtCore.QAbstractTableModel):
         return self.datatable.rowCount
 
     def columnCount(self, parent=QtCore.QModelIndex()):
-        return self.datatable.columnCount
+        return self.datatable.columnCount + 1
 
     def columnNames(self):
         return self.datatable.shortDriverNames
@@ -96,7 +96,10 @@ class TableModel(QtCore.QAbstractTableModel):
             return None
 
     def getColumnText(self, col):
-        return self.datatable.shortDriverNames[col]
+        try:
+            return self.datatable.shortDriverNames[col]
+        except:
+            return "total"
 
     def getRowText(self, row):
         return str(self.datatable.vertices[row])
@@ -106,8 +109,10 @@ class TableModel(QtCore.QAbstractTableModel):
             return QtCore.Qt.ItemIsEnabled
         # sresult = super(TableModel,self).flags(index)
         # result = sresult | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
-
-        if self.isLocked(index):
+        column = index.column()
+        if column == self.datatable.nbDrivers:  # sum column
+            result = QtCore.Qt.ItemIsEnabled
+        elif self.isLocked(index):
             result = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
         else:
             result = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
@@ -384,35 +389,49 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         # https://github.com/openwebos/qt/blob/master/src/gui/itemviews/qheaderview.cpp
         if not rect.isValid():
             return
-        isBold = False
-        sel = self.parent().selectionModel().selection()
-        for item in sel:
-            isBold = item.left() <= index <= item.right()
-            if isBold:
-                break
-        self._font.setBold(isBold)
+        isLastColumn = index >= self.model().datatable.nbDrivers
         data = self._get_data(index)
-        # painter.setPen (QtGui.QColor (0,0,0))
-        painter.setFont(self._font)
-        painter.rotate(-90)
-        x = -rect.height()
-        y = rect.left()
 
-        theBGBrush = self.greyBG if self.model().datatable.isColumnLocked(index) else self.regularBG
-        # theBGBrush = self.regularBG
+        if isLastColumn:
+            painter.save()
+            painter.setBrush(self.greyBG)
+            pen = QtGui.QPen(QtGui.QColor(0, 0, 0))
+            pen.setWidth(2)
+            painter.setPen(pen)
+            painter.drawRect(rect)
+            painter.restore()
+            painter.drawText(rect, QtCore.Qt.AlignCenter, data)
+        else:
+            isBold = False
+            sel = self.parent().selectionModel().selection()
+            for item in sel:
+                isBold = item.left() <= index <= item.right()
+                if isBold:
+                    break
+            self._font.setBold(isBold)
+            # painter.setPen (QtGui.QColor (0,0,0))
+            painter.setFont(self._font)
+            painter.rotate(-90)
+            x = -rect.height()
+            y = rect.left()
 
-        painter.setBrush(theBGBrush)
-        painter.drawRect(x + 1, y - 1, rect.height() - 1, rect.width())
+            theBGBrush = (
+                self.greyBG if self.model().datatable.isColumnLocked(index) else self.regularBG
+            )
+            # theBGBrush = self.regularBG
 
-        theColor = self.color(index)
-        painter.setBrush(QtGui.QBrush(QtGui.QColor(*theColor)))
-        painter.drawRect(x + 1, y - 1, 20, rect.width())
+            painter.setBrush(theBGBrush)
+            painter.drawRect(x + 1, y - 1, rect.height() - 1, rect.width())
 
-        painter.drawText(
-            -rect.height() + self._margin + self._colorDrawHeight,
-            rect.left() + (rect.width() + self._descent) / 2,
-            data,
-        )
+            theColor = self.color(index)
+            painter.setBrush(QtGui.QBrush(QtGui.QColor(*theColor)))
+            painter.drawRect(x + 1, y - 1, 20, rect.width())
+
+            painter.drawText(
+                -rect.height() + self._margin + self._colorDrawHeight,
+                rect.left() + (rect.width() + self._descent) / 2,
+                data,
+            )
 
     def sizeHint(self):
         return QtCore.QSize(10, self._get_text_width() + 2 * self._margin + self._colorDrawHeight)
