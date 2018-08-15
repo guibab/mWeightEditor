@@ -134,10 +134,10 @@ class DataOfSkin(object):
         maskOppSelection[:, hiddenColumns] = False
 
         # get the mask of the locks ------------------------------------------
-        # lockColumns = np.array(self.lockedColumns  )
-        # lockRowsIndices = isin  (self.vertices, self.lockedVertices)
-        lockedRows = [ind for ind in range(nbRows) if self.vertices[ind] in self.lockedVertices]
         lockedMask = np.tile(self.lockedColumns, (nbRows, 1))
+        lockedRows = [
+            ind for ind in range(nbRows) if self.vertices[ind + Mtop] in self.lockedVertices
+        ]
         lockedMask[lockedRows] = True
 
         # GET the sub ARRAY ---------------------------------------------------------------------------------
@@ -241,16 +241,13 @@ class DataOfSkin(object):
             myMaskedData = np.ma.array(new2dArray, mask=~self.sumMasks, fill_value=0)
             sumValues = myMaskedData + arrayofVals
 
+            sumValues = sumValues.clip(min=0, max=1.0)
+            """
             # normalize the sum to the max value unLocked ----------
             fullSum = sumValues.sum(axis=1)
-            sumValuesNormalized = (
-                sumValues / fullSum[:, np.newaxis] * self.toNormalizeToSum[:, np.newaxis]
-            )
-            np.copyto(
-                sumValues,
-                sumValuesNormalized,
-                where=fullSum[:, np.newaxis] > self.toNormalizeToSum[:, np.newaxis],
-            )
+            sumValuesNormalized =  sumValues / fullSum[:, np.newaxis] * self.toNormalizeToSum [:, np.newaxis]
+            np.copyto (sumValues , sumValuesNormalized, where = fullSum[:, np.newaxis]>self.toNormalizeToSum [:, np.newaxis])
+            """
 
             # remove the values -----------------------------------
             remainingMaskedData = np.ma.array(new2dArray, mask=~self.rmMasks, fill_value=0)
@@ -404,30 +401,6 @@ class DataOfSkin(object):
     def actuallySetValue(
         self, new2dArrayDiv, sub2DArrayToSet, userComponents, influenceIndices, shapePath, sknFn
     ):
-        """
-        # quick settingWeights ------------------------------
-        doubles = new2dArrayDiv.flatten()
-        count = new2dArrayDiv.size
-        util = OpenMaya.MScriptUtil()
-        util.createFromList(doubles, count)
-        doublePtr = util.asDoublePtr()
-        newArray = OpenMaya.MDoubleArray(doublePtr, count)
-        """
-        # way slower -------------------------------
-        # for ind, el in enumerate(new2dArrayDiv.flat) : self.newArray.set( el, ind)
-
-        # WAY WAY slower -------------------------------
-        """
-        with GlobalContext (message = "prepareValuesforSetSkinData"):        
-            new2dArrayDiv = np.copy (self.dataOfSkin.orig2dArray   )
-            count = new2dArrayDiv.size    
-            #util = OpenMaya.MScriptUtil()
-            res = OpenMaya.MScriptUtil( self.dataOfSkin.newArray)
-            doublePtr = res.asDoublePtr()
-            for i, val in enumerate(new2dArrayDiv.flat): res.setDoubleArray (doublePtr, i, val )
-            newArray = OpenMaya.MDoubleArray(doublePtr, count)
-
-        """
         arrayForSetting = np.copy(new2dArrayDiv)
         doubles = arrayForSetting.flatten()
         count = doubles.size
@@ -450,6 +423,7 @@ class DataOfSkin(object):
             shapePath, userComponents, influenceIndices, newArray, normalize, UndoValues
         )
 
+        # do the stting in the 2dArray -----
         np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), new2dArrayDiv)
         self.computeSumArray()
 
