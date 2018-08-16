@@ -6,7 +6,7 @@ import numpy as np
 
 class TableModel(QtCore.QAbstractTableModel):
     def __init__(self, parent=None, *args):
-        super(TableModel, self).__init__()
+        super(TableModel, self).__init__(parent)
         self.datatable = None
         self.brownBrush = QtGui.QBrush(QtGui.QColor(130, 130, 90))
         self.greyBrush = QtGui.QBrush(QtGui.QColor(140, 140, 140))
@@ -62,26 +62,17 @@ class TableModel(QtCore.QAbstractTableModel):
             return None
 
     def setData(self, index, value, role=QtCore.Qt.EditRole):
+        # print "SET DATA 3"
+        # super(TableModel, self).setData( index, value, role)
         row = index.row()
         column = index.column()
-        self.datatable.setValue(row, column, float(value) / 100.0)
+        print row, column, value
 
-        self.beginResetModel()
-        self.datatable.rebuildRawSkin()
-        self.endResetModel()
-
-        super(TableModel, self).setData(index, value, role)
-        """
-        try:
-            self.items[index.row()] = value 
-            left = self.createIndex(index.row(), 0)
-            right = self.createIndex(index.row(), self.columnCount())
-            self.dataChanged.emit(left, right)
-            return True
-        except:
-            pass
-        return False             
-        """
+        # now set the value
+        self.parent().prepareToSetValue()
+        self.parent().doAddValue(value / 100.0, forceAbsolute=True)
+        self.datatable.postSkinSet()
+        return True
 
     def isLocked(self, index):
         row = index.row()
@@ -135,11 +126,12 @@ class TableModel(QtCore.QAbstractTableModel):
 class HighlightDelegate(QtWidgets.QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         # print "createEditor"
-        editor = QtWidgets.QLineEdit(parent)
-        editor.setStyleSheet("QLineEdit { background-color: yellow; color : black; }")
-        validator = QtGui.QDoubleValidator()
-        editor.setValidator(validator)
+        editor = QtWidgets.QDoubleSpinBox(parent)
+        editor.setStyleSheet("QDoubleSpinBox { background-color: yellow; color : black; }")
+        editor.setMaximum(100)
+        editor.setMinimum(0)
         editor.setMinimumWidth(50)
+        editor.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
         return editor
 
     """
@@ -151,7 +143,7 @@ class HighlightDelegate(QtWidgets.QStyledItemDelegate):
         editor.selectAll() 
         print realData
         super(HighlightDelegate, self).setEditorData(editor, index)
-
+    
     def closeEditor(self, editor, hint=None):
         print "closeEditor"
         super(HighlightDelegate, self).closeEditor(editor, hint)

@@ -291,11 +291,11 @@ class SkinWeightWin(QtWidgets.QDialog):
             newSel.select(self._tm.index(top, left), self._tm.index(bottom, right))
         self._tv.selectionModel().select(newSel, QtCore.QItemSelectionModel.ClearAndSelect)
 
-    def doAddValue(self, val):
+    def doAddValue(self, val, forceAbsolute=False):
         self.storeSelection()
         self._tm.beginResetModel()
 
-        if self.valueSetter.addMode:
+        if self.valueSetter.addMode and not forceAbsolute:
             self.dataOfSkin.setSkinData(val)
         else:
             self.dataOfSkin.absoluteVal(val)

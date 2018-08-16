@@ -754,6 +754,4 @@ class DataOfSkin(object):
         deformerName = self.driverNames[column]
         theVtx = "{0}.vtx[{1}]".format(self.deformedShape, vertexIndex)
         print self.theSkinCluster, theVtx, deformerName, value
-        cmds.skinPercent(
-            self.theSkinCluster, theVtx, transformValue=(deformerName, float(value)), normalize=True
-        )
+        # cmds.skinPercent( self.theSkinCluster,theVtx, transformValue=(deformerName, float (value)), normalize = True)
