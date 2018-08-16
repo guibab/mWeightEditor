@@ -254,15 +254,16 @@ class DataOfSkin(object):
             remainingData = np.ma.array(remainingArr, mask=~self.rmMasks, fill_value=0)
             sum_remainingData = remainingData.sum(axis=1)
 
-            # first make new mask where remaining values are zero (so no operation can be done ....)
+            # ---------- first make new mask where remaining values are zero (so no operation can be done ....) -------------
             zeroRemainingIndices = np.flatnonzero(sum_remainingData == 0)
             sumMasksUpdate = self.sumMasks.copy()
             sumMasksUpdate[zeroRemainingIndices, :] = False
 
             # add the values ------------------------------------------------------------------------------------------------
-            # absValues = np.ma.array(selectArr , mask = ~self.sumMasks, fill_value = 0 )
-            absValues = np.ma.array(selectArr, mask=~sumMasksUpdate, fill_value=0)
-
+            if val == 0.0:
+                absValues = np.ma.array(selectArr, mask=~sumMasksUpdate, fill_value=0)
+            else:
+                absValues = np.ma.array(selectArr, mask=~self.sumMasks, fill_value=0)
             # normalize the sum to the max value unLocked -------------------------------------------------------------------
             sum_absValues = absValues.sum(axis=1)
             absValuesNormalized = (
@@ -273,6 +274,10 @@ class DataOfSkin(object):
                 absValuesNormalized,
                 where=sum_absValues[:, np.newaxis] > self.toNormalizeToSum[:, np.newaxis],
             )
+            if val != 0.0:  # normalize where rest is zero
+                np.copyto(
+                    absValues, absValuesNormalized, where=sum_remainingData[:, np.newaxis] == 0.0
+                )
             sum_absValues = absValues.sum(axis=1)
 
             # non selected not locked Rest ---------------------------------------------------------------------------------------------
