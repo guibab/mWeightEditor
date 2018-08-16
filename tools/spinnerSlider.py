@@ -1,6 +1,37 @@
 from Qt import QtGui, QtCore, QtWidgets
 from maya import cmds
 from utils import toggleBlockSignals
+import math
+
+
+class ButtonPruneWeights(QtWidgets.QPushButton):
+    def __init__(self, parent=None):
+        super(ButtonPruneWeights, self).__init__(parent)
+        self.setMinimumHeight(24)
+        self.getValuePrecision()
+
+    def getValuePrecision(self):
+        self.precision = (
+            cmds.optionVar(q="weightEditorPrecision")
+            if cmds.optionVar(exists="weightEditorPrecision")
+            else 2
+        )
+        self.updateName()
+
+    def wheelEvent(self, event):
+        val = event.angleDelta().y()
+        if val > 0.0:
+            self.precision += 1
+        else:
+            self.precision -= 1
+        if self.precision < 1:
+            self.precision = 1
+        self.updateName()
+
+    def updateName(self):
+        self.precisionValue = math.pow(10, self.precision * -1)
+        self.setText("prune {0}".format(self.precisionValue))
+        cmds.optionVar(intValue=["weightEditorPrecision", self.precision])
 
 
 ###################################################################################

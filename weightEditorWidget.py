@@ -12,7 +12,7 @@ import blurdev
 
 from tools.skinData import DataOfSkin
 from tools.tableWidget import TableView, TableModel
-from tools.spinnerSlider import ValueSetting
+from tools.spinnerSlider import ValueSetting, ButtonPruneWeights
 from tools.utils import GlobalContext
 
 styleSheet = """
@@ -112,7 +112,6 @@ class SkinWeightWin(QtWidgets.QDialog):
 
         if not cmds.pluginInfo("blurSkin", query=True, loaded=True):
             cmds.loadPlugin("blurSkin")
-
         blurdev.gui.loadUi(__file__, self)
 
         # QtWidgets.QWidget.__init__(self, parent)
@@ -203,6 +202,8 @@ class SkinWeightWin(QtWidgets.QDialog):
         theLayout.setContentsMargins(10, 10, 10, 10)
         theLayout.setSpacing(3)
 
+        topButtonsLay = self.topButtonsWidget.layout()
+
         self._tm = TableModel(self)
         self._tm.update(self.dataOfSkin)
 
@@ -230,20 +231,29 @@ class SkinWeightWin(QtWidgets.QDialog):
         Hlayout2.addWidget(self.widgetAbs)
         Hlayout2.addWidget(self.widgetAdd)
 
-        theLayout.addLayout(Hlayout2)
-
+        topButtonsLay.addSpacing(10)
+        topButtonsLay.addLayout(Hlayout2)
         self.widgetAbs.hide()
-        theLayout.addLayout(Hlayout)
+        topButtonsLay.addLayout(Hlayout)
+        topButtonsLay.addSpacing(10)
+
         theLayout.addWidget(self._tv)
 
         self.setColumnVisSize()
-        # -----------------------------------------------------------
 
+        self.pruneWghtBTN = ButtonPruneWeights(self)
+        self.botLayout.insertWidget(3, self.pruneWghtBTN)
+
+        # -----------------------------------------------------------
         self.refreshBTN.clicked.connect(self.refreshBtn)
         self.smoothBTN.clicked.connect(self.smooth)
         self.addBTN.toggled.connect(self.changeAddAbs)
+        self.pruneWghtBTN.clicked.connect(self.pruneWeights)
 
         self.addPercBTN.setEnabled(False)
+
+    def pruneWeights(self):
+        print self.pruneWghtBTN.precisionValue
 
     def changeAddAbs(self, checked):
         self.widgetAbs.setVisible(False)

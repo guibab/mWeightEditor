@@ -301,7 +301,7 @@ class DataOfSkin(object):
         )
 
     def setSkinData(self, val):
-        with GlobalContext(message="setSkinData", doPrint=True):
+        with GlobalContext(message="setSkinData", doPrint=False):
             new2dArray = np.copy(self.orig2dArray)
             selectArr = np.copy(self.orig2dArray)
             remainingArr = np.copy(self.orig2dArray)
@@ -333,10 +333,9 @@ class DataOfSkin(object):
                 addValuesNormalized,
                 where=sum_addValues[:, np.newaxis] > self.toNormalizeToSum[:, np.newaxis],
             )
-            if val != 0.0:  # normalize where rest is zero
-                np.copyto(
-                    addValues, addValuesNormalized, where=sum_remainingData[:, np.newaxis] == 0.0
-                )
+            # normalize where rest is zero
+            np.copyto(addValues, addValuesNormalized, where=sum_remainingData[:, np.newaxis] == 0.0)
+
             sum_addValues = addValues.sum(axis=1)
             # non selected not locked Rest ---------------------------------------------------------------------------------------------
             restVals = self.toNormalizeToSum - sum_addValues
