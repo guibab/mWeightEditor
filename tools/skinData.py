@@ -144,11 +144,11 @@ class DataOfSkin(object):
         maskOppSelection[:, hiddenColumns] = False
 
         # get the mask of the locks ------------------------------------------
-        lockedMask = np.tile(self.lockedColumns, (nbRows, 1))
+        self.lockedMask = np.tile(self.lockedColumns, (nbRows, 1))
         lockedRows = [
             ind for ind in range(nbRows) if self.vertices[ind + Mtop] in self.lockedVertices
         ]
-        lockedMask[lockedRows] = True
+        self.lockedMask[lockedRows] = True
 
         # GET the sub ARRAY ---------------------------------------------------------------------------------
         self.sub2DArrayToSet = self.raw2dArray[
@@ -157,12 +157,13 @@ class DataOfSkin(object):
         self.orig2dArray = np.copy(self.sub2DArrayToSet)
 
         # Sum of lock and mask selection --------------------------------------------------------------------
-        self.sumMasks = ~np.add(~maskSelection, lockedMask)
+        self.sumMasks = ~np.add(~maskSelection, self.lockedMask)
         self.nbIndicesSettable = np.sum(self.sumMasks, axis=1)
-        self.rmMasks = ~np.add(~maskOppSelection, lockedMask)
+        self.rmMasks = ~np.add(~maskOppSelection, self.lockedMask)
 
-        toNormalizeTo = np.ma.array(self.orig2dArray, mask=lockedMask, fill_value=0)
-        self.toNormalizeToSum = toNormalizeTo.sum(axis=1)
+        toNormalizeTo = np.ma.array(self.orig2dArray, mask=~self.lockedMask, fill_value=0)
+        self.toNormalizeToSum = 1.0 - toNormalizeTo.sum(axis=1)
+
         # ---------------------------------------------------------------------------------------------
         # NOW Prepare for settingSkin Cluster ---------------------------------------------------------
         # ---------------------------------------------------------------------------------------------
@@ -241,13 +242,68 @@ class DataOfSkin(object):
             print toPrint         
     """
 
-    def setSkinData(self, val):
-        with GlobalContext(message="prepareSkinfn numpy", doPrint=False):
+    def absoluteVal(self, val):
+        with GlobalContext(message="absoluteVal", doPrint=True):
             new2dArray = np.copy(self.orig2dArray)
+            selectArr = np.full(self.orig2dArray.shape, val)
+            restArr = np.copy(self.orig2dArray)
+
+            # add the values ------------------------------------------------------------------------------------------------
+            sumValues = np.ma.array(selectArr, mask=~self.sumMasks, fill_value=0)
+
+            # normalize the sum to the max value unLocked -------------------------------------------------------------------
+            fullSum = sumValues.sum(axis=1)
+            sumValuesNormalized = (
+                sumValues / fullSum[:, np.newaxis] * self.toNormalizeToSum[:, np.newaxis]
+            )
+            np.copyto(
+                sumValues,
+                sumValuesNormalized,
+                where=fullSum[:, np.newaxis] > self.toNormalizeToSum[:, np.newaxis],
+            )
+
+            # remove the values ---------------------------------------------------------------------------------------------
+            rmvArr = np.copy(self.orig2dArray)
+            fullSum = sumValues.sum(axis=1)
+            restVals = self.toNormalizeToSum - fullSum
+
+            remainingMaskedData = np.ma.array(restArr, mask=~self.rmMasks, fill_value=0)
+            sumToNormalizeTo = remainingMaskedData.sum(axis=1)
+            restValues = sumToNormalizeTo - val
+            toMult = restVals / sumToNormalizeTo
+            removeValues = remainingMaskedData * toMult[:, np.newaxis]
+            # clip it --------------------------------------------------------------------------------------------------------
+            removeValues = removeValues.clip(min=0.0, max=1.0)
+            # renormalize ---------------------------------------------
+
+            # add with the mask ---------------------------------------------------------------------------------------------
+            # np.copyto (new2dArray , sumValues, where = ~self.sumMasks)
+            # np.copyto (new2dArray , removeValues, where = ~removeValues.mask)
+
+            np.copyto(
+                new2dArray, sumValues.filled(0) + removeValues.filled(0), where=~self.lockedMask
+            )
+
+            # new2dArray = new2dArray.clip (min=0, max=1.0)
+        # set Value ------------------------------------------------
+        self.actuallySetValue(
+            new2dArray,
+            self.sub2DArrayToSet,
+            self.userComponents,
+            self.influenceIndices,
+            self.shapePath,
+            self.sknFn,
+        )
+
+    def setSkinData(self, val):
+        with GlobalContext(message="setSkinData", doPrint=True):
+            new2dArray = np.copy(self.orig2dArray)
+            selectArr = np.copy(self.orig2dArray)
+            restArr = np.copy(self.orig2dArray)
 
             # add the values ------------------------------------------------------------------------------------------------
             arrayofVals = val / self.nbIndicesSettable[:, np.newaxis]
-            myMaskedData = np.ma.array(new2dArray, mask=~self.sumMasks, fill_value=0)
+            myMaskedData = np.ma.array(selectArr, mask=~self.sumMasks, fill_value=0)
             sumValues = myMaskedData + arrayofVals
 
             sumValues = sumValues.clip(min=0, max=1.0)
@@ -264,7 +320,7 @@ class DataOfSkin(object):
             )
 
             # remove the values ---------------------------------------------------------------------------------------------
-            remainingMaskedData = np.ma.array(new2dArray, mask=~self.rmMasks, fill_value=0)
+            remainingMaskedData = np.ma.array(restArr, mask=~self.rmMasks, fill_value=0)
             sumToNormalizeTo = remainingMaskedData.sum(axis=1)
 
             restVals = sumToNormalizeTo - val
@@ -272,7 +328,7 @@ class DataOfSkin(object):
             removeValues = remainingMaskedData * toMult[:, np.newaxis]
             # clip it --------------------------------------------------------------------------------------------------------
             removeValues = removeValues.clip(min=0.0, max=1.0)
-            # renormalize ---------------------------
+            # renormalize ---------------------------------------------
 
             # add with the mask ---------------------------------------------------------------------------------------------
             np.copyto(new2dArray, sumValues, where=~sumValues.mask)

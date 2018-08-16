@@ -134,7 +134,15 @@ class SkinWeightWin(QtWidgets.QDialog):
 
     def mousePressEvent(self, event):
         # print "click"
-        self._tv.clearSelection()
+        if event.button() == QtCore.Qt.MidButton:
+            nbShown = 0
+            for ind in range(self._tv.HHeaderView.count()):
+                if not self._tv.HHeaderView.isSectionHidden(ind):
+                    nbShown += 1
+            wdth = self._tv.VHeaderView.width() + nbShown * self.colWidth + 50
+            self.resize(wdth, self.height())
+        else:
+            self._tv.clearSelection()
         super(SkinWeightWin, self).mousePressEvent(event)
 
     def refreshPosition(self):
@@ -171,29 +179,8 @@ class SkinWeightWin(QtWidgets.QDialog):
             return
         super(SkinWeightWin, self).keyPressEvent(event)
 
-    def addButtonsDirectSet(self):
-        # lstBtns = [0,25,100./3,50,200/3.,75,100]
-        lstBtns = [
-            -100,
-            -75,
-            -200 / 3.0,
-            -50,
-            -100.0 / 3,
-            -25,
-            25,
-            100.0 / 3,
-            50,
-            200 / 3.0,
-            75,
-            100,
-        ]
-
-        Hlayout = QtWidgets.QHBoxLayout(self)
-        Hlayout.setContentsMargins(0, 0, 0, 0)
-        Hlayout.setSpacing(0)
-
+    def addButtonsDirectSet(self, lstBtns):
         theCarryWidget = QtWidgets.QWidget()
-        Hlayout.addWidget(theCarryWidget)
 
         carryWidgLayoutlayout = QtWidgets.QHBoxLayout(theCarryWidget)
         carryWidgLayoutlayout.setContentsMargins(40, 0, 0, 0)
@@ -209,7 +196,7 @@ class SkinWeightWin(QtWidgets.QDialog):
             carryWidgLayoutlayout.addWidget(newBtn)
         theCarryWidget.setMaximumSize(self.maxWidthCentralWidget, 14)
 
-        return Hlayout
+        return theCarryWidget
 
     def createWindow(self):
         theLayout = self.layout()  # QtWidgets.QVBoxLayout(self)
@@ -230,7 +217,22 @@ class SkinWeightWin(QtWidgets.QDialog):
         Hlayout.addWidget(self.valueSetter)
         self.valueSetter.setMaximumWidth(self.maxWidthCentralWidget)
 
-        theLayout.addLayout(self.addButtonsDirectSet())
+        self.widgetAbs = self.addButtonsDirectSet(
+            [0, 10, 25, 100.0 / 3, 50, 200 / 3.0, 75, 90, 100]
+        )
+        self.widgetAdd = self.addButtonsDirectSet(
+            [-100, -75, -200 / 3.0, -50, -100.0 / 3, -25, 25, 100.0 / 3, 50, 200 / 3.0, 75, 100]
+        )
+
+        Hlayout2 = QtWidgets.QHBoxLayout(self)
+        Hlayout2.setContentsMargins(0, 0, 0, 0)
+        Hlayout2.setSpacing(0)
+        Hlayout2.addWidget(self.widgetAbs)
+        Hlayout2.addWidget(self.widgetAdd)
+
+        theLayout.addLayout(Hlayout2)
+
+        self.widgetAbs.hide()
         theLayout.addLayout(Hlayout)
         theLayout.addWidget(self._tv)
 
@@ -239,6 +241,16 @@ class SkinWeightWin(QtWidgets.QDialog):
 
         self.refreshBTN.clicked.connect(self.refreshBtn)
         self.smoothBTN.clicked.connect(self.smooth)
+        self.addBTN.toggled.connect(self.changeAddAbs)
+
+        self.addPercBTN.setEnabled(False)
+
+    def changeAddAbs(self, checked):
+        self.widgetAbs.setVisible(False)
+        self.widgetAdd.setVisible(False)
+        self.widgetAbs.setVisible(not checked)
+        self.widgetAdd.setVisible(checked)
+        self.valueSetter.setAddMode(checked)
 
     def smooth(self):
         cmds.blurSkinCmd(command="smooth", repeat=3)
@@ -273,7 +285,10 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.storeSelection()
         self._tm.beginResetModel()
 
-        self.dataOfSkin.setSkinData(val)
+        if self.valueSetter.addMode:
+            self.dataOfSkin.setSkinData(val)
+        else:
+            self.dataOfSkin.absoluteVal(val)
 
         self._tm.endResetModel()
         self.retrieveSelection()

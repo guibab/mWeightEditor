@@ -1,5 +1,6 @@
 from Qt import QtGui, QtCore, QtWidgets
 from maya import cmds
+from utils import toggleBlockSignals
 
 
 ###################################################################################
@@ -13,23 +14,15 @@ class ValueSetting(QtWidgets.QWidget):
     def __init__(self, parent=None, singleStep=0.1, precision=1):
         super(ValueSetting, self).__init__(parent=None)
         self.theProgress = ProgressItem("skinVal", szrad=0, value=50)
+        self.setAddMode(True)
+
         self.theProgress.mainWindow = parent
         self.mainWindow = parent
         # self.displayText = QtWidgets.QLabel (self)
 
         layout = QtWidgets.QHBoxLayout(self)
-        # layout.setContentsMargins(40, 0, 0, 0)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-
-        # layout.addStretch ()
-        """
-        self.theSpinner = QtWidgets.QLineEdit(parent)
-        self.theSpinner.setStyleSheet("QLineEdit { background-color: yellow; color : black; }")
-        validator = QtGui.QDoubleValidator()
-        self.theSpinner.setValidator(validator)
-        self.theSpinner.editingFinished.connect (self.spinnerValueSet)
-        """
 
         self.theSpinner = QtWidgets.QDoubleSpinBox(self)
         self.theSpinner.setRange(-16777214, 16777215)
@@ -62,15 +55,11 @@ class ValueSetting(QtWidgets.QWidget):
         layout.addWidget(self.theSpinner)
         layout.addWidget(self.theProgress)
 
-        # layout.addStretch ()
         self.theProgress.valueChanged.connect(self.setVal)
-        # self.theProgress.setMaximumWidth (300)
 
     def theSpinner_focusInEvent(self, event):
-        # print "focus press"
         QtWidgets.QDoubleSpinBox.focusInEvent(self.theSpinner, event)
         cmds.evalDeferred(self.theLineEdit.selectAll)
-        # cmds.evalDeferred (self.theLineEdit.grabKeyboard)
 
     def spinnerValueEntered(self):
         theVal = self.theSpinner.value()
@@ -83,7 +72,10 @@ class ValueSetting(QtWidgets.QWidget):
 
     def setVal(self, val):
         # theVal = val/100.
-        theVal = (val - 50) / 50.0
+        if self.addMode:
+            theVal = (val - 50) / 50.0
+        else:
+            theVal = val / 100.0
         # ------- SETTING FUNCTION ---------------------
         if self.theProgress.startDrag:
             self.mainWindow.doAddValue(theVal)
@@ -91,8 +83,19 @@ class ValueSetting(QtWidgets.QWidget):
             self.mainWindow.dataOfSkin.postSkinSet()
 
         # else : # wheelEvent
-
         self.theSpinner.setValue(theVal * 100.0)
+
+    def setAddMode(self, addMode):
+        if addMode:
+            self.addMode = True
+            self.theProgress.autoReset = True
+            self.theProgress.releasedValue = 50.0
+        else:
+            self.addMode = False
+            self.theProgress.autoReset = True
+            self.theProgress.releasedValue = 0.0
+        with toggleBlockSignals([self.theProgress]):
+            self.theProgress.setValue(self.theProgress.releasedValue)
 
     """
     def valueEntered (self, theVal) : 
@@ -134,7 +137,6 @@ class ProgressItem(QtWidgets.QProgressBar):
     def __init__(self, theName, value=0, **kwargs):
         super(ProgressItem, self).__init__()
         self.multiplier = 1
-        self.range = (0, 1)
 
         # self.setFormat (theName+" %p%")
         self.setFormat("")
@@ -144,9 +146,6 @@ class ProgressItem(QtWidgets.QProgressBar):
 
         self.setStyleSheet(self.theStyleSheet.format(**self.dicStyleSheet))
         self.setValue(value)
-
-        self.autoReset = True
-        self.releasedValue = 50.0
 
     def changeColor(self, **kwargs):
         self.dicStyleSheet = dict(
@@ -173,20 +172,19 @@ class ProgressItem(QtWidgets.QProgressBar):
             val = val * 2 - 1
         self.setValue(int(val * 100))
 
-    def wheelEvent(self, e):
-        delta = e.delta()
-        # print delta
-        val = self.value() / 100.0
-        if self.minimum() == -100:
-            val = val * 0.5 + 0.5
+    """
+    def wheelEvent  (self, e):
+        delta = e.delta ()
+        #print delta
+        val = self.value () /100.
+        if self.minimum () == -100 : val = val*.5 + .5
 
-        offset = -0.1 if delta < 0 else 0.1
+        offset = -.1 if delta < 0 else .1
         val += offset
-        if val > 1.0:
-            val = 1.0
-        elif val < 0.0:
-            val = 0.0
-        self.applyVal(val)
+        if val >1. : val = 1.0
+        elif val <0. : val = 0.
+        self.applyVal (val)
+    """
 
     startDrag = False
 

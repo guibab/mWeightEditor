@@ -17,7 +17,7 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
-      <widget class="QPushButton" name="pushButton_3">
+      <widget class="QPushButton" name="normalizeBTN">
        <property name="minimumSize">
         <size>
          <width>0</width>
@@ -46,7 +46,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="pushButton">
+      <widget class="QPushButton" name="addBTN">
        <property name="minimumSize">
         <size>
          <width>0</width>
@@ -68,7 +68,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="pushButton_2">
+      <widget class="QPushButton" name="absBTN">
        <property name="text">
         <string>Abs</string>
        </property>
@@ -84,7 +84,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="pushButton_8">
+      <widget class="QPushButton" name="addPercBTN">
        <property name="text">
         <string>Add %</string>
        </property>

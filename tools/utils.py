@@ -52,3 +52,16 @@ class GlobalContext(object):
                 raise exc_type, exc_val
             else:
                 sys.stderr.write("%s" % exc_val)
+
+
+class toggleBlockSignals(object):
+    def __init__(self, listWidgets, raise_error=True):
+        self.listWidgets = listWidgets
+
+    def __enter__(self):
+        for widg in self.listWidgets:
+            widg.blockSignals(True)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        for widg in self.listWidgets:
+            widg.blockSignals(False)
