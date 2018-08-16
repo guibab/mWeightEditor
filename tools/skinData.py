@@ -93,13 +93,14 @@ class DataOfSkin(object):
         selectedVertices = [el for el in sel if ".vtx[" in el]
         indices = [el.split(".vtx[")[-1][:-1] for el in selectedVertices if ".vtx" in el]
 
-        selectedFaces = [el for el in sel if ".f[" in el]
-        if selectedFaces:
-            convertedVertices = cmds.polyListComponentConversion(selectedFaces, ff=True, tv=True)
-            indices += [el.split(".vtx[")[-1][:-1] for el in convertedVertices if ".vtx" in el]
-        selectedEdges = [el for el in sel if ".e[" in el]
-        if selectedEdges:
-            convertedVertices = cmds.polyListComponentConversion(selectedEdges, fe=True, tv=True)
+        for toSearch in [".f[", ".e["]:
+            selection = [el for el in sel if toSearch in el]
+            kwargs = {"tv": True}
+            if "f" in toSearch:
+                kwargs["ff"] = True
+            else:
+                kwargs["fe"] = True
+            convertedVertices = cmds.polyListComponentConversion(selection, **kwargs)
             indices += [el.split(".vtx[")[-1][:-1] for el in convertedVertices if ".vtx" in el]
         allIndices = set()
         for index in indices:
@@ -130,10 +131,17 @@ class DataOfSkin(object):
             lstTopBottom.append(top)
             lstTopBottom.append(bottom)
         Mtop, Mbottom = min(lstTopBottom), max(lstTopBottom)
-        # mask of selection
+        # nb rows selected -------------
         nbRows = Mbottom - Mtop + 1
 
-        maskSelection = np.full((nbRows, self.nbDrivers), False, dtype=bool)
+        # GET the sub ARRAY ---------------------------------------------------------------------------------
+        self.sub2DArrayToSet = self.raw2dArray[
+            Mtop : Mbottom + 1,
+        ]
+        self.orig2dArray = np.copy(self.sub2DArrayToSet)
+
+        # GET the mask ARRAY ---------------------------------------------------------------------------------
+        maskSelection = np.full(self.orig2dArray.shape, False, dtype=bool)
         for top, bottom, left, right in chunks:
             maskSelection[top - Mtop : bottom - Mtop + 1, left : right + 1] = True
 
@@ -143,6 +151,8 @@ class DataOfSkin(object):
         maskSelection[:, hiddenColumns] = False
         maskOppSelection[:, hiddenColumns] = False
 
+        self.maskColumns = np.full(self.orig2dArray.shape, True, dtype=bool)
+        self.maskColumns[:, hiddenColumns] = False
         # get the mask of the locks ------------------------------------------
         self.lockedMask = np.tile(self.lockedColumns, (nbRows, 1))
         lockedRows = [
@@ -150,19 +160,14 @@ class DataOfSkin(object):
         ]
         self.lockedMask[lockedRows] = True
 
-        # GET the sub ARRAY ---------------------------------------------------------------------------------
-        self.sub2DArrayToSet = self.raw2dArray[
-            Mtop : Mbottom + 1,
-        ]
-        self.orig2dArray = np.copy(self.sub2DArrayToSet)
-
-        # Sum of lock and mask selection --------------------------------------------------------------------
+        # update mask with Locks  ------------------------------------------------------------------------
         self.sumMasks = ~np.add(~maskSelection, self.lockedMask)
         self.nbIndicesSettable = np.sum(self.sumMasks, axis=1)
         self.rmMasks = ~np.add(~maskOppSelection, self.lockedMask)
 
-        toNormalizeTo = np.ma.array(self.orig2dArray, mask=~self.lockedMask, fill_value=0)
-        self.toNormalizeToSum = 1.0 - toNormalizeTo.sum(axis=1)
+        # get normalize values  --------------------------------------------------------------------------
+        toNormalizeTo = np.ma.array(self.orig2dArray, mask=~self.lockedMask, fill_value=0.0)
+        self.toNormalizeToSum = 1.0 - toNormalizeTo.sum(axis=1).filled(0.0)
 
         # ---------------------------------------------------------------------------------------------
         # NOW Prepare for settingSkin Cluster ---------------------------------------------------------
@@ -219,72 +224,69 @@ class DataOfSkin(object):
         #isinstance (res ,np.ma.core.MaskedConstant)
         """
 
-    """
-    def printArrayData (Self) : 
-        maskSelection = np.full((nbRows, self.nbDrivers ), True, dtype=bool)
-        maskSelection    [:,hiddenColumns ] = False
-        sumMasks = ~np.add (~maskSelection, lockedMask )
-
-        theArr = new2dArray
-        theArr = self.orig2dArray
-        rows = theArr .shape[0]
-        cols = theArr .shape[1]
-
+    def printArrayData(self, theArr, theMask):
+        # theArr = self.orig2dArray
+        # theMask
+        rows = theArr.shape[0]
+        cols = theArr.shape[1]
         for x in range(0, rows):
             toPrint = ""
             sum = 0.0
             for y in range(0, cols):
-                if sumMasks  [x,y] : 
-                    val = theArr[x,y] 
-                    toPrint +="{0:.1f} ".format(val *100)
-                    sum += val
-            toPrint += "  -->  {0:.1f} ".format(sum  *100)
-            print toPrint         
-    """
+                if theMask[x, y]:
+                    val = theArr[x, y]
+                    if isinstance(val, np.ma.core.MaskedConstant):
+                        toPrint += " --- |"
+                    else:
+                        toPrint += " {0:.1f} |".format(val * 100)
+                        # toPrint += str(round(val*100, 1))
+                        sum += val
+            toPrint += "  -->  {0} ".format(round(sum * 100, 1))
+            print toPrint
 
     def absoluteVal(self, val):
         with GlobalContext(message="absoluteVal", doPrint=True):
             new2dArray = np.copy(self.orig2dArray)
             selectArr = np.full(self.orig2dArray.shape, val)
-            restArr = np.copy(self.orig2dArray)
+
+            # remaining array -----------------------------------------------------------------------------------------------
+            remainingArr = np.copy(self.orig2dArray)
+            remainingData = np.ma.array(remainingArr, mask=~self.rmMasks, fill_value=0)
+            sum_remainingData = remainingData.sum(axis=1)
+
+            # first make new mask where remaining values are zero (so no operation can be done ....)
+            zeroRemainingIndices = np.flatnonzero(sum_remainingData == 0)
+            sumMasksUpdate = self.sumMasks.copy()
+            sumMasksUpdate[zeroRemainingIndices, :] = False
 
             # add the values ------------------------------------------------------------------------------------------------
-            sumValues = np.ma.array(selectArr, mask=~self.sumMasks, fill_value=0)
+            # absValues = np.ma.array(selectArr , mask = ~self.sumMasks, fill_value = 0 )
+            absValues = np.ma.array(selectArr, mask=~sumMasksUpdate, fill_value=0)
 
             # normalize the sum to the max value unLocked -------------------------------------------------------------------
-            fullSum = sumValues.sum(axis=1)
-            sumValuesNormalized = (
-                sumValues / fullSum[:, np.newaxis] * self.toNormalizeToSum[:, np.newaxis]
+            sum_absValues = absValues.sum(axis=1)
+            absValuesNormalized = (
+                absValues / sum_absValues[:, np.newaxis] * self.toNormalizeToSum[:, np.newaxis]
             )
             np.copyto(
-                sumValues,
-                sumValuesNormalized,
-                where=fullSum[:, np.newaxis] > self.toNormalizeToSum[:, np.newaxis],
+                absValues,
+                absValuesNormalized,
+                where=sum_absValues[:, np.newaxis] > self.toNormalizeToSum[:, np.newaxis],
             )
+            sum_absValues = absValues.sum(axis=1)
 
-            # remove the values ---------------------------------------------------------------------------------------------
-            rmvArr = np.copy(self.orig2dArray)
-            fullSum = sumValues.sum(axis=1)
-            restVals = self.toNormalizeToSum - fullSum
-
-            remainingMaskedData = np.ma.array(restArr, mask=~self.rmMasks, fill_value=0)
-            sumToNormalizeTo = remainingMaskedData.sum(axis=1)
-            restValues = sumToNormalizeTo - val
-            toMult = restVals / sumToNormalizeTo
-            removeValues = remainingMaskedData * toMult[:, np.newaxis]
+            # non selected not locked Rest ---------------------------------------------------------------------------------------------
+            restVals = self.toNormalizeToSum - sum_absValues
+            toMult = restVals / sum_remainingData
+            remainingValues = remainingData * toMult[:, np.newaxis]
             # clip it --------------------------------------------------------------------------------------------------------
-            removeValues = removeValues.clip(min=0.0, max=1.0)
-            # renormalize ---------------------------------------------
+            remainingValues = remainingValues.clip(min=0.0, max=1.0)
+            # renormalize ---------------------------------------------------------------------------------------------------
 
             # add with the mask ---------------------------------------------------------------------------------------------
-            # np.copyto (new2dArray , sumValues, where = ~self.sumMasks)
-            # np.copyto (new2dArray , removeValues, where = ~removeValues.mask)
-
-            np.copyto(
-                new2dArray, sumValues.filled(0) + removeValues.filled(0), where=~self.lockedMask
-            )
-
-            # new2dArray = new2dArray.clip (min=0, max=1.0)
+            # np.copyto (new2dArray , absValues.filled(0)+remainingValues.filled(0), where = ~self.lockedMask)
+            np.copyto(new2dArray, absValues, where=~absValues.mask)
+            np.copyto(new2dArray, remainingValues, where=~remainingValues.mask)
         # set Value ------------------------------------------------
         self.actuallySetValue(
             new2dArray,
@@ -299,39 +301,39 @@ class DataOfSkin(object):
         with GlobalContext(message="setSkinData", doPrint=True):
             new2dArray = np.copy(self.orig2dArray)
             selectArr = np.copy(self.orig2dArray)
-            restArr = np.copy(self.orig2dArray)
+            remainingArr = np.copy(self.orig2dArray)
 
             # add the values ------------------------------------------------------------------------------------------------
-            arrayofVals = val / self.nbIndicesSettable[:, np.newaxis]
+            valuesToAdd = val / self.nbIndicesSettable[:, np.newaxis]
             myMaskedData = np.ma.array(selectArr, mask=~self.sumMasks, fill_value=0)
-            sumValues = myMaskedData + arrayofVals
+            addValues = myMaskedData + valuesToAdd
 
-            sumValues = sumValues.clip(min=0, max=1.0)
+            addValues = addValues.clip(min=0, max=1.0)
 
             # normalize the sum to the max value unLocked -------------------------------------------------------------------
-            fullSum = sumValues.sum(axis=1)
-            sumValuesNormalized = (
-                sumValues / fullSum[:, np.newaxis] * self.toNormalizeToSum[:, np.newaxis]
+            sum_addValues = addValues.sum(axis=1)
+            addValuesNormalized = (
+                addValues / sum_addValues[:, np.newaxis] * self.toNormalizeToSum[:, np.newaxis]
             )
             np.copyto(
-                sumValues,
-                sumValuesNormalized,
-                where=fullSum[:, np.newaxis] > self.toNormalizeToSum[:, np.newaxis],
+                addValues,
+                addValuesNormalized,
+                where=sum_addValues[:, np.newaxis] > self.toNormalizeToSum[:, np.newaxis],
             )
 
             # remove the values ---------------------------------------------------------------------------------------------
-            remainingMaskedData = np.ma.array(restArr, mask=~self.rmMasks, fill_value=0)
-            sumToNormalizeTo = remainingMaskedData.sum(axis=1)
+            remainingData = np.ma.array(remainingArr, mask=~self.rmMasks, fill_value=0)
+            sum_remainingData = remainingData.sum(axis=1)
 
-            restVals = sumToNormalizeTo - val
-            toMult = restVals / sumToNormalizeTo
+            restVals = sum_remainingData - val
+            toMult = restVals / sum_remainingData
             removeValues = remainingMaskedData * toMult[:, np.newaxis]
             # clip it --------------------------------------------------------------------------------------------------------
             removeValues = removeValues.clip(min=0.0, max=1.0)
             # renormalize ---------------------------------------------
 
             # add with the mask ---------------------------------------------------------------------------------------------
-            np.copyto(new2dArray, sumValues, where=~sumValues.mask)
+            np.copyto(new2dArray, addValues, where=~addValues.mask)
             np.copyto(new2dArray, removeValues, where=~removeValues.mask)
             # new2dArray = new2dArray.clip (min=0, max=1.0)
 
@@ -502,78 +504,6 @@ class DataOfSkin(object):
             self.actuallySetValue(*undoArgs)
         else:
             print "No more undo"
-
-    """
-    def setSkinDataOld (self, val) :
-        newArray = OpenMaya.MDoubleArray()
-        newArray.copy (self.OrigWeights)
-        nbColumns = len (self.usedDeformersIndices)
-
-        #for indVtx, vtx in enumerate (self.indicesVertices) : 
-        for indVtx, indVtxInRawArray in enumerate (self.selectedRows) : 
-            sumVal = 0
-            prevSumVal = 0
-            for selectedCol in self.userSelectedColumnsIndices : 
-                selCol = int(selectedCol)
-                indInArray = indVtx*nbColumns+selCol
-
-                origVal = self.OrigWeights [indInArray]
-                newVal = np.round (origVal+val, 5)
-                if newVal < 0. : newVal = 0.0
-                #newVal = np.clip(origVal+val,0,1)
-                prevSumVal += origVal
-                sumVal += newVal
-                newArray.set (newVal, indInArray)
-            
-            # Normalize -------------------------------------
-            if sumVal>1.0 : 
-                toMult = 1./sumVal
-                for selectedCol in self.userSelectedColumnsIndices : 
-                    selCol = int(selectedCol)
-                    indInArray = indVtx*nbColumns+selCol
-
-                    newVal = newArray [indInArray]
-                    newArray.set (newVal * toMult, indInArray)
-
-                for selectedCol in self.notSelColumnsIndices : 
-                    selCol = int(selectedCol)
-                    indInArray = indVtx*nbColumns+selCol
-                    newArray.set (0, indInArray)
-            else : 
-                prevToDiv = 1.-prevSumVal
-                if prevToDiv :
-                    toMult = (1.-sumVal) / prevToDiv
-                    globalSum = sumVal
-                    for selectedCol in self.notSelColumnsIndices : 
-                        selCol = int(selectedCol)
-                        indInArray = indVtx*nbColumns+selCol
-
-                        origVal = self.OrigWeights [indInArray]
-                        newVal = np.round (origVal*toMult, 5)
-
-                        if ( globalSum + newVal ) >1.0 : newVal = 1.0 - globalSum
-                        globalSum += newVal
-                        newArray.set (newVal, indInArray)
-
-            # set rawSkinValues ------------------------
-            for selectedCol, colBigArr in enumerate (self.usedDeformersIndices) : 
-                indInBigArray = indVtxInRawArray*self.nbDrivers+int(colBigArr)
-                indInArray = indVtx*nbColumns+int(selectedCol)
-
-                newVal = newArray [indInArray]
-                self.rawSkinValues.set (newVal, indInBigArray)
-        # store old values
-        oldValues  = OpenMaya.MDoubleArray()
-        normalize = True
-        self.sknFn.setWeights( self.shapePath              ,
-                               self.userComponents         ,
-                               self.influenceIndices       ,
-                               newArray                    ,
-                               normalize                   ,
-                               oldValues                   ) 
-
-        return
-    """
 
     def exposeSkinData(self, inputSkinCluster, indices=[]):
         self.skinClusterObj = self.getMObject(inputSkinCluster, returnDagPath=False)
