@@ -214,7 +214,26 @@ class DataOfSkin(object):
             print toPrint
 
     def normalize(self):
-        print "normalize"
+        with GlobalContext(message="pruneWeights", doPrint=True):
+            new2dArray = np.copy(self.orig2dArray)
+            unLock = np.ma.array(new2dArray.copy(), mask=self.lockedMask, fill_value=0)
+            unLock.clip(0, 1)
+
+            sum_unLock = unLock.sum(axis=1)
+            unLockNormalized = (
+                unLock / sum_unLock[:, np.newaxis] * self.toNormalizeToSum[:, np.newaxis]
+            )
+
+            np.copyto(new2dArray, unLockNormalized, where=~self.lockedMask)
+            # normalize -----------------------------------------------------------------------
+        self.actuallySetValue(
+            new2dArray,
+            self.sub2DArrayToSet,
+            self.userComponents,
+            self.influenceIndices,
+            self.shapePath,
+            self.sknFn,
+        )
 
     def pruneWeights(self, pruneValue):
         with GlobalContext(message="pruneWeights", doPrint=True):
