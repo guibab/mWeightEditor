@@ -473,6 +473,29 @@ class TableView(QtWidgets.QTableView):
         self.verticalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
 
         # self.setUniformRowHeights (True)
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.showMenu)
+
+    def showMenu(self, pos):
+        popMenu = QtWidgets.QMenu(self)
+        selectionIsEmpty = self.selectionModel().selection().isEmpty()
+
+        selAction = popMenu.addAction("select vertices")
+        selAction.triggered.connect(self.selectVerts)
+        selAction.setEnabled(not selectionIsEmpty)
+        popMenu.addSeparator()
+
+        lockAction = popMenu.addAction("lock selected")
+        lockAction.triggered.connect(self.lockSelectedRows)
+        lockAction.setEnabled(not selectionIsEmpty)
+
+        unlockAction = popMenu.addAction("unlock selected")
+        unlockAction.triggered.connect(self.unlockSelectedRows)
+        unlockAction.setEnabled(not selectionIsEmpty)
+
+        clearLocksAction = popMenu.addAction("clear all Locks")
+        clearLocksAction.triggered.connect(self.clearLocks)
+        popMenu.exec_(self.mapToGlobal(pos))
 
 
 # -------------------------------------------------------------------------------

@@ -214,7 +214,7 @@ class DataOfSkin(object):
             print toPrint
 
     def normalize(self):
-        with GlobalContext(message="pruneWeights", doPrint=True):
+        with GlobalContext(message="normalize", doPrint=True):
             new2dArray = np.copy(self.orig2dArray)
             unLock = np.ma.array(new2dArray.copy(), mask=self.lockedMask, fill_value=0)
             unLock.clip(0, 1)
@@ -235,20 +235,19 @@ class DataOfSkin(object):
             self.sknFn,
         )
 
+    def pruneOnArray(self, theArray, theMask, arraySumNormalize, pruneValue):
+        unLock = np.ma.array(theArray.copy(), mask=theMask, fill_value=0)
+        np.copyto(unLock, np.full(unLock.shape, 0), where=unLock < pruneValue)
+        # normalize -----------------------------------------------------------------------
+        sum_unLock = unLock.sum(axis=1)
+        unLockNormalized = unLock / sum_unLock[:, np.newaxis] * arraySumNormalize[:, np.newaxis]
+
+        np.copyto(theArray, unLockNormalized, where=~theMask)
+
     def pruneWeights(self, pruneValue):
         with GlobalContext(message="pruneWeights", doPrint=True):
             new2dArray = np.copy(self.orig2dArray)
-            unLock = np.ma.array(new2dArray.copy(), mask=self.lockedMask, fill_value=0)
-
-            np.copyto(unLock, np.full(unLock.shape, 0), where=unLock < pruneValue)
-
-            sum_unLock = unLock.sum(axis=1)
-            unLockNormalized = (
-                unLock / sum_unLock[:, np.newaxis] * self.toNormalizeToSum[:, np.newaxis]
-            )
-
-            np.copyto(new2dArray, unLockNormalized, where=~self.lockedMask)
-            # normalize -----------------------------------------------------------------------
+            self.pruneOnArray(new2dArray, self.lockedMask, self.toNormalizeToSum, pruneValue)
         self.actuallySetValue(
             new2dArray,
             self.sub2DArrayToSet,
@@ -314,7 +313,8 @@ class DataOfSkin(object):
             self.sknFn,
         )
 
-    def setSkinData(self, val, percent=False):
+    def setSkinData(self, val, percent=False, autoPrune=False):
+        # if percent : print "percent"
         with GlobalContext(message="setSkinData", doPrint=False):
             new2dArray = np.copy(self.orig2dArray)
             selectArr = np.copy(self.orig2dArray)
@@ -333,8 +333,14 @@ class DataOfSkin(object):
             # add the values ------------------------------------------------------------------------------------------------
             theMask = sumMasksUpdate if val < 0.0 else self.sumMasks
 
-            valuesToAdd = val / self.nbIndicesSettable[:, np.newaxis]
-            addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0) + valuesToAdd
+            if percent:
+                addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0)
+                sum_addValues = addValues.sum(axis=1)
+                toMult = (sum_addValues + val) / sum_addValues
+                addValues = addValues * toMult[:, np.newaxis]
+            else:
+                valuesToAdd = val / self.nbIndicesSettable[:, np.newaxis]
+                addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0) + valuesToAdd
             addValues = addValues.clip(min=0, max=1.0)
 
             # normalize the sum to the max value unLocked -------------------------------------------------------------------
@@ -358,7 +364,11 @@ class DataOfSkin(object):
             # clip it --------------------------------------------------------------------------------------------------------
             remainingValues = remainingValues.clip(min=0.0, max=1.0)
             # renormalize ---------------------------------------------------------------------------------------------------
-
+            if autoPrune:
+                self.pruneOnArray(
+                    remainingValues, remainingValues.mask, remainingValues.sum(axis=1), 0.0001
+                )
+                self.pruneOnArray(addValues, addValues.mask, addValues.sum(axis=1), 0.0001)
             # add with the mask ---------------------------------------------------------------------------------------------
             # np.copyto (new2dArray , addValues.filled(0)+remainingValues.filled(0), where = ~self.lockedMask)
             np.copyto(new2dArray, addValues, where=~addValues.mask)

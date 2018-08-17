@@ -15,15 +15,19 @@ from tools.tableWidget import TableView, TableModel
 from tools.spinnerSlider import ValueSetting, ButtonWithValue
 from tools.utils import GlobalContext
 
-styleSheet = """
+"""
 
+"""
+styleSheet = """
 QWidget {
     background:  #aba8a6;
     color:black;
     selection-background-color: #a0a0ff;
-
 }
-
+QCheckBox:hover
+{
+  background:rgb(120, 120, 120); 
+}
 QMenu::item:disabled {
     color:grey;
     font: italic;
@@ -42,8 +46,12 @@ QPushButton:checked{
 QPushButton:hover{  
     background-color: grey; 
     border-style: outset;  
-}  
-
+}
+QPushButton:pressed {
+    background-color: rgb(100, 100, 100);
+    color:white;
+    border-style: inset;
+}
 TableView {
      selection-background-color: #a0a0ff;
      background : #aba8a6;
@@ -74,16 +82,7 @@ HorizHeaderView{
     color: black;
     border : 0px solid black;
 }
-
 """
-"""
-MyHeaderView{
-    background-color: #878787;
-    color: black;
-    border : 0px solid black;
-}
-"""
-
 ###################################################################################
 #
 #   the window
@@ -124,6 +123,37 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.listJobEvents = [refreshSJ]
 
         self.setWindowDisplay()
+        self.buildRCMenu()
+
+    def buildRCMenu(self):
+        self.autoPrune = (
+            cmds.optionVar(q="autoPrune") if cmds.optionVar(exists="autoPrune") else False
+        )
+
+        self.popMenu = QtWidgets.QMenu(self)
+        resizeAction = self.popMenu.addAction("resize to minimum (MiddleClick)")
+        resizeAction.triggered.connect(self.reizeToMinimum)
+
+        chbox = QtWidgets.QCheckBox("auto Prune", self.popMenu)
+        chbox.setChecked(self.autoPrune)
+        chbox.toggled.connect(self.autoPruneChecked)
+        checkableAction = QtWidgets.QWidgetAction(self.popMenu)
+        checkableAction.setDefaultWidget(chbox)
+        self.popMenu.addAction(checkableAction)
+
+        # autoPruneAction = self.popMenu.addAction("auto Prune")
+        # autoPruneAction.setCheckable (True)
+        # autoPruneAction.setChecked ( True )
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.showMenu)
+
+    def autoPruneChecked(self, checked):
+        cmds.optionVar(intValue=["autoPrune", checked])
+        self.autoPrune = checked
+        self.popMenu.close()
+
+    def showMenu(self, pos):
+        self.popMenu.exec_(self.mapToGlobal(pos))
 
     def setWindowDisplay(self):
         self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.Tool)
@@ -131,16 +161,19 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.refreshPosition()
         self.show()
 
+    def reizeToMinimum(self):
+        nbShown = 0
+        for ind in range(self._tv.HHeaderView.count()):
+            if not self._tv.HHeaderView.isSectionHidden(ind):
+                nbShown += 1
+        wdth = self._tv.VHeaderView.width() + nbShown * self.colWidth + 50
+        self.resize(wdth, self.height())
+
     def mousePressEvent(self, event):
         # print "click"
         if event.button() == QtCore.Qt.MidButton:
-            nbShown = 0
-            for ind in range(self._tv.HHeaderView.count()):
-                if not self._tv.HHeaderView.isSectionHidden(ind):
-                    nbShown += 1
-            wdth = self._tv.VHeaderView.width() + nbShown * self.colWidth + 50
-            self.resize(wdth, self.height())
-        else:
+            self.reizeToMinimum()
+        elif event.button() == QtCore.Qt.LeftButton:
             self._tv.clearSelection()
         super(SkinWeightWin, self).mousePressEvent(event)
 
@@ -340,7 +373,7 @@ class SkinWeightWin(QtWidgets.QDialog):
         self._tm.beginResetModel()
 
         if self.valueSetter.addMode and not forceAbsolute:
-            self.dataOfSkin.setSkinData(val, percent=self.addPercentage)
+            self.dataOfSkin.setSkinData(val, percent=self.addPercentage, autoPrune=self.autoPrune)
         else:
             self.dataOfSkin.absoluteVal(val)
 
