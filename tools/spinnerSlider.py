@@ -48,9 +48,9 @@ class ButtonWithValue(QtWidgets.QPushButton):
     def updateName(self):
         if self.usePow:
             self.precisionValue = math.pow(10, self.precision * -1)
-            theText = "{0} {1}".format(self.name, self.precisionValue)
+            theText = " {0} [{1}] ".format(self.name, self.precisionValue)
         else:
-            theText = "{0} {1}".format(self.name, self.precision)
+            theText = " {0} [{1}] ".format(self.name, self.precision)
         self.setText(theText)
         self.setMinimumWidth(self._metrics.width(theText) + 6)
 

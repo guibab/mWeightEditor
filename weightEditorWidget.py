@@ -276,12 +276,12 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.setColumnVisSize()
 
         self.pruneWghtBTN = ButtonWithValue(
-            self, usePow=True, name="prune", minimumValue=-1, defaultValue=2
+            self, usePow=True, name="Prune", minimumValue=-1, defaultValue=2
         )
         self.botLayout.insertWidget(3, self.pruneWghtBTN)
 
         self.smoothBTN = ButtonWithValue(
-            self, usePow=False, name="smooth", minimumValue=1, defaultValue=3
+            self, usePow=False, name="Smooth", minimumValue=1, defaultValue=3
         )
         self.botLayout.insertWidget(6, self.smoothBTN)
         # -----------------------------------------------------------
