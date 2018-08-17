@@ -12,7 +12,7 @@ import blurdev
 
 from tools.skinData import DataOfSkin
 from tools.tableWidget import TableView, TableModel
-from tools.spinnerSlider import ValueSetting, ButtonPruneWeights
+from tools.spinnerSlider import ValueSetting, ButtonWithValue
 from tools.utils import GlobalContext
 
 styleSheet = """
@@ -242,9 +242,15 @@ class SkinWeightWin(QtWidgets.QDialog):
 
         self.setColumnVisSize()
 
-        self.pruneWghtBTN = ButtonPruneWeights(self)
+        self.pruneWghtBTN = ButtonWithValue(
+            self, usePow=True, name="prune", minimumValue=-1, defaultValue=2
+        )
         self.botLayout.insertWidget(3, self.pruneWghtBTN)
 
+        self.smoothBTN = ButtonWithValue(
+            self, usePow=False, name="smooth", minimumValue=1, defaultValue=3
+        )
+        self.botLayout.insertWidget(6, self.smoothBTN)
         # -----------------------------------------------------------
         self.refreshBTN.clicked.connect(self.refreshBtn)
 
@@ -301,7 +307,7 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.addPercentage = checked
 
     def smooth(self):
-        cmds.blurSkinCmd(command="smooth", repeat=3)
+        cmds.blurSkinCmd(command="smooth", repeat=self.smoothBTN.precision)
 
     def prepareToSetValue(self):
         # with GlobalContext (message = "prepareValuesforSetSkinData"):

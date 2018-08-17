@@ -4,17 +4,32 @@ from utils import toggleBlockSignals
 import math
 
 
-class ButtonPruneWeights(QtWidgets.QPushButton):
-    def __init__(self, parent=None):
-        super(ButtonPruneWeights, self).__init__(parent)
+class ButtonWithValue(QtWidgets.QPushButton):
+    def __init__(
+        self,
+        parent=None,
+        usePow=True,
+        name="prune",
+        minimumValue=-1,
+        defaultValue=2,
+        maximumValue=10,
+    ):
+        self.usePow = usePow
+        self.name = name
+        self.minimumValue = minimumValue
+        self.maximumValue = maximumValue
+        self.defaultValue = defaultValue
+        self.optionVarName = "ButtonWithValue_" + name
+        super(ButtonWithValue, self).__init__(parent)
         self.setMinimumHeight(24)
+        self._metrics = QtGui.QFontMetrics(self.font())
         self.getValuePrecision()
 
     def getValuePrecision(self):
         self.precision = (
-            cmds.optionVar(q="weightEditorPrecision")
-            if cmds.optionVar(exists="weightEditorPrecision")
-            else 2
+            cmds.optionVar(q=self.optionVarName)
+            if cmds.optionVar(exists=self.optionVarName)
+            else self.defaultValue
         )
         self.updateName()
 
@@ -24,14 +39,22 @@ class ButtonPruneWeights(QtWidgets.QPushButton):
             self.precision += 1
         else:
             self.precision -= 1
-        if self.precision < -1:
-            self.precision = -1
+        if self.precision < self.minimumValue:
+            self.precision = self.minimumValue
+        if self.precision > self.maximumValue:
+            self.precision = self.maximumValue
         self.updateName()
 
     def updateName(self):
-        self.precisionValue = math.pow(10, self.precision * -1)
-        self.setText("prune {0}".format(self.precisionValue))
-        cmds.optionVar(intValue=["weightEditorPrecision", self.precision])
+        if self.usePow:
+            self.precisionValue = math.pow(10, self.precision * -1)
+            theText = "{0} {1}".format(self.name, self.precisionValue)
+        else:
+            theText = "{0} {1}".format(self.name, self.precision)
+        self.setText(theText)
+        self.setMinimumWidth(self._metrics.width(theText) + 6)
+
+        cmds.optionVar(intValue=[self.optionVarName, self.precision])
 
 
 ###################################################################################
