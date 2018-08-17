@@ -253,7 +253,19 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.addPercBTN.setEnabled(False)
 
     def pruneWeights(self):
-        print self.pruneWghtBTN.precisionValue
+        chunks = self.getRowColumnsSelected()
+        if not chunks:
+            chunks = [(0, self.dataOfSkin.rowCount - 1, 0, self.dataOfSkin.columnCount - 1)]
+        actualyVisibleColumns = []
+
+        self.storeSelection()
+        self._tm.beginResetModel()
+
+        self.dataOfSkin.prepareValuesforSetSkinData(chunks, actualyVisibleColumns)
+        self.dataOfSkin.pruneWeights(self.pruneWghtBTN.precisionValue / 100.0)
+        self.dataOfSkin.postSkinSet()
+
+        self._tm.endResetModel()
 
     def changeAddAbs(self, checked):
         self.widgetAbs.setVisible(False)

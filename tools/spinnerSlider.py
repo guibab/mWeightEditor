@@ -24,8 +24,8 @@ class ButtonPruneWeights(QtWidgets.QPushButton):
             self.precision += 1
         else:
             self.precision -= 1
-        if self.precision < 1:
-            self.precision = 1
+        if self.precision < -1:
+            self.precision = -1
         self.updateName()
 
     def updateName(self):

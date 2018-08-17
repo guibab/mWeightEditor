@@ -193,37 +193,6 @@ class DataOfSkin(object):
         # set normalize FALSE --------------------------------------------------------
         cmds.setAttr(self.theSkinCluster + ".normalizeWeights", 0)
 
-        # return
-        """
-        # apply the mask ----------------------------------------------------------------
-        myMaskedData = np.ma.array(self.orig2dArray , mask = ~maskSelection, fill_value = 0 )
-        #myMaskedData.mask = np.ma.nomask
-        #myMaskedData.mask = lockedMask
-        #sumToNormalizeTo = myMaskedData.sum(axis=1)
-        val = .2
-        arrayofVals = val / nbIndicesSettable[:, np.newaxis]
-        #new2dArraySum =  myMaskedData + val / nbIndicesForDivide[:, np.newaxis]
-
-
-        # print -------------------------------------------------------
-        rows = self.orig2dArray.shape[0]
-        cols = self.orig2dArray.shape[1]
-        for x in range(0, rows):
-            toPrint = ""
-            sum = 0.0
-            for y in range(0, cols):
-                if rmMasks [x,y] : 
-                    val = self.orig2dArray[x,y] 
-                    toPrint +="{0:.1f} ".format(val *100)
-                    sum += val
-            toPrint += "  -->  {0:.1f} ".format(sum  *100)
-            print toPrint 
-
-        #myMaskedData = np.ma.array(self.orig2dArray , mask = ~rmMasks, fill_value = 0 )        
-        #res = sumToNormalizeTo [2]
-        #isinstance (res ,np.ma.core.MaskedConstant)
-        """
-
     def printArrayData(self, theArr, theMask):
         # theArr = self.orig2dArray
         # theMask
@@ -244,8 +213,31 @@ class DataOfSkin(object):
             toPrint += "  -->  {0} ".format(round(sum * 100, 1))
             print toPrint
 
+    def pruneWeights(self, pruneValue):
+        with GlobalContext(message="pruneWeights", doPrint=True):
+            new2dArray = np.copy(self.orig2dArray)
+            unLock = np.ma.array(new2dArray.copy(), mask=self.lockedMask, fill_value=0)
+
+            np.copyto(unLock, np.full(unLock.shape, 0), where=unLock < pruneValue)
+
+            sum_unLock = unLock.sum(axis=1)
+            unLockNormalized = (
+                unLock / sum_unLock[:, np.newaxis] * self.toNormalizeToSum[:, np.newaxis]
+            )
+
+            np.copyto(new2dArray, unLockNormalized, where=~self.lockedMask)
+            # normalize -----------------------------------------------------------------------
+        self.actuallySetValue(
+            new2dArray,
+            self.sub2DArrayToSet,
+            self.userComponents,
+            self.influenceIndices,
+            self.shapePath,
+            self.sknFn,
+        )
+
     def absoluteVal(self, val):
-        with GlobalContext(message="absoluteVal", doPrint=True):
+        with GlobalContext(message="absoluteVal", doPrint=False):
             new2dArray = np.copy(self.orig2dArray)
             selectArr = np.full(self.orig2dArray.shape, val)
 
@@ -349,113 +341,9 @@ class DataOfSkin(object):
             # np.copyto (new2dArray , addValues.filled(0)+remainingValues.filled(0), where = ~self.lockedMask)
             np.copyto(new2dArray, addValues, where=~addValues.mask)
             np.copyto(new2dArray, remainingValues, where=~remainingValues.mask)
-
-            """
-            row_sumsPrev = myMaskedData .sum(axis=1)
-            row_sums = sumValues.sum(axis=1)
-
-            rmv_sums = removeValues .sum(axis=1)
-            i = 7
-            print row_sums  [i] - row_sumsPrev [i]            
-            print sumToNormalizeTo [i] + row_sumsPrev [i]
-            print rmv_sums [i] + row_sums [i]
-
-            """
         # set Value ------------------------------------------------
         self.actuallySetValue(
             new2dArray,
-            self.sub2DArrayToSet,
-            self.userComponents,
-            self.influenceIndices,
-            self.shapePath,
-            self.sknFn,
-        )
-
-    def prepareValuesforSetSkinDataOLD(self, chunks, actualyVisibleColumns):
-        chunk = chunks[0]
-        top, bottom, left, right = chunk
-
-        # get selected vertices -----------------------------------------------------------------------------
-        selectedRows = xrange(top, bottom + 1)
-        indicesVertices = [
-            self.vertices[indRow] for indRow in selectedRows
-        ]  # if not self.isRowLocked (indRow) ]
-
-        # GET the sub ARRAY ---------------------------------------------------------------------------------
-        self.sub2DArrayToSet = self.raw2dArray[
-            top : bottom + 1,
-        ]
-        self.orig2dArray = self.sub2DArrayToSet.copy()
-
-        # MAKING the MASK Array ------------------------------------------------------------------------------
-        # first add the shown columns ---
-        visibleColumns = np.union1d(self.usedDeformersIndices, actualyVisibleColumns)
-
-        # selectedColumns = xrange(left,right+1)
-        # get columns in the visible set --------------------------------
-        condArray = isin(range(self.nbDrivers), visibleColumns, assume_unique=True, invert=False)
-        condArray[:left] = False
-        condArray[right + 1 :] = False
-
-        # theNamesOfSelectedDeformers = [self.driverNames [ind] for ind, val in enumerate(condArray) if val]
-        # print theNamesOfSelectedDeformers
-
-        self.maskArray = np.tile(condArray, (len(selectedRows), 1))
-        # set at False the locked vertices ---------------------------------------------------------------
-
-        # NOW Prepare for settingSkin Cluster -------------------------------------
-        self.influenceIndices = OpenMaya.MIntArray()
-        self.influenceIndices.setLength(self.nbDrivers)
-        for i in xrange(self.nbDrivers):
-            self.influenceIndices.set(i, i)
-
-        componentType = OpenMaya.MFn.kMeshVertComponent
-        fnComponent = OpenMaya.MFnSingleIndexedComponent()
-        self.userComponents = fnComponent.create(componentType)
-        for ind in indicesVertices:
-            fnComponent.addElement(ind)
-
-        lengthArray = self.nbDrivers * (bottom - top + 1)
-
-        self.newArray = OpenMaya.MDoubleArray()
-        self.newArray.setLength(lengthArray)
-
-        # set normalize FALSE --------------------------------------------------------
-        cmds.setAttr(self.theSkinCluster + ".normalizeWeights", 0)
-
-    def setSkinDataOLD(self, val):
-        with GlobalContext(message="prepareSkinfn numpy"):
-            selectedValues = np.copy(self.orig2dArray)
-            np.putmask(selectedValues, ~self.maskArray, 0)
-
-            remainingValues = np.copy(self.orig2dArray)
-            np.putmask(remainingValues, self.maskArray, 0)
-
-            row_sumsSelected = selectedValues.sum(axis=1)
-            row_sumsRemaining = remainingValues.sum(axis=1)
-
-            # --------------------------------------------------------------------
-            # with GlobalContext (message = "prepareSkinfn numpy"):
-            new2dArray = np.copy(self.orig2dArray)
-            # addValues ------------------------
-            # selectedValues+val
-            np.putmask(new2dArray, self.maskArray, new2dArray + val)
-
-            # get number selected columns ------------------------------------
-            nbColumnsSelected = np.count_nonzero(self.maskArray[0])
-            # get total value added       ------------------------------------
-            totalAdded = nbColumnsSelected * val
-            # remove from non zero other columns -----------------------------
-            # self.maskArray.
-            # np.putmask(new2dArray ,~self.maskArray , new2dArray-subVal)
-            # clamp 0 1 --------------------------------------------------
-            new2dArray = new2dArray.clip(min=0, max=1.0)
-            # normalize ------------------------------------------------
-            row_sums = new2dArray.sum(axis=1)
-            new2dArrayDiv = new2dArray / row_sums[:, np.newaxis]
-        # set Value ------------------------------------------------
-        self.actuallySetValue(
-            new2dArrayDiv,
             self.sub2DArrayToSet,
             self.userComponents,
             self.influenceIndices,
