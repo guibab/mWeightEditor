@@ -201,6 +201,7 @@ class SkinWeightWin(QtWidgets.QDialog):
         theLayout = self.layout()  # QtWidgets.QVBoxLayout(self)
         theLayout.setContentsMargins(10, 10, 10, 10)
         theLayout.setSpacing(3)
+        self.addPercentage = False
 
         topButtonsLay = self.topButtonsWidget.layout()
 
@@ -247,10 +248,12 @@ class SkinWeightWin(QtWidgets.QDialog):
         # -----------------------------------------------------------
         self.refreshBTN.clicked.connect(self.refreshBtn)
         self.smoothBTN.clicked.connect(self.smooth)
-        self.addBTN.toggled.connect(self.changeAddAbs)
+        self.absBTN.toggled.connect(self.changeAddAbs)
+        self.addPercBTN.toggled.connect(self.changeAddPerc)
         self.pruneWghtBTN.clicked.connect(self.pruneWeights)
+        self.normalizeBTN.clicked.connect(self.normalize)
 
-        self.addPercBTN.setEnabled(False)
+        # self.addPercBTN.setEnabled(False)
 
     def pruneWeights(self):
         chunks = self.getRowColumnsSelected()
@@ -266,13 +269,20 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.dataOfSkin.postSkinSet()
 
         self._tm.endResetModel()
+        self.retrieveSelection()
+
+    def normalize(self):
+        self.dataOfSkin.normalize()
 
     def changeAddAbs(self, checked):
         self.widgetAbs.setVisible(False)
         self.widgetAdd.setVisible(False)
-        self.widgetAbs.setVisible(not checked)
-        self.widgetAdd.setVisible(checked)
-        self.valueSetter.setAddMode(checked)
+        self.widgetAbs.setVisible(checked)
+        self.widgetAdd.setVisible(not checked)
+        self.valueSetter.setAddMode(not checked)
+
+    def changeAddPerc(self, checked):
+        self.addPercentage = checked
 
     def smooth(self):
         cmds.blurSkinCmd(command="smooth", repeat=3)
@@ -308,7 +318,7 @@ class SkinWeightWin(QtWidgets.QDialog):
         self._tm.beginResetModel()
 
         if self.valueSetter.addMode and not forceAbsolute:
-            self.dataOfSkin.setSkinData(val)
+            self.dataOfSkin.setSkinData(val, percent=self.addPercentage)
         else:
             self.dataOfSkin.absoluteVal(val)
 

@@ -213,6 +213,9 @@ class DataOfSkin(object):
             toPrint += "  -->  {0} ".format(round(sum * 100, 1))
             print toPrint
 
+    def normalize(self):
+        print "normalize"
+
     def pruneWeights(self, pruneValue):
         with GlobalContext(message="pruneWeights", doPrint=True):
             new2dArray = np.copy(self.orig2dArray)
@@ -292,7 +295,7 @@ class DataOfSkin(object):
             self.sknFn,
         )
 
-    def setSkinData(self, val):
+    def setSkinData(self, val, percent=False):
         with GlobalContext(message="setSkinData", doPrint=False):
             new2dArray = np.copy(self.orig2dArray)
             selectArr = np.copy(self.orig2dArray)
