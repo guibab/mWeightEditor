@@ -473,6 +473,84 @@ class TableView(QtWidgets.QTableView):
         self.verticalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
 
         # self.setUniformRowHeights (True)
+        # btn = QtWidgets.QPushButton("Hi")
+        # self.setCornerWidget(btn)
+
+        # self.Icon = self.createIcon ()
+
+        self._font = QtGui.QFont("Myriad Pro", 10)
+        self._font.setBold(False)
+        self._metrics = QtGui.QFontMetrics(self._font)
+        self._descent = self._metrics.descent()
+        self._margin = 5
+        self._colorDrawHeight = 20
+        self.regularBG = QtGui.QBrush(QtGui.QColor(130, 130, 130))
+
+        self.__nw_heading = "Vtx"
+        btn = self.findChild(QtWidgets.QAbstractButton)
+        btn.setText(self.__nw_heading)
+        btn.setToolTip("Toggle selecting all table cells")
+        btn.installEventFilter(self)
+
+        opt = QtWidgets.QStyleOptionHeader()
+        opt.text = btn.text()
+        s = QtCore.QSize(
+            btn.style()
+            .sizeFromContents(QtWidgets.QStyle.CT_HeaderSection, opt, QtCore.QSize(), btn)
+            .expandedTo(QtWidgets.QApplication.globalStrut())
+        )
+
+        if s.isValid():
+            self.verticalHeader().setMinimumWidth(s.width())
+
+    def createPixMap(self, rect):
+        # Icon = QtGui.QIcon()
+        thePixmap = QtGui.QPixmap(180, 180)
+        painter = QtGui.QPainter()
+        painter.begin(thePixmap)
+
+        painter.rotate(-90)
+        x = -rect.height()
+        y = rect.left()
+
+        data = self.model().datatable.shapeShortName
+
+        painter.setBrush(self.regularBG)
+        painter.setFont(self._font)
+        painter.drawRect(x + 1, y - 1, rect.height() - 1, rect.width())
+
+        painter.drawText(
+            -rect.height() + self._margin, rect.left() + (rect.width() + self._descent) / 2, data
+        )
+        painter.end()
+        # Icon.addPixmap(thePixmap, QtGui.QIcon.Normal, QtGui.QIcon.Off)
+
+        return thePixmap
+
+    def eventFilter(self, obj, event):
+        if event.type() != QtCore.QEvent.Paint or not isinstance(obj, QtWidgets.QAbstractButton):
+            return False
+        # Paint by hand (borrowed from QTableCornerButton)
+        opt = QtWidgets.QStyleOptionHeader()
+        opt.initFrom(obj)
+        styleState = QtWidgets.QStyle.State_None
+        if obj.isEnabled():
+            styleState |= QtWidgets.QStyle.State_Enabled
+        if obj.isActiveWindow():
+            styleState |= QtWidgets.QStyle.State_Active
+        if obj.isDown():
+            styleState |= QtWidgets.QStyle.State_Sunken
+        opt.state = styleState
+        opt.rect = obj.rect()
+        # This line is the only difference to QTableCornerButton
+        # opt.text = obj.text()
+        # opt.textAlignment = QtCore.Qt.AlignBottom | QtCore.Qt.AlignHCenter
+        opt.position = QtWidgets.QStyleOptionHeader.OnlyOneSection
+        painter = QtWidgets.QStylePainter(obj)
+        painter.drawItemPixmap(opt.rect, 1, self.createPixMap(opt.rect))
+        painter.drawControl(QtWidgets.QStyle.CE_Header, opt)
+
+        return True
 
 
 # -------------------------------------------------------------------------------

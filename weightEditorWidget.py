@@ -60,7 +60,7 @@ TableView {
      border : 0px;
  }
 QTableView QTableCornerButton::section {
-    background:  #878787;
+    background:  transparent;
     border : 1px solid black;
 }
  
@@ -114,22 +114,27 @@ class SkinWeightWin(QtWidgets.QDialog):
         blurdev.gui.loadUi(__file__, self)
 
         # QtWidgets.QWidget.__init__(self, parent)
-        self.dataOfSkin = DataOfSkin()
+        self.buildRCMenu()
+
+        self.dataOfSkin = DataOfSkin(useShortestNames=self.useShortestNames)
         self.get_data_frame()
         self.createWindow()
         self.setStyleSheet(styleSheet)
 
         refreshSJ = cmds.scriptJob(event=["SelectionChanged", self.refresh])
         self.listJobEvents = [refreshSJ]
-
         self.setWindowDisplay()
-        self.buildRCMenu()
 
     def buildRCMenu(self):
         self.autoPrune = (
             cmds.optionVar(q="autoPrune") if cmds.optionVar(exists="autoPrune") else False
         )
-
+        self.useShortestNames = (
+            cmds.optionVar(q="useShortestNames")
+            if cmds.optionVar(exists="useShortestNames")
+            else True
+        )
+        # -------------------
         self.popMenu = QtWidgets.QMenu(self)
         resizeAction = self.popMenu.addAction("resize to minimum (MiddleClick)")
         resizeAction.triggered.connect(self.reizeToMinimum)
@@ -137,6 +142,13 @@ class SkinWeightWin(QtWidgets.QDialog):
         chbox = QtWidgets.QCheckBox("auto Prune", self.popMenu)
         chbox.setChecked(self.autoPrune)
         chbox.toggled.connect(self.autoPruneChecked)
+        checkableAction = QtWidgets.QWidgetAction(self.popMenu)
+        checkableAction.setDefaultWidget(chbox)
+        self.popMenu.addAction(checkableAction)
+
+        chbox = QtWidgets.QCheckBox("shortest name", self.popMenu)
+        chbox.setChecked(self.useShortestNames)
+        chbox.toggled.connect(self.useShortestNameChecked)
         checkableAction = QtWidgets.QWidgetAction(self.popMenu)
         checkableAction.setDefaultWidget(chbox)
         self.popMenu.addAction(checkableAction)
@@ -150,6 +162,13 @@ class SkinWeightWin(QtWidgets.QDialog):
     def autoPruneChecked(self, checked):
         cmds.optionVar(intValue=["autoPrune", checked])
         self.autoPrune = checked
+        self.popMenu.close()
+
+    def useShortestNameChecked(self, checked):
+        cmds.optionVar(intValue=["useShortestNames", checked])
+        self.useShortestNames = checked
+        self.dataOfSkin.useShortestNames = checked
+        self.dataOfSkin.getShortNames()
         self.popMenu.close()
 
     def showMenu(self, pos):

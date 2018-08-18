@@ -25,10 +25,11 @@ def isin(element, test_elements, assume_unique=False, invert=False):
 #
 ###################################################################################
 class DataOfSkin(object):
-    def __init__(self):
+    def __init__(self, useShortestNames=False):
         self.AllWght = []
         self.usedDeformersIndices = []
         self.theSkinCluster = ""
+        self.shapeShortName = ""
         self.vertices = []
         self.driverNames = []
         self.nbDrivers = 0
@@ -45,6 +46,8 @@ class DataOfSkin(object):
         self.usedDeformersIndices = []
         self.hideColumnIndices = []
         self.meshIsUsed = False
+
+        self.useShortestNames = useShortestNames
 
         self.UNDOstack = []
 
@@ -552,6 +555,15 @@ class DataOfSkin(object):
 
         ################################################################################################################################################################
 
+    def getShortNames(self):
+        self.shortDriverNames = []
+        for el in self.driverNames:
+            shortName = el.split(":")[-1].split("|")[-1]
+            if self.useShortestNames and shortName.startswith("Dfm_"):
+                splt = shortName.split("_")
+                shortName = " ".join(splt[1:])
+            self.shortDriverNames.append(shortName)
+
     def getAllData(self):
         sel = cmds.ls(sl=True)
         theSkinCluster, deformedShape = self.getSkinClusterFromSel(sel)
@@ -559,6 +571,12 @@ class DataOfSkin(object):
             return False
 
         self.theSkinCluster, self.deformedShape = theSkinCluster, deformedShape
+
+        self.shapeShortName = deformedShape.split(":")[-1].split("|")[-1]
+        splt = self.shapeShortName.split("_")
+        if len(splt) > 5:
+            self.shapeShortName = "_".join(splt[-7:-4])
+
         self.raw2dArray = None
 
         if not theSkinCluster:
@@ -576,8 +594,7 @@ class DataOfSkin(object):
         self.driverNames, self.skinningMethod, self.normalizeWeights = self.getSkinClusterValues(
             self.theSkinCluster
         )
-        self.shortDriverNames = [el.split(":")[-1].split("|")[-1] for el in self.driverNames]
-
+        self.getShortNames()
         self.nbDrivers = len(self.driverNames)
 
         with GlobalContext(message="rawSkinValues"):
