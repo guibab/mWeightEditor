@@ -52,6 +52,11 @@ QPushButton:pressed {
     color:white;
     border-style: inset;
 }
+QPushButton:disabled {
+    font:italic;
+    color:grey;
+    }
+
 TableView {
      selection-background-color: #a0a0ff;
      background : #aba8a6;
@@ -97,6 +102,10 @@ class SkinWeightWin(QtWidgets.QDialog):
 
     colWidth = 30
     maxWidthCentralWidget = 340
+
+    def addMinButton(self):
+        # self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint)
+        self.setWindowFlags(QtCore.Qt.Window)
 
     def __init__(self, parent=None):
         super(SkinWeightWin, self).__init__(parent)
@@ -303,6 +312,9 @@ class SkinWeightWin(QtWidgets.QDialog):
             self, usePow=False, name="Smooth", minimumValue=1, defaultValue=3
         )
         self.botLayout.insertWidget(6, self.smoothBTN)
+
+        for nm in ["copy", "paste", "swap"]:
+            self.__dict__[nm + "BTN"].setEnabled(False)
         # -----------------------------------------------------------
         self.refreshBTN.clicked.connect(self.refreshBtn)
 

@@ -133,14 +133,14 @@
       <item>
        <layout class="QHBoxLayout" name="botLayout">
         <item>
-         <widget class="QPushButton" name="pushButton_5">
+         <widget class="QPushButton" name="copyBTN">
           <property name="text">
            <string>Copy</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="pushButton_6">
+         <widget class="QPushButton" name="pasteBTN">
           <property name="text">
            <string>Paste</string>
           </property>
@@ -174,7 +174,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="pushButton_7">
+         <widget class="QPushButton" name="swapBTN">
           <property name="text">
            <string>Swap deformers</string>
           </property>

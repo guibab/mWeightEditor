@@ -572,7 +572,9 @@ class DataOfSkin(object):
 
         self.theSkinCluster, self.deformedShape = theSkinCluster, deformedShape
 
-        self.shapeShortName = deformedShape.split(":")[-1].split("|")[-1]
+        self.shapeShortName = (
+            cmds.listRelatives(deformedShape, p=True)[0].split(":")[-1].split("|")[-1]
+        )
         splt = self.shapeShortName.split("_")
         if len(splt) > 5:
             self.shapeShortName = "_".join(splt[-7:-4])
