@@ -105,6 +105,16 @@ class TableModel(QtCore.QAbstractTableModel):
         except:
             return "total"
 
+    def getColumnSide(self, col):
+        try:
+            driverName = self.datatable.driverNames[col]
+            for letter in "LRM":
+                if "_{0}_".format(letter) in driverName:
+                    return letter
+            return "X"
+        except:
+            return "X"
+
     def getRowText(self, row):
         return str(self.datatable.vertices[row])
 
@@ -283,6 +293,10 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         self.regularBG = QtGui.QBrush(QtGui.QColor(130, 130, 130))
         self.greyBG = QtGui.QBrush(QtGui.QColor(100, 100, 100))
 
+        self.blueBG = QtGui.QBrush(QtGui.QColor(112, 124, 137))
+        self.redBG = QtGui.QBrush(QtGui.QColor(134, 119, 127))
+        self.yellowBG = QtGui.QBrush(QtGui.QColor(144, 144, 122))
+
     def mousePressEvent(self, event):
         super(HorizHeaderView, self).mousePressEvent(event)
         nbShown = 0
@@ -422,9 +436,11 @@ class HorizHeaderView(QtWidgets.QHeaderView):
             x = -rect.height()
             y = rect.left()
 
-            theBGBrush = (
-                self.greyBG if self.model().datatable.isColumnLocked(index) else self.regularBG
-            )
+            side = self.model().getColumnSide(index)
+            defaultBGInd = "RLMX".index(side)
+            defaultBG = [self.blueBG, self.redBG, self.yellowBG, self.regularBG][defaultBGInd]
+
+            theBGBrush = self.greyBG if self.model().datatable.isColumnLocked(index) else defaultBG
             # theBGBrush = self.regularBG
 
             painter.setBrush(theBGBrush)
