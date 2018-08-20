@@ -92,9 +92,9 @@ class DataOfSkin(object):
         else:
             return listInds
 
-    def getIndicesFromSelection(self, sel):
+    def getIndicesFromSelection(self, sel, asList=True):
         selectedVertices = [el for el in sel if ".vtx[" in el]
-        indices = [el.split(".vtx[")[-1][:-1] for el in selectedVertices if ".vtx" in el]
+        indices = [el.split(".vtx[")[-1][:-1] for el in selectedVertices if ".vtx[" in el]
 
         for toSearch in [".f[", ".e["]:
             selection = [el for el in sel if toSearch in el]
@@ -104,7 +104,7 @@ class DataOfSkin(object):
             else:
                 kwargs["fe"] = True
             convertedVertices = cmds.polyListComponentConversion(selection, **kwargs)
-            indices += [el.split(".vtx[")[-1][:-1] for el in convertedVertices if ".vtx" in el]
+            indices += [el.split(".vtx[")[-1][:-1] for el in convertedVertices if ".vtx[" in el]
         allIndices = set()
         for index in indices:
             if ":" in index:
@@ -112,7 +112,33 @@ class DataOfSkin(object):
                 allIndices.update(range(nmbs[0], nmbs[1] + 1))
             else:
                 allIndices.add(int(index))
-        return sorted(list(allIndices))
+        if asList:
+            return sorted(list(allIndices))
+        else:
+            return allIndices
+
+    def getHalfVerticesOfSelection(self):
+        selectedVertices = cmds.ls(sl=True)
+        vertsIndices = self.getIndicesFromSelection(selectedVertices, asList=False)
+
+        cmds.ConvertSelectionToVertexPerimeter()
+        borderOfSelection = cmds.ls(sl=True)
+
+        newSel = cmds.polyListComponentConversion(
+            cmds.polyListComponentConversion(borderOfSelection, fv=1, te=1), fe=1, tv=1
+        )
+        newSelIndices = self.getIndicesFromSelection(newSel, asList=False)
+        listOfIndices = [newSelIndices]
+        breakPoint = 50
+        while not vertsIndices.issubset(newSelIndices):
+            newSel = cmds.polyListComponentConversion(
+                cmds.polyListComponentConversion(newSel, fv=1, te=1), fe=1, tv=1
+            )
+            newSelIndices = self.getIndicesFromSelection(newSel, asList=False)
+            listOfIndices.append(newSelIndices)
+            breakPoint -= 1
+            if breakPoint == 0:
+                break
 
     def getMObject(self, nodeName, returnDagPath=True):
         # We expect here the fullPath of a shape mesh
@@ -316,7 +342,9 @@ class DataOfSkin(object):
             self.sknFn,
         )
 
-    def setSkinData(self, val, percent=False, autoPrune=False, average=False):
+    def setSkinData(
+        self, val, percent=False, autoPrune=False, average=False, autoPruneValue=0.0001
+    ):
         # if percent : print "percent"
         with GlobalContext(message="setSkinData", doPrint=False):
             new2dArray = np.copy(self.orig2dArray)
@@ -345,6 +373,7 @@ class DataOfSkin(object):
                 valuesToAdd = val / self.nbIndicesSettable[:, np.newaxis]
                 addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0) + valuesToAdd
             else:  # ----- average ---------
+                print "average"
                 theMask = sumMasksUpdate
                 addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0)
                 sumCols_addValues = addValues.mean(axis=0)
@@ -374,9 +403,12 @@ class DataOfSkin(object):
             # renormalize ---------------------------------------------------------------------------------------------------
             if autoPrune:
                 self.pruneOnArray(
-                    remainingValues, remainingValues.mask, remainingValues.sum(axis=1), 0.0001
+                    remainingValues,
+                    remainingValues.mask,
+                    remainingValues.sum(axis=1),
+                    autoPruneValue,
                 )
-                self.pruneOnArray(addValues, addValues.mask, addValues.sum(axis=1), 0.0001)
+                self.pruneOnArray(addValues, addValues.mask, addValues.sum(axis=1), autoPruneValue)
             # add with the mask ---------------------------------------------------------------------------------------------
             # np.copyto (new2dArray , addValues.filled(0)+remainingValues.filled(0), where = ~self.lockedMask)
             np.copyto(new2dArray, addValues, where=~addValues.mask)

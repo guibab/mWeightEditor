@@ -138,6 +138,11 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.autoPrune = (
             cmds.optionVar(q="autoPrune") if cmds.optionVar(exists="autoPrune") else False
         )
+        self.autoPruneValue = (
+            cmds.optionVar(q="autoPruneValue")
+            if cmds.optionVar(exists="autoPruneValue")
+            else 0.0001
+        )
         self.useShortestNames = (
             cmds.optionVar(q="useShortestNames")
             if cmds.optionVar(exists="useShortestNames")
@@ -181,7 +186,17 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.popMenu.close()
 
     def showMenu(self, pos):
-        self.popMenu.exec_(self.mapToGlobal(pos))
+        chd = self.childAt(pos)
+        for (
+            widgetName,
+            widg,
+        ) in self.__dict__.iteritems():  # for name, age in list.items():  (for Python 3.x)
+            if widg == chd:
+                print widgetName
+                break
+        # print widgetName
+        if widgetName == "topButtonsWidget":
+            self.popMenu.exec_(self.mapToGlobal(pos))
 
     def setWindowDisplay(self):
         self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.Tool)
@@ -313,6 +328,18 @@ class SkinWeightWin(QtWidgets.QDialog):
         )
         self.botLayout.insertWidget(6, self.smoothBTN)
 
+        self.percentBTN = ButtonWithValue(
+            self,
+            usePow=False,
+            name="%",
+            minimumValue=0,
+            maximumValue=1.0,
+            defaultValue=1.0,
+            step=0.1,
+        )
+        self.botLayout.insertWidget(7, self.percentBTN)
+        self.percentBTN.setMaximumWidth(30)
+
         for nm in ["copy", "paste", "swap"]:
             self.__dict__[nm + "BTN"].setEnabled(False)
         # -----------------------------------------------------------
@@ -378,7 +405,9 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.addPercentage = checked
 
     def smooth(self):
-        cmds.blurSkinCmd(command="smooth", repeat=self.smoothBTN.precision)
+        cmds.blurSkinCmd(
+            command="smooth", repeat=self.smoothBTN.precision, percentMvt=self.percentBTN.precision
+        )
 
     def prepareToSetValue(self):
         # with GlobalContext (message = "prepareValuesforSetSkinData"):

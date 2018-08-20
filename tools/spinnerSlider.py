@@ -13,12 +13,14 @@ class ButtonWithValue(QtWidgets.QPushButton):
         minimumValue=-1,
         defaultValue=2,
         maximumValue=10,
+        step=1,
     ):
         self.usePow = usePow
         self.name = name
         self.minimumValue = minimumValue
         self.maximumValue = maximumValue
         self.defaultValue = defaultValue
+        self.step = step
         self.optionVarName = "ButtonWithValue_" + name
         super(ButtonWithValue, self).__init__(parent)
         self.setMinimumHeight(24)
@@ -36,25 +38,31 @@ class ButtonWithValue(QtWidgets.QPushButton):
     def wheelEvent(self, event):
         val = event.angleDelta().y()
         if val > 0.0:
-            self.precision += 1
+            self.precision += self.step
         else:
-            self.precision -= 1
+            self.precision -= self.step
         if self.precision < self.minimumValue:
             self.precision = self.minimumValue
         if self.precision > self.maximumValue:
             self.precision = self.maximumValue
+
+        if self.step != 1:
+            self.precision = round(self.precision, 1)
         self.updateName()
 
     def updateName(self):
         if self.usePow:
             self.precisionValue = math.pow(10, self.precision * -1)
-            theText = " {0} [{1}] ".format(self.name, self.precisionValue)
+            theText = " {0} {1} ".format(self.name, self.precisionValue)
         else:
-            theText = " {0} [{1}] ".format(self.name, self.precision)
+            theText = " {0} {1} ".format(self.name, self.precision)
         self.setText(theText)
         self.setMinimumWidth(self._metrics.width(theText) + 6)
 
-        cmds.optionVar(intValue=[self.optionVarName, self.precision])
+        if self.step == 1:
+            cmds.optionVar(intValue=[self.optionVarName, self.precision])
+        else:
+            cmds.optionVar(floatValue=[self.optionVarName, self.precision])
 
 
 ###################################################################################
