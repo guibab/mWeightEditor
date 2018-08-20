@@ -686,10 +686,11 @@ class DataOfSkin(object):
 
     def lockColumns(self, selectedIndices, doLock=True):
         for column in selectedIndices:
-            driver = self.driverNames[column]
-            if cmds.objExists(driver + ".lockInfluenceWeights"):
-                cmds.setAttr(driver + ".lockInfluenceWeights", doLock)
-                self.lockedColumns[column] = doLock
+            if column < self.nbDrivers:
+                driver = self.driverNames[column]
+                if cmds.objExists(driver + ".lockInfluenceWeights"):
+                    cmds.setAttr(driver + ".lockInfluenceWeights", doLock)
+                    self.lockedColumns[column] = doLock
 
     def selectDeformers(self, selectedIndices):
         toSel = [
