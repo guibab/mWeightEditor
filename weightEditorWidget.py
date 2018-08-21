@@ -358,10 +358,10 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.averageBTN.clicked.connect(self.doAverage)
         self.reassignLocallyBTN.clicked.connect(self.reassignLocally)
 
-        self.reassignLocallyBTN.setEnabled(False)
-        self._tv.HHeaderView.selEmptied.connect(self.reassignLocallyBTN.setEnabled)
-        self.averageBTN.setEnabled(False)
-        self._tv.HHeaderView.selEmptied.connect(self.averageBTN.setEnabled)
+        for uiName in ["reassignLocallyBTN", "averageBTN", "widgetAbs", "widgetAdd", "valueSetter"]:
+            theUI = self.__dict__[uiName]
+            theUI.setEnabled(False)
+            self._tv.HHeaderView.selEmptied.connect(theUI.setEnabled)
         # self.addPercBTN.setEnabled(False)
 
     def reassignLocally(self):

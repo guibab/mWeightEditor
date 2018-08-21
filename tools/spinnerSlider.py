@@ -77,7 +77,9 @@ class ButtonWithValue(QtWidgets.QPushButton):
 #
 ###################################################################################
 class ValueSetting(QtWidgets.QWidget):
-    theStyleSheet = "QDoubleSpinBox {color: black; background-color:rgb(200,200,200) ; border: 1px solid black;text-align: center;}"
+    theStyleSheet = """QDoubleSpinBox {color: black; background-color:rgb(200,200,200) ; border: 1px solid black;text-align: center;}
+                       QDoubleSpinBox:disabled {color: grey; background-color:rgb(170,170,170) ; border: 1px solid black;text-align: center;}
+                    """
 
     def __init__(self, parent=None, singleStep=0.1, precision=1):
         super(ValueSetting, self).__init__(parent=None)
@@ -189,17 +191,27 @@ class ValueSetting(QtWidgets.QWidget):
 
 
 class ProgressItem(QtWidgets.QProgressBar):
-    theStyleSheet = "QProgressBar {{color: black; background-color:{bgColor} ; border: 1px solid black;text-align: center;\
-    border-bottom-right-radius: {szrad}px;\
-    border-bottom-left-radius: {szrad}px;\
-    border-top-right-radius: {szrad}px;\
-    border-top-left-radius: {szrad}px;}}\
-    QProgressBar::chunk {{background:{chunkColor};\
-    border-bottom-right-radius: {szrad}px;\
-    border-bottom-left-radius: {szrad}px;\
-    border-top-right-radius: {szrad}px;\
-    border-top-left-radius: {szrad}px;\
-    }}"
+    theStyleSheet = """QProgressBar {{color: black; background-color:{bgColor} ; border: 1px solid black;text-align: center;
+    border-bottom-right-radius: {szrad}px;
+    border-bottom-left-radius: {szrad}px;
+    border-top-right-radius: {szrad}px;
+    border-top-left-radius: {szrad}px;}}
+    QProgressBar:disabled {{color: black; background-color:{bgColorDisabled} ; border: 1px solid black;text-align: center;
+    border-bottom-right-radius: {szrad}px;
+    border-bottom-left-radius: {szrad}px;
+    border-top-right-radius: {szrad}px;
+    border-top-left-radius: {szrad}px;}}            
+    QProgressBar::chunk {{background:{chunkColor};
+    border-bottom-right-radius: {szrad}px;
+    border-bottom-left-radius: {szrad}px;
+    border-top-right-radius: {szrad}px;
+    border-top-left-radius: {szrad}px;}}
+    QProgressBar::chunk:disabled {{background:{chunkColorDisabled};
+    border-bottom-right-radius: {szrad}px;
+    border-bottom-left-radius: {szrad}px;
+    border-top-right-radius: {szrad}px;
+    border-top-left-radius: {szrad}px;}}
+    """
     mainWindow = None
 
     def __init__(self, theName, value=0, **kwargs):
@@ -209,7 +221,14 @@ class ProgressItem(QtWidgets.QProgressBar):
         # self.setFormat (theName+" %p%")
         self.setFormat("")
         self.dicStyleSheet = dict(
-            {"szrad": 7, "bgColor": "rgb(136,136,136)", "chunkColor": "rgb(200,200,200)"}, **kwargs
+            {
+                "szrad": 7,
+                "bgColor": "rgb(136,136,136)",
+                "bgColorDisabled": "rgb(136,136,136)",
+                "chunkColor": "rgb(200,200,200)",
+                "chunkColorDisabled": "rgb(170,170,170)",
+            },
+            **kwargs
         )
 
         self.setStyleSheet(self.theStyleSheet.format(**self.dicStyleSheet))
