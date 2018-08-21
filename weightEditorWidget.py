@@ -367,13 +367,11 @@ class SkinWeightWin(QtWidgets.QDialog):
     def reassignLocally(self):
         chunks = self.getRowColumnsSelected()
         if chunks:
-            chunks = [(0, self.dataOfSkin.rowCount - 1, 0, self.dataOfSkin.columnCount - 1)]
             actualyVisibleColumns = [
                 indCol
                 for indCol in self.dataOfSkin.hideColumnIndices
                 if not self._tv.HHeaderView.isSectionHidden(indCol)
             ]
-
             self.storeSelection()
             self._tm.beginResetModel()
 
