@@ -14,6 +14,7 @@ class ButtonWithValue(QtWidgets.QPushButton):
         defaultValue=2,
         maximumValue=10,
         step=1,
+        clickable=True,
     ):
         self.usePow = usePow
         self.name = name
@@ -21,11 +22,16 @@ class ButtonWithValue(QtWidgets.QPushButton):
         self.maximumValue = maximumValue
         self.defaultValue = defaultValue
         self.step = step
+        self.clickable = clickable
         self.optionVarName = "ButtonWithValue_" + name
         super(ButtonWithValue, self).__init__(parent)
         self.setMinimumHeight(24)
         self._metrics = QtGui.QFontMetrics(self.font())
         self.getValuePrecision()
+
+    def mousePressEvent(self, event):
+        if self.clickable:
+            super(ButtonWithValue, self).mousePressEvent(event)
 
     def getValuePrecision(self):
         self.precision = (

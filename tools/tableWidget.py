@@ -208,6 +208,10 @@ class VertHeaderView(QtWidgets.QHeaderView):
         lockAction.triggered.connect(self.lockSelectedRows)
         lockAction.setEnabled(not selectionIsEmpty)
 
+        lockAllButSelAction = popMenu.addAction("lock all but selected")
+        lockAllButSelAction.triggered.connect(self.lockAllButSelectedRows)
+        lockAllButSelAction.setEnabled(not selectionIsEmpty)
+
         unlockAction = popMenu.addAction("unlock selected")
         unlockAction.triggered.connect(self.unlockSelectedRows)
         unlockAction.setEnabled(not selectionIsEmpty)
@@ -254,6 +258,11 @@ class VertHeaderView(QtWidgets.QHeaderView):
         selectedIndices = self.getSelectedRows()
         self.model().datatable.lockRows(selectedIndices)
 
+    def lockAllButSelectedRows(self):
+        selectedIndices = set(range(self.count()))
+        selectedIndices.difference_update(self.getSelectedRows())
+        self.model().datatable.lockRows(selectedIndices)
+
     def unlockSelectedRows(self):
         selectedIndices = self.getSelectedRows()
         self.model().datatable.unLockRows(selectedIndices)
@@ -273,6 +282,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         (111, 48, 161),
         (161, 48, 105),
     ]
+    selEmptied = QtCore.Signal(bool, name="selEmptied")
 
     def __init__(self, colWidth=10, parent=None):
         super(HorizHeaderView, self).__init__(QtCore.Qt.Horizontal, parent)
@@ -296,6 +306,14 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         self.blueBG = QtGui.QBrush(QtGui.QColor(112, 124, 137))
         self.redBG = QtGui.QBrush(QtGui.QColor(134, 119, 127))
         self.yellowBG = QtGui.QBrush(QtGui.QColor(144, 144, 122))
+
+    def selectionChanged(self, selected, deselected):
+        super(HorizHeaderView, self).selectionChanged(selected, deselected)
+        selectionIsEmpty = self.selectionModel().selection().isEmpty()
+        # print "emptySelection", selectionIsEmpty
+        self.selEmptied.emit(not selectionIsEmpty)
+
+        # self.parent().parent().reassignLocallyBTN.setEnabled (not selectionIsEmpty)
 
     def mousePressEvent(self, event):
         super(HorizHeaderView, self).mousePressEvent(event)
@@ -342,6 +360,11 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         selectedIndices = self.getSelectedColumns()
         self.model().datatable.lockColumns(selectedIndices)
 
+    def lockAllButSelectedColumns(self):
+        selectedIndices = set(range(self.count() - 1))
+        selectedIndices.difference_update(self.getSelectedColumns())
+        self.model().datatable.lockColumns(selectedIndices)
+
     def unlockSelectedColumns(self):
         selectedIndices = self.getSelectedColumns()
         self.model().datatable.unLockColumns(selectedIndices)
@@ -351,7 +374,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         self.model().datatable.selectDeformers(selectedIndices)
 
     def clearLocks(self):
-        self.model().datatable.unLockColumns(range(self.count()))
+        self.model().datatable.unLockColumns(range(self.count() - 1))
 
     def showMenu(self, pos):
         popMenu = QtWidgets.QMenu(self)
@@ -366,6 +389,10 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         lockAction = popMenu.addAction("lock selected")
         lockAction.triggered.connect(self.lockSelectedColumns)
         lockAction.setEnabled(not selectionIsEmpty)
+
+        lockAllButSelAction = popMenu.addAction("lock all but selected")
+        lockAllButSelAction.triggered.connect(self.lockAllButSelectedColumns)
+        lockAllButSelAction.setEnabled(not selectionIsEmpty)
 
         unlockAction = popMenu.addAction("unlock selected")
         unlockAction.triggered.connect(self.unlockSelectedColumns)

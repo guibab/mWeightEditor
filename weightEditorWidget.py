@@ -321,12 +321,12 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.pruneWghtBTN = ButtonWithValue(
             self, usePow=True, name="Prune", minimumValue=-1, defaultValue=2
         )
-        self.botLayout.insertWidget(3, self.pruneWghtBTN)
+        self.botLayout.insertWidget(2, self.pruneWghtBTN)
 
         self.smoothBTN = ButtonWithValue(
             self, usePow=False, name="Smooth", minimumValue=1, defaultValue=3
         )
-        self.botLayout.insertWidget(6, self.smoothBTN)
+        self.botLayout.insertWidget(4, self.smoothBTN)
 
         self.percentBTN = ButtonWithValue(
             self,
@@ -336,12 +336,14 @@ class SkinWeightWin(QtWidgets.QDialog):
             maximumValue=1.0,
             defaultValue=1.0,
             step=0.1,
+            clickable=False,
         )
-        self.botLayout.insertWidget(7, self.percentBTN)
+        self.botLayout.insertWidget(5, self.percentBTN)
         self.percentBTN.setMaximumWidth(30)
 
         for nm in ["copy", "paste", "swap"]:
             self.__dict__[nm + "BTN"].setEnabled(False)
+            self.__dict__[nm + "BTN"].hide()
         # -----------------------------------------------------------
         self.refreshBTN.clicked.connect(self.refreshBtn)
 
@@ -354,8 +356,33 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.normalizeBTN.clicked.connect(self.doNormalize)
 
         self.averageBTN.clicked.connect(self.doAverage)
+        self.reassignLocallyBTN.clicked.connect(self.reassignLocally)
 
+        self.reassignLocallyBTN.setEnabled(False)
+        self._tv.HHeaderView.selEmptied.connect(self.reassignLocallyBTN.setEnabled)
+        self.averageBTN.setEnabled(False)
+        self._tv.HHeaderView.selEmptied.connect(self.averageBTN.setEnabled)
         # self.addPercBTN.setEnabled(False)
+
+    def reassignLocally(self):
+        chunks = self.getRowColumnsSelected()
+        if chunks:
+            chunks = [(0, self.dataOfSkin.rowCount - 1, 0, self.dataOfSkin.columnCount - 1)]
+            actualyVisibleColumns = [
+                indCol
+                for indCol in self.dataOfSkin.hideColumnIndices
+                if not self._tv.HHeaderView.isSectionHidden(indCol)
+            ]
+
+            self.storeSelection()
+            self._tm.beginResetModel()
+
+            self.dataOfSkin.prepareValuesforSetSkinData(chunks, actualyVisibleColumns)
+            self.dataOfSkin.reassignLocally()
+            self.dataOfSkin.postSkinSet()
+
+            self._tm.endResetModel()
+            self.retrieveSelection()
 
     def pruneWeights(self):
         chunks = self.getRowColumnsSelected()
@@ -461,13 +488,30 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.refresh()
         self.retrieveSelection()
 
+    def highlightSelectedDeformers(self):
+        selection = cmds.ls(sl=True)
+        selection = set(cmds.ls(sl=True))
+        intersect = selection.intersection(self.dataOfSkin.driverNames)
+        if intersect:
+            nbRows = self._tm.rowCount()
+            indices = [self.dataOfSkin.driverNames.index(colName) for colName in intersect]
+            # print intersect, indices
+            newSel = self._tv.selectionModel().selection()
+            newSel.clear()
+            for index in indices:
+                newSel.select(self._tm.index(0, index), self._tm.index(nbRows - 1, index))
+                self._tv.showColumn(index)
+            self._tv.selectionModel().select(newSel, QtCore.QItemSelectionModel.ClearAndSelect)
+
     def refresh(self):
         self._tm.beginResetModel()
         for ind in self.dataOfSkin.hideColumnIndices:
             self._tv.showColumn(ind)
-        self.dataOfSkin.getAllData()
+        resultData = self.dataOfSkin.getAllData()
         self._tm.endResetModel()
         self.setColumnVisSize()
+        if not resultData:
+            self.highlightSelectedDeformers()
 
     def setColumnVisSize(self):
         if self.dataOfSkin.columnCount:
