@@ -5,7 +5,7 @@ from maya import OpenMayaUI, OpenMaya, OpenMayaAnim
 # import shiboken2 as shiboken
 import time, datetime
 
-from ctypes import c_double
+from ctypes import c_double, c_float
 from maya import cmds
 
 import numpy as np
@@ -117,29 +117,6 @@ class DataOfSkin(object):
         else:
             return allIndices
 
-    def getHalfVerticesOfSelection(self):
-        selectedVertices = cmds.ls(sl=True)
-        vertsIndices = self.getIndicesFromSelection(selectedVertices, asList=False)
-
-        cmds.ConvertSelectionToVertexPerimeter()
-        borderOfSelection = cmds.ls(sl=True)
-
-        newSel = cmds.polyListComponentConversion(
-            cmds.polyListComponentConversion(borderOfSelection, fv=1, te=1), fe=1, tv=1
-        )
-        newSelIndices = self.getIndicesFromSelection(newSel, asList=False)
-        listOfIndices = [newSelIndices]
-        breakPoint = 50
-        while not vertsIndices.issubset(newSelIndices):
-            newSel = cmds.polyListComponentConversion(
-                cmds.polyListComponentConversion(newSel, fv=1, te=1), fe=1, tv=1
-            )
-            newSelIndices = self.getIndicesFromSelection(newSel, asList=False)
-            listOfIndices.append(newSelIndices)
-            breakPoint -= 1
-            if breakPoint == 0:
-                break
-
     def getMObject(self, nodeName, returnDagPath=True):
         # We expect here the fullPath of a shape mesh
         selList = OpenMaya.MSelectionList()
@@ -153,19 +130,42 @@ class DataOfSkin(object):
         selList.getDagPath(0, mshPath, depNode)
         return mshPath
 
+    def getVerticesOrigMesh(self):
+        # from ctypes import c_float
+        (inMesh,) = cmds.listConnections(
+            self.theSkinCluster + ".input[0].inputGeometry",
+            s=True,
+            d=False,
+            p=False,
+            c=False,
+            scn=True,
+        )
+        origShape = cmds.ls(cmds.listHistory(inMesh), type="shape")[0]
+        origMesh = OpenMaya.MFnMesh(self.getMObject(origShape, returnDagPath=True))
+        lent = origMesh.numVertices() * 3
+
+        cta = (c_float * lent).from_address(int(origMesh.getRawPoints()))
+        arr = np.ctypeslib.as_array(cta)
+        origVertices = np.reshape(arr, (-1, 3))
+        self.origVerticesPosition = np.take(origVertices, self.vertices, axis=0)
+
+        # now subArray of vertices
+        # self.origVertices [152]
+        # cmds.xform (origShape+".vtx [152]", q=True,ws=True, t=True )
+
     def prepareValuesforSetSkinData(self, chunks, actualyVisibleColumns):
         # MASK selection array -----------------------------------
         lstTopBottom = []
         for top, bottom, left, right in chunks:
             lstTopBottom.append(top)
             lstTopBottom.append(bottom)
-        self.Mtop, Mbottom = min(lstTopBottom), max(lstTopBottom)
+        self.Mtop, self.Mbottom = min(lstTopBottom), max(lstTopBottom)
         # nb rows selected -------------
-        nbRows = Mbottom - self.Mtop + 1
+        nbRows = self.Mbottom - self.Mtop + 1
 
         # GET the sub ARRAY ---------------------------------------------------------------------------------
         self.sub2DArrayToSet = self.raw2dArray[
-            self.Mtop : Mbottom + 1,
+            self.Mtop : self.Mbottom + 1,
         ]
         self.orig2dArray = np.copy(self.sub2DArrayToSet)
 
@@ -210,7 +210,7 @@ class DataOfSkin(object):
         fnComponent = OpenMaya.MFnSingleIndexedComponent()
         self.userComponents = fnComponent.create(componentType)
 
-        indicesVertices = [self.vertices[indRow] for indRow in xrange(self.Mtop, Mbottom + 1)]
+        indicesVertices = [self.vertices[indRow] for indRow in xrange(self.Mtop, self.Mbottom + 1)]
         for ind in indicesVertices:
             fnComponent.addElement(ind)
 
@@ -286,60 +286,89 @@ class DataOfSkin(object):
             self.sknFn,
         )
 
-    def reassignLocally(self, space="world"):
+    def reassignLocally(self):
         # print "reassignLocally"
         with GlobalContext(message="reassignLocally", doPrint=True):
             # 0 get orig shape ----------------------------------------------------------------
-            (inMesh,) = cmds.listConnections(
-                self.theSkinCluster + ".input[0].inputGeometry",
-                s=True,
-                d=False,
-                p=False,
-                c=False,
-                scn=True,
-            )
-            origShape = cmds.ls(cmds.listHistory(inMesh), type="shape")[0]
-
-            # 1 get origin points position -------------------------------------------------------------------
-            origMesh = OpenMaya.MFnMesh(self.getMObject(origShape, returnDagPath=True))
-            theSpace = OpenMaya.MSpace.kObject if space == "local" else OpenMaya.MSpace.kWorld
-            vertPoints = OpenMaya.MPointArray()
-            origMesh.getPoints(vertPoints, theSpace)
-            # getRawPoints
+            self.getVerticesOrigMesh()
+            self.origVertsPos = self.origVerticesPosition[
+                self.Mtop : self.Mbottom + 1,
+            ]
 
             # 2 get deformers origin position (bindMatrixInverse) ---------------------------------------------
             depNode = OpenMaya.MFnDependencyNode(self.skinClusterObj)
             bindPreMatrixArrayPlug = depNode.findPlug("bindPreMatrix", True)
             mObj = OpenMaya.MObject()
             lstDriverPrePosition = []
-            for ind in xrange(bindPreMatrixArrayPlug.numElements()):
+            lent = bindPreMatrixArrayPlug.numElements()
+
+            for ind in xrange(lent):
                 preMatrixPlug = bindPreMatrixArrayPlug.elementByLogicalIndex(ind)
                 matFn = OpenMaya.MFnMatrixData(preMatrixPlug.asMObject())
-                mat = matFn.matrix()
-                position = OpenMaya.MPoint(0, 0, 0) * mat.inverse()
+                mat = matFn.matrix().inverse()
+                # position = OpenMaya.MPoint(0,0,0)*mat
+                position = [OpenMaya.MScriptUtil.getDoubleArrayItem(mat[3], c) for c in xrange(3)]
                 lstDriverPrePosition.append(position)
                 # [res.x, res.y, res.z]
+            lstDriverPrePosition = np.array(lstDriverPrePosition)
+
             # 3 make an array of distances -----------------------------------------------------------------------
-            selectArr = np.copy(self.orig2dArray)
+            # compute the vectors from deformer to the point---------
+            a_min_b = self.origVertsPos[:, np.newaxis] - lstDriverPrePosition[np.newaxis, :]
+            # compute length of the vectors ------
+            distArray = np.linalg.norm(a_min_b, axis=2)
             theMask = self.sumMasks
+            distArrayMasked = np.ma.array(distArray, mask=~theMask, fill_value=0)
+            # sort the columns --------------------------------------------------------------
+            sorted_columns_indices = distArrayMasked.argsort(axis=1)
 
-            addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0)
+            # now take the 2 closest columns indices (2 first) and do a dot product of the vectors
+            closestIndices = sorted_columns_indices[:, :2]
 
-            rows = addValues.shape[0]
-            cols = addValues.shape[1]
-            for x in range(0, rows):
-                indexVertex = self.vertices[x + self.Mtop]
-                thePt = vertPoints[indexVertex]
-                for y in range(0, cols):
-                    if theMask[x, y]:
-                        theDst = thePt.distanceTo(lstDriverPrePosition[y])
-                        addValues[x, y] = theDst
-            # 4 normalize it  ----------------------------------------------------------------------------------------
-            addValues = addValues.max(axis=1)[:, np.newaxis] / addValues
-            sum_addValues = addValues.sum(axis=1)
-            addValuesNormalized = (
-                addValues / sum_addValues[:, np.newaxis] * self.toNormalizeToSum[:, np.newaxis]
+            # make the vector of 2 closest joints ----------------------------
+            closestIndex1 = sorted_columns_indices[:, 0]
+            closestIndex2 = sorted_columns_indices[:, 1]
+            closestDriversVector = (
+                lstDriverPrePosition[closestIndex2] - lstDriverPrePosition[closestIndex1]
             )
+
+            # now get the closest vectors to the point
+            # closestVectors_2 = a_min_b [np.arange(closestIndices.shape[0])[:, None], closestIndices, :]
+            closestVectors_1 = a_min_b[np.arange(closestIndices.shape[0])[:], closestIndex1]
+            """
+            ClosestDist = distArray [np.arange(closestIndices.shape[0])[:,None], closestIndices]
+            ClosestDistNormalize = ClosestDist / ClosestDist.sum(axis=1)[:, np.newaxis]
+            """
+            # resDot = np.sum (A * B, axis=1) #-- slower
+
+            # now dot product ----------------------------------------------------
+            A = closestVectors_1
+            B = closestDriversVector
+            resDot = np.einsum("ij, ij->i", A, B)  # A.B
+            lengthVectorA = np.linalg.norm(A, axis=1)
+            lengthVectorB = np.linalg.norm(B, axis=1)
+
+            # we normalize, then  clip for the negative and substract from 1 to reverse the setting
+            normalizedDotProduct = resDot / (lengthVectorB * lengthVectorB)
+            normalizedDotProduct = normalizedDotProduct.clip(min=0.0, max=1.0)
+            ################################################################################################################
+            ################################################################################################################
+            # FINISH #######################################################################################################
+            ################################################################################################################
+            ################################################################################################################
+            theMask = self.sumMasks
+            # now set the values in the array correct if cross product is positive
+            addValues = np.full(self.orig2dArray.shape, 0.0)
+            addValues[np.arange(closestIndex2.shape[0])[:], closestIndex2] = normalizedDotProduct
+            addValues[np.arange(closestIndex1.shape[0])[:], closestIndex1] = (
+                1.0 - normalizedDotProduct
+            )
+
+            # addValues [np.arange(closestIndices.shape[0])[:,None], closestIndices] = 1.-ClosestDistNormalize
+            addValues = np.ma.array(addValues, mask=~theMask, fill_value=0)
+
+            # 4 normalize it  ----------------------------------------------------------------------------------------
+            addValuesNormalized = addValues * self.toNormalizeToSum[:, np.newaxis]
 
             # 5 copy values  ----------------------------------------------------------------------------------------
             new2dArray = np.copy(self.orig2dArray)
@@ -697,6 +726,8 @@ class DataOfSkin(object):
             self.columnCount = 0
             self.meshIsUsed = False
             return
+        # get orig vertices ----------------
+
         self.driverNames, self.skinningMethod, self.normalizeWeights = self.getSkinClusterValues(
             self.theSkinCluster
         )
