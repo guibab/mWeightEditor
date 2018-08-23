@@ -90,8 +90,8 @@ class DataOfSkin(object):
             if surfaceCVs:
                 theSurface = surfaceCVs[0].split(".")[0]
                 # numCVsInV_ * indexU + indexV
-                numCVsInV_ = (
-                    cmds.getAttr(theSurface + ".spansV") + cmds.getAttr(theSurface + ".degreeV") - 1
+                numCVsInV_ = cmds.getAttr(theSurface + ".spansV") + cmds.getAttr(
+                    theSurface + ".degreeV"
                 )
                 indices = [
                     map(int, re.findall(r"\[(\d+)", el)) for el in cmds.ls(surfaceCVs, flatten=True)
