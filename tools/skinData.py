@@ -577,6 +577,8 @@ class DataOfSkin(object):
 
             crvFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
             vertexCount = cvPoints.length()
+        elif cmds.nodeType(shapeName) == "nurbsSurface":
+            self.clearData()
         else:
             mshFn = OpenMaya.MFnMesh(self.shapePath)
             vertexCount = mshFn.numVertices()
@@ -610,11 +612,10 @@ class DataOfSkin(object):
                 skinClusters = cmds.ls(hist, type="skinCluster")
                 if skinClusters:
                     skinCluster = skinClusters[0]
-                    theDeformedMesh = cmds.ls(
-                        cmds.listHistory(skinCluster, af=True, f=True), type="mesh"
+                    theDeformedShape = cmds.ls(
+                        cmds.listHistory(skinCluster, af=True, f=True), type="shape"
                     )
-
-                    return skinCluster, theDeformedMesh[0]
+                    return skinCluster, theDeformedShape[0]
         return "", ""
 
     def getSkinClusterValues(self, skinCluster):

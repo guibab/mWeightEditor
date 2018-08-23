@@ -384,6 +384,14 @@ class SkinWeightWin(QtWidgets.QDialog):
             theUI = self.__dict__[uiName]
             theUI.setEnabled(False)
             self._tv.HHeaderView.selEmptied.connect(theUI.setEnabled)
+        cmds.evalDeferred(self.deferredBtns)
+
+    def deferredBtns(self):
+        for nm in ["abs", "add", "addPerc"]:
+            self.__dict__[nm + "BTN"].setAutoExclusive(True)
+        self.addBTN.setChecked(True)
+        self.reassignLocallyBTN.setMinimumHeight(24)
+        self.averageBTN.setMinimumHeight(24)
         # self.addPercBTN.setEnabled(False)
 
     def reassignLocally(self):
