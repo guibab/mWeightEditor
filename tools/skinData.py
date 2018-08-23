@@ -201,16 +201,25 @@ class DataOfSkin(object):
         for i in xrange(self.nbDrivers):
             self.influenceIndices.set(i, i)
 
-        componentType = OpenMaya.MFn.kMeshVertComponent
-        fnComponent = OpenMaya.MFnSingleIndexedComponent()
-        self.userComponents = fnComponent.create(componentType)
-
         indicesVertices = [self.vertices[indRow] for indRow in xrange(self.Mtop, self.Mbottom + 1)]
-        for ind in indicesVertices:
-            fnComponent.addElement(ind)
-
+        if self.isNurbsSurface:
+            componentType = OpenMaya.MFn.kSurfaceCVComponent
+            fnComponent = OpenMaya.MFnDoubleIndexedComponent()
+            self.userComponents = fnComponent.create(componentType)
+            for indVtx in indicesVertices:
+                indexV = indVtx % self.numCVsInV_
+                indexU = indVtx / self.numCVsInV_
+                fnComponent.addElement(indexU, indexV)
+        else:
+            if self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve:
+                componentType = OpenMaya.MFn.kCurveCVComponent
+            else:
+                componentType = OpenMaya.MFn.kMeshVertComponent
+            fnComponent = OpenMaya.MFnSingleIndexedComponent()
+            self.userComponents = fnComponent.create(componentType)
+            for ind in indicesVertices:
+                fnComponent.addElement(ind)
         lengthArray = self.nbDrivers * (bottom - top + 1)
-
         self.newArray = OpenMaya.MDoubleArray()
         self.newArray.setLength(lengthArray)
 
@@ -540,31 +549,32 @@ class DataOfSkin(object):
     def actuallySetValue(
         self, theValues, sub2DArrayToSet, userComponents, influenceIndices, shapePath, sknFn
     ):
-        arrayForSetting = np.copy(theValues)
-        doubles = arrayForSetting.flatten()
-        count = doubles.size
-        tempArrayForSize = OpenMaya.MDoubleArray()
-        tempArrayForSize.setLength(count)
+        with GlobalContext(message="actuallySetValue", doPrint=False):
+            arrayForSetting = np.copy(theValues)
+            doubles = arrayForSetting.flatten()
+            count = doubles.size
+            tempArrayForSize = OpenMaya.MDoubleArray()
+            tempArrayForSize.setLength(count)
 
-        res = OpenMaya.MScriptUtil(tempArrayForSize)
-        ptr = res.asDoublePtr()
+            res = OpenMaya.MScriptUtil(tempArrayForSize)
+            ptr = res.asDoublePtr()
 
-        # Cast the swig double pointer to a ctypes array
-        cta = (c_double * count).from_address(int(ptr))
-        out = np.ctypeslib.as_array(cta)
-        np.copyto(out, doubles)
-        newArray = OpenMaya.MDoubleArray(ptr, count)
+            # Cast the swig double pointer to a ctypes array
+            cta = (c_double * count).from_address(int(ptr))
+            out = np.ctypeslib.as_array(cta)
+            np.copyto(out, doubles)
+            newArray = OpenMaya.MDoubleArray(ptr, count)
 
-        # with GlobalContext (message = "sknFn.setWeights"):
-        normalize = False
-        UndoValues = OpenMaya.MDoubleArray()
-        sknFn.setWeights(
-            shapePath, userComponents, influenceIndices, newArray, normalize, UndoValues
-        )
+            # with GlobalContext (message = "sknFn.setWeights"):
+            normalize = False
+            UndoValues = OpenMaya.MDoubleArray()
+            sknFn.setWeights(
+                shapePath, userComponents, influenceIndices, newArray, normalize, UndoValues
+            )
 
-        # do the stting in the 2dArray -----
-        np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), theValues)
-        self.computeSumArray()
+            # do the stting in the 2dArray -----
+            np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), theValues)
+            self.computeSumArray()
 
     def callUndo(self):
         if self.UNDOstack:
@@ -588,14 +598,18 @@ class DataOfSkin(object):
 
         fnComponent = OpenMaya.MFnSingleIndexedComponent()
         self.isNurbsSurface = False
-        if cmds.nodeType(shapeName) == "nurbsCurve":
+        if (
+            self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve
+        ):  # cmds.nodeType(shapeName) == 'nurbsCurve':
             componentType = OpenMaya.MFn.kCurveCVComponent
             crvFn = OpenMaya.MFnNurbsCurve(self.shapePath)
-            cvPoints = OpenMaya.MPointArray()
-
-            crvFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
-            vertexCount = cvPoints.length()
-        elif cmds.nodeType(shapeName) == "nurbsSurface":
+            # cvPoints = OpenMaya.MPointArray()
+            # crvFn.getCVs(cvPoints,OpenMaya.MSpace.kObject)
+            # vertexCount = cvPoints.length()
+            vertexCount = crvFn.numCVs()
+        elif (
+            self.shapePath.apiType() == OpenMaya.MFn.kNurbsSurface
+        ):  # cmds.nodeType(shapeName) == 'nurbsSurface':
             self.isNurbsSurface = True
             componentType = OpenMaya.MFn.kSurfaceCVComponent
             MfnSurface = OpenMaya.MFnNurbsSurface(self.shapePath)
@@ -731,7 +745,7 @@ class DataOfSkin(object):
 
         self.usedDeformersIndices = []
         self.hideColumnIndices = []
-        self.meshIsUsed = False
+        self.fullShapeIsUsed = False
 
         self.UNDOstack = []
 
@@ -754,9 +768,8 @@ class DataOfSkin(object):
 
         if not theSkinCluster:
             self.clearData()
-            return
-        # get orig vertices ----------------
-
+            return False
+        # get orig vertices -------------------------------
         self.driverNames, self.skinningMethod, self.normalizeWeights = self.getSkinClusterValues(
             self.theSkinCluster
         )
@@ -769,11 +782,11 @@ class DataOfSkin(object):
                 self.vertices = cmds.getAttr(
                     "{0}.weightList".format(self.theSkinCluster), multiIndices=True
                 )
-
+                self.fullShapeIsUsed = True
                 self.rawSkinValues = self.exposeSkinData(self.theSkinCluster)
             else:
                 self.rawSkinValues = self.exposeSkinData(self.theSkinCluster, indices=self.vertices)
-                self.meshIsUsed = False
+                self.fullShapeIsUsed = False
             # print "rawSkinValues length : {0}" .format (self.rawSkinValues.length())
         if self.isNurbsSurface:
             self.rowText = []
@@ -783,7 +796,9 @@ class DataOfSkin(object):
                 # vertInd = self.numCVsInV_ * indexU + indexV
                 self.rowText.append(" {0} - {1} ".format(indexU, indexV))
         else:
-            self.rowText = map(str, self.vertices)
+            self.rowText = [
+                " {0} ".format(ind) for ind in self.vertices
+            ]  # map (str, self.vertices)
         self.hideColumnIndices = []
         self.usedDeformersIndices = range(self.nbDrivers)
 
@@ -795,7 +810,7 @@ class DataOfSkin(object):
         return True
 
     def rebuildRawSkin(self):
-        if self.meshIsUsed:
+        if self.fullShapeIsUsed:
             self.rawSkinValues = self.exposeSkinData(self.theSkinCluster)
         else:
             self.rawSkinValues = self.exposeSkinData(self.theSkinCluster, indices=self.vertices)
