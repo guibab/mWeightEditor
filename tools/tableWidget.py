@@ -93,7 +93,7 @@ class TableModel(QtCore.QAbstractTableModel):
             if orientation == QtCore.Qt.Horizontal:
                 return self.datatable.driverNames[col]
             else:
-                return self.datatable.vertices[col]
+                return self.datatable.rowText[col]
         elif role == QtCore.Qt.TextAlignmentRole:
             return QtCore.Qt.AlignCenter  # | QtCore.Qt.AlignVCenter)
         else:
@@ -106,8 +106,7 @@ class TableModel(QtCore.QAbstractTableModel):
             return "total"
 
     def getRowText(self, row):
-        # vertInd = numCVsInV_ * indexU + indexV
-        return str(self.datatable.vertices[row])
+        return self.datatable.rowText[row]
 
     def getColumnSide(self, col):
         try:
@@ -317,17 +316,21 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         # self.parent().parent().reassignLocallyBTN.setEnabled (not selectionIsEmpty)
 
     def mousePressEvent(self, event):
-        super(HorizHeaderView, self).mousePressEvent(event)
         nbShown = 0
         for ind in range(self.count()):
             if not self.isSectionHidden(ind):
                 nbShown += 1
         outClick = event.pos().x() > self.colWidth * nbShown
         if outClick:
-            self.parent().clearSelection()
+            if event.button() == QtCore.Qt.MidButton:
+                self.parent().parent().reizeToMinimum()
+            elif event.button() == QtCore.Qt.LeftButton:
+                self.parent().clearSelection()
         elif self.height() - event.pos().y() < 20:
             index = self.visualIndexAt(event.pos().x())
             self.setColor(event.pos(), index)
+        else:
+            super(HorizHeaderView, self).mousePressEvent(event)
 
     def color(self, ind):
         return self._colors[cmds.getAttr(self.model().fullColumnNames()[ind] + ".objectColor")]
