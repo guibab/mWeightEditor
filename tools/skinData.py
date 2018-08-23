@@ -125,23 +125,52 @@ class DataOfSkin(object):
         selList.getDagPath(0, mshPath, depNode)
         return mshPath
 
-    def getVerticesOrigMesh(self):
+    def getVerticesOrigShape(self):
         # from ctypes import c_float
-        (inMesh,) = cmds.listConnections(
-            self.theSkinCluster + ".input[0].inputGeometry",
-            s=True,
-            d=False,
-            p=False,
-            c=False,
-            scn=True,
-        )
-        origShape = cmds.ls(cmds.listHistory(inMesh), type="shape")[0]
-        origMesh = OpenMaya.MFnMesh(self.getMObject(origShape, returnDagPath=True))
-        lent = origMesh.numVertices() * 3
+        # inMesh,= cmds.listConnections(self.theSkinCluster+".input[0].inputGeometry", s=True, d=False, p=False, c=False, scn=True)
+        # origShape = cmds.ls (cmds.listHistory( inMesh), type = "shape") [0]
+        # origMesh = OpenMaya.MFnMesh(self.getMObject(origShape,returnDagPath=True))
+        inputGeo = OpenMaya.MObjectArray()
+        self.sknFn.getInputGeometry(inputGeo)
+        inputMObject = inputGeo[0]
 
-        cta = (c_float * lent).from_address(int(origMesh.getRawPoints()))
-        arr = np.ctypeslib.as_array(cta)
-        origVertices = np.reshape(arr, (-1, 3))
+        if (
+            self.shapePath.apiType() == OpenMaya.MFn.kMesh
+        ):  # cmds.nodeType(shapeName) == 'nurbsCurve':
+            origMesh = OpenMaya.MFnMesh(inputMObject)
+            lent = origMesh.numVertices() * 3
+
+            cta = (c_float * lent).from_address(int(origMesh.getRawPoints()))
+            arr = np.ctypeslib.as_array(cta)
+            origVertices = np.reshape(arr, (-1, 3))
+        else:
+            cvPoints = OpenMaya.MPointArray()
+            if (
+                self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve
+            ):  # cmds.nodeType(shapeName) == 'nurbsCurve':
+                crvFn = OpenMaya.MFnNurbsCurve(inputMObject)
+                crvFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
+            elif (
+                self.shapePath.apiType() == OpenMaya.MFn.kNurbsSurface
+            ):  # cmds.nodeType(shapeName) == 'nurbsSurface':
+                surfaceFn = OpenMaya.MFnNurbsSurface(inputMObject)
+                surfaceFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
+            pointList = []
+            for i in range(cvPoints.length()):
+                pointList.append([cvPoints[i][0], cvPoints[i][1], cvPoints[i][2]])
+            origVertices = np.array(pointList)
+            """
+            res = OpenMaya.MScriptUtil( cvPoints)
+            util = OpenMaya.MScriptUtil()
+            ptr = res.asDoublePtr()
+
+            lent = cvPoints.length()
+            cta = (c_double * lent ).from_address(int(ptr))
+            arr = np.ctypeslib.as_array(cta)
+            origVertices = np.copy (arr)
+            #self.raw2dArray = np.reshape(self.raw2dArray, (-1, self.nbDrivers))
+            #vertexCount = crvFn.numCVs()
+            """
         self.origVerticesPosition = np.take(origVertices, self.vertices, axis=0)
 
         # now subArray of vertices
@@ -294,7 +323,7 @@ class DataOfSkin(object):
         # print "reassignLocally"
         with GlobalContext(message="reassignLocally", doPrint=True):
             # 0 get orig shape ----------------------------------------------------------------
-            self.getVerticesOrigMesh()
+            self.getVerticesOrigShape()
             self.origVertsPos = self.origVerticesPosition[
                 self.Mtop : self.Mbottom + 1,
             ]
