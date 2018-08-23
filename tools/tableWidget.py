@@ -105,6 +105,10 @@ class TableModel(QtCore.QAbstractTableModel):
         except:
             return "total"
 
+    def getRowText(self, row):
+        # vertInd = numCVsInV_ * indexU + indexV
+        return str(self.datatable.vertices[row])
+
     def getColumnSide(self, col):
         try:
             driverName = self.datatable.driverNames[col]
@@ -114,9 +118,6 @@ class TableModel(QtCore.QAbstractTableModel):
             return "X"
         except:
             return "X"
-
-    def getRowText(self, row):
-        return str(self.datatable.vertices[row])
 
     def flags(self, index):
         if not index.isValid():

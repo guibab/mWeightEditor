@@ -83,6 +83,12 @@ class DataOfSkin(object):
                 kwargs["fe"] = True
             convertedVertices = cmds.polyListComponentConversion(selection, **kwargs)
             indices += [el.split(".vtx[")[-1][:-1] for el in convertedVertices if ".vtx[" in el]
+        ####################################################################
+        if not indices:
+            surfaceCVs = [el for el in sel if ".cv[" in el]
+
+            selectedCvs = [el for el in sel if ".cv[" in el]
+            indices = [el.split(".cv[")[-1][:-1] for el in selectedCvs if ".cv[" in el]
         allIndices = set()
         for index in indices:
             if ":" in index:
@@ -569,7 +575,8 @@ class DataOfSkin(object):
         shapeName = self.shapePath.fullPathName()
         vertexCount = 0
 
-        componentType = OpenMaya.MFn.kMeshVertComponent
+        fnComponent = OpenMaya.MFnSingleIndexedComponent()
+        isNurbsSurface = False
         if cmds.nodeType(shapeName) == "nurbsCurve":
             componentType = OpenMaya.MFn.kCurveCVComponent
             crvFn = OpenMaya.MFnNurbsCurve(self.shapePath)
@@ -578,18 +585,29 @@ class DataOfSkin(object):
             crvFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
             vertexCount = cvPoints.length()
         elif cmds.nodeType(shapeName) == "nurbsSurface":
-            self.clearData()
+            isNurbsSurface = True
+            componentType = OpenMaya.MFn.kSurfaceCVComponent
+            MfnSurface = OpenMaya.MFnNurbsSurface(self.shapePath)
+            # cvPoints = OpenMaya.MPointArray()
+            # MfnSurface.getCVs(cvPoints,OpenMaya.MSpace.kObject)
+            # vertexCount = cvPoints.length()
+            sizeInV = MfnSurface.numCVsInV()
+            sizeInU = MfnSurface.numCVsInU()
+            fnComponent = OpenMaya.MFnDoubleIndexedComponent()
+            self.fullComponent = fnComponent.create(componentType)
+            fnComponent.setCompleteData(sizeInU, sizeInV)
         else:
+            componentType = OpenMaya.MFn.kMeshVertComponent
             mshFn = OpenMaya.MFnMesh(self.shapePath)
             vertexCount = mshFn.numVertices()
-        fnComponent = OpenMaya.MFnSingleIndexedComponent()
-        self.fullComponent = fnComponent.create(componentType)
-
-        if not indices:
-            fnComponent.setCompleteData(vertexCount)
-        else:
-            for ind in indices:
-                fnComponent.addElement(ind)
+        if not isNurbsSurface:
+            self.fullComponent = fnComponent.create(componentType)
+            if not indices:
+                fnComponent.setCompleteData(vertexCount)
+            else:
+                for ind in indices:
+                    fnComponent.addElement(ind)
+        #####################################################
         weights = OpenMaya.MDoubleArray()
 
         intptrUtil = OpenMaya.MScriptUtil()
