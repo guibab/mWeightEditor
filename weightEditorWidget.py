@@ -152,7 +152,6 @@ class SkinWeightWin(QtWidgets.QDialog):
             OpenMaya.MSceneMessage.removeCallback(callBck)
 
     def deselectAll(self, *args):
-        print "deselectAll"
         self._tm.beginResetModel()
         self.dataOfSkin.clearData()
         self._tm.endResetModel()
@@ -215,7 +214,7 @@ class SkinWeightWin(QtWidgets.QDialog):
             widg,
         ) in self.__dict__.iteritems():  # for name, age in list.items():  (for Python 3.x)
             if widg == chd:
-                print widgetName
+                # print widgetName
                 break
         # print widgetName
         if widgetName == "topButtonsWidget":
@@ -533,6 +532,7 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.setColumnVisSize()
         if not resultData:
             self.highlightSelectedDeformers()
+        self._tv.HHeaderView.selEmptied.emit(False)
 
     def setColumnVisSize(self):
         if self.dataOfSkin.columnCount:
