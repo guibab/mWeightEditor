@@ -26,30 +26,8 @@ def isin(element, test_elements, assume_unique=False, invert=False):
 ###################################################################################
 class DataOfSkin(object):
     def __init__(self, useShortestNames=False):
-        self.AllWght = []
-        self.usedDeformersIndices = []
-        self.theSkinCluster = ""
-        self.shapeShortName = ""
-        self.vertices = []
-        self.driverNames = []
-        self.nbDrivers = 0
-        self.shortDriverNames = []
-        self.skinningMethod = ""
-        self.normalizeWeights = []
-
-        self.lockedColumns = []
-        self.lockedVertices = []
-
-        self.rowCount = 0
-        self.columnCount = 0
-
-        self.usedDeformersIndices = []
-        self.hideColumnIndices = []
-        self.meshIsUsed = False
-
         self.useShortestNames = useShortestNames
-
-        self.UNDOstack = []
+        self.clearData()
 
     def orderMelList(self, listInd, onlyStr=True):
         # listInd = [49, 60, 61, 62, 80, 81, 82, 83, 100, 101, 102, 103, 113, 119, 120, 121, 138, 139, 140, 158, 159, 178, 179, 198, 230, 231, 250, 251, 252, 270, 271, 272, 273, 274, 291, 292, 293, 319, 320, 321, 360,361,362]
@@ -697,6 +675,30 @@ class DataOfSkin(object):
                 shortName = " ".join(splt[1:])
             self.shortDriverNames.append(shortName)
 
+    def clearData(self):
+        self.AllWght = []
+        self.usedDeformersIndices = []
+        self.theSkinCluster, self.deformedShape, self.shapeShortName = "", "", ""
+
+        self.vertices = []
+        self.driverNames = []
+        self.nbDrivers = 0
+        self.shortDriverNames = []
+        self.skinningMethod = ""
+        self.normalizeWeights = []
+
+        self.lockedColumns = []
+        self.lockedVertices = []
+
+        self.rowCount = 0
+        self.columnCount = 0
+
+        self.usedDeformersIndices = []
+        self.hideColumnIndices = []
+        self.meshIsUsed = False
+
+        self.UNDOstack = []
+
     def getAllData(self):
         sel = cmds.ls(sl=True)
         theSkinCluster, deformedShape = self.getSkinClusterFromSel(sel)
@@ -715,16 +717,7 @@ class DataOfSkin(object):
         self.raw2dArray = None
 
         if not theSkinCluster:
-            self.usedDeformersIndices = []
-            self.hideColumnIndices = []
-            self.vertices = []
-            self.lockedColumns = []
-            self.lockedVertices = []
-            self.driverNames = []
-            self.shortDriverNames = []
-            self.rowCount = 0
-            self.columnCount = 0
-            self.meshIsUsed = False
+            self.clearData()
             return
         # get orig vertices ----------------
 

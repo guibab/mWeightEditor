@@ -6,7 +6,7 @@ from Qt import QtGui, QtCore, QtWidgets
 
 # import shiboken2 as shiboken
 from functools import partial
-from maya import cmds
+from maya import cmds, OpenMaya
 import blurdev
 
 
@@ -130,9 +130,32 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.createWindow()
         self.setStyleSheet(styleSheet)
 
+        self.addCallBacks()
+        self.setWindowDisplay()
+
+    def addCallBacks(self):
         refreshSJ = cmds.scriptJob(event=["SelectionChanged", self.refresh])
         self.listJobEvents = [refreshSJ]
-        self.setWindowDisplay()
+
+        sceneUpdateCallback = OpenMaya.MSceneMessage.addCallback(
+            OpenMaya.MSceneMessage.kBeforeNew, self.deselectAll
+        )  # kSceneUpdate
+        self.close_callback = [sceneUpdateCallback]
+        self.close_callback.append(
+            OpenMaya.MSceneMessage.addCallback(OpenMaya.MSceneMessage.kBeforeOpen, self.deselectAll)
+        )
+
+    def deleteCallBacks(self):
+        for jobNum in self.listJobEvents:
+            cmds.scriptJob(kill=jobNum, force=True)
+        for callBck in self.close_callback:
+            OpenMaya.MSceneMessage.removeCallback(callBck)
+
+    def deselectAll(self, *args):
+        print "deselectAll"
+        self._tm.beginResetModel()
+        self.dataOfSkin.clearData()
+        self._tm.endResetModel()
 
     def buildRCMenu(self):
         self.autoPrune = (
@@ -227,8 +250,8 @@ class SkinWeightWin(QtWidgets.QDialog):
             self.resize(vals[2], vals[3])
 
     def closeEvent(self, event):
-        for jobNum in self.listJobEvents:
-            cmds.scriptJob(kill=jobNum, force=True)
+        self.deleteCallBacks()
+
         pos = self.pos()
         size = self.size()
         cmds.optionVar(clearArray="SkinWeightWindow")
