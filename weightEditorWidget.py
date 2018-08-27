@@ -9,15 +9,18 @@ from functools import partial
 from maya import cmds, OpenMaya
 import blurdev
 
-
+from studio.gui.resource import Icons
 from tools.skinData import DataOfSkin
 from tools.tableWidget import TableView, TableModel
 from tools.spinnerSlider import ValueSetting, ButtonWithValue
 from tools.utils import GlobalContext
 
-"""
+_icons = {
+    "lock": Icons.getIcon(r"icons8\Android_L\PNG\48\Very_Basic\lock-48"),
+    "unlock": Icons.getIcon(r"icons8\Android_L\PNG\48\Very_Basic\unlock-48"),
+}
 
-"""
+
 styleSheet = """
 QWidget {
     background:  #aba8a6;
@@ -134,9 +137,8 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.setWindowDisplay()
 
     def addCallBacks(self):
-        refreshSJ = cmds.scriptJob(event=["SelectionChanged", self.refresh])
-        self.listJobEvents = [refreshSJ]
-
+        self.refreshSJ = cmds.scriptJob(event=["SelectionChanged", self.refresh])
+        # self.listJobEvents =[refreshSJ]
         sceneUpdateCallback = OpenMaya.MSceneMessage.addCallback(
             OpenMaya.MSceneMessage.kBeforeNew, self.deselectAll
         )  # kSceneUpdate
@@ -146,8 +148,9 @@ class SkinWeightWin(QtWidgets.QDialog):
         )
 
     def deleteCallBacks(self):
-        for jobNum in self.listJobEvents:
-            cmds.scriptJob(kill=jobNum, force=True)
+        # for jobNum in self.listJobEvents   : cmds.scriptJob( kill=jobNum, force=True)
+        self.dataOfSkin.deleteDisplayLocator()
+        cmds.scriptJob(kill=self.refreshSJ, force=True)
         for callBck in self.close_callback:
             OpenMaya.MSceneMessage.removeCallback(callBck)
 
@@ -172,8 +175,9 @@ class SkinWeightWin(QtWidgets.QDialog):
         )
         # -------------------
         self.popMenu = QtWidgets.QMenu(self)
+
         resizeAction = self.popMenu.addAction("resize to minimum (MiddleClick)")
-        resizeAction.triggered.connect(self.reizeToMinimum)
+        resizeAction.triggered.connect(self.resizeToMinimum)
 
         chbox = QtWidgets.QCheckBox("auto Prune", self.popMenu)
         chbox.setChecked(self.autoPrune)
@@ -226,7 +230,7 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.refreshPosition()
         self.show()
 
-    def reizeToMinimum(self):
+    def resizeToMinimum(self):
         nbShown = 0
         for ind in range(self._tv.HHeaderView.count()):
             if not self._tv.HHeaderView.isSectionHidden(ind):
@@ -237,7 +241,7 @@ class SkinWeightWin(QtWidgets.QDialog):
     def mousePressEvent(self, event):
         # print "click"
         if event.button() == QtCore.Qt.MidButton:
-            self.reizeToMinimum()
+            self.resizeToMinimum()
         elif event.button() == QtCore.Qt.LeftButton:
             self._tv.clearSelection()
         super(SkinWeightWin, self).mousePressEvent(event)
@@ -295,6 +299,13 @@ class SkinWeightWin(QtWidgets.QDialog):
 
         return theCarryWidget
 
+    def changeLock(self, val):
+        if val:
+            self.lockBtn.setIcon(_icons["lock"])
+        else:
+            self.lockBtn.setIcon(_icons["unlock"])
+        self.unLock = not val
+
     def createWindow(self):
         theLayout = self.layout()  # QtWidgets.QVBoxLayout(self)
         theLayout.setContentsMargins(10, 10, 10, 10)
@@ -309,6 +320,14 @@ class SkinWeightWin(QtWidgets.QDialog):
         self._tv = TableView(self, colWidth=self.colWidth)
         self._tv.setModel(self._tm)
         # self._tm._tv = self._tv
+        self.unLock = True
+        self.lockBtn = QtWidgets.QPushButton(self)
+        self.lockBtn.setIcon(_icons["unlock"])
+        self.lockBtn.setMaximumSize(24, 24)
+        self.lockBtn.setCheckable(True)
+        self.lockBtn.setChecked(False)
+        self.lockBtn.toggled.connect(self.changeLock)
+        self.topLayout.insertWidget(0, self.lockBtn)
 
         self.valueSetter = ValueSetting(self)  # ProgressItem("BlendShape", szrad = 0, value = 0)
         Hlayout = QtWidgets.QHBoxLayout(self)
@@ -383,7 +402,7 @@ class SkinWeightWin(QtWidgets.QDialog):
         for uiName in ["reassignLocallyBTN", "averageBTN", "widgetAbs", "widgetAdd", "valueSetter"]:
             theUI = self.__dict__[uiName]
             theUI.setEnabled(False)
-            self._tv.HHeaderView.selEmptied.connect(theUI.setEnabled)
+            self._tv.selEmptied.connect(theUI.setEnabled)
         cmds.evalDeferred(self.deferredBtns)
 
     def deferredBtns(self):
@@ -513,7 +532,7 @@ class SkinWeightWin(QtWidgets.QDialog):
 
     def refreshBtn(self):
         self.storeSelection()
-        self.refresh()
+        self.refresh(force=True)
         self.retrieveSelection()
 
     def highlightSelectedDeformers(self):
@@ -531,17 +550,18 @@ class SkinWeightWin(QtWidgets.QDialog):
                 self._tv.showColumn(index)
             self._tv.selectionModel().select(newSel, QtCore.QItemSelectionModel.ClearAndSelect)
 
-    def refresh(self):
-        self._tm.beginResetModel()
-        for ind in self.dataOfSkin.hideColumnIndices:
-            self._tv.showColumn(ind)
-        resultData = self.dataOfSkin.getAllData()
-        self._tm.endResetModel()
-        self.setColumnVisSize()
-        if not resultData:
-            self.highlightSelectedDeformers()
-        self._tv.HHeaderView.selEmptied.emit(False)
-        self._tv.repaint()
+    def refresh(self, force=False):
+        if self.unLock or force:
+            self._tm.beginResetModel()
+            for ind in self.dataOfSkin.hideColumnIndices:
+                self._tv.showColumn(ind)
+            resultData = self.dataOfSkin.getAllData()
+            self._tm.endResetModel()
+            self.setColumnVisSize()
+            if not resultData:
+                self.highlightSelectedDeformers()
+            self._tv.selEmptied.emit(False)
+            self._tv.repaint()
 
     def setColumnVisSize(self):
         if self.dataOfSkin.columnCount:

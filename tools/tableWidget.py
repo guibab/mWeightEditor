@@ -282,7 +282,6 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         (111, 48, 161),
         (161, 48, 105),
     ]
-    selEmptied = QtCore.Signal(bool, name="selEmptied")
 
     def __init__(self, colWidth=10, parent=None):
         super(HorizHeaderView, self).__init__(QtCore.Qt.Horizontal, parent)
@@ -306,14 +305,6 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         self.blueBG = QtGui.QBrush(QtGui.QColor(112, 124, 137))
         self.redBG = QtGui.QBrush(QtGui.QColor(134, 119, 127))
         self.yellowBG = QtGui.QBrush(QtGui.QColor(144, 144, 122))
-
-    def selectionChanged(self, selected, deselected):
-        super(HorizHeaderView, self).selectionChanged(selected, deselected)
-        selectionIsEmpty = self.selectionModel().selection().isEmpty()
-        # print "emptySelection", selectionIsEmpty
-        self.selEmptied.emit(not selectionIsEmpty)
-
-        # self.parent().parent().reassignLocallyBTN.setEnabled (not selectionIsEmpty)
 
     def mousePressEvent(self, event):
         nbShown = 0
@@ -506,6 +497,8 @@ class TableView(QtWidgets.QTableView):
     A simple table to demonstrate the QComboBox delegate.
     """
 
+    selEmptied = QtCore.Signal(bool, name="selEmptied")
+
     def __init__(self, *args, **kwargs):
         colWidth = kwargs.pop("colWidth", None)
         QtWidgets.QTableView.__init__(self, *args, **kwargs)
@@ -534,11 +527,18 @@ class TableView(QtWidgets.QTableView):
         self.regularBG = QtGui.QBrush(QtGui.QColor(130, 130, 130))
 
         self.__nw_heading = "Vtx"
+        self.addRedrawButton()
+
+    def rmvRedrawButton(self):
+        btn = self.findChild(QtWidgets.QAbstractButton)
+        btn.removeEventFilter(self)
+        self.repaint()
+
+    def addRedrawButton(self):
         btn = self.findChild(QtWidgets.QAbstractButton)
         btn.setText(self.__nw_heading)
         btn.setToolTip("Toggle selecting all table cells")
         btn.installEventFilter(self)
-
         opt = QtWidgets.QStyleOptionHeader()
         opt.text = btn.text()
         s = QtCore.QSize(
@@ -549,6 +549,18 @@ class TableView(QtWidgets.QTableView):
 
         if s.isValid():
             self.verticalHeader().setMinimumWidth(s.width())
+        self.repaint()
+
+    def selectionChanged(self, selected, deselected):
+        super(TableView, self).selectionChanged(selected, deselected)
+
+        sel = self.selectionModel().selection()
+        rowsSel = []
+        for item in sel:
+            rowsSel += range(item.top(), item.bottom() + 1)
+        self.model().datatable.updateDisplayVerts(rowsSel)
+
+        self.selEmptied.emit(not sel.isEmpty())
 
     def createPixMap(self, rect):
         # Icon = QtGui.QIcon()
