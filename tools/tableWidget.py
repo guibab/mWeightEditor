@@ -272,19 +272,20 @@ class VertHeaderView(QtWidgets.QHeaderView):
 
 
 class HorizHeaderView(QtWidgets.QHeaderView):
-    _colors = [
-        (161, 105, 48),
-        (159, 161, 48),
-        (104, 161, 48),
-        (48, 161, 93),
-        (48, 161, 161),
-        (48, 103, 161),
-        (111, 48, 161),
-        (161, 48, 105),
-    ]
+    """
+    _colors = [(161,105,48), (159,161,48), (104,161,48), (48,161,93),
+                (48,161,161), (48,103,161), (111,48,161), (161,48,105)]
+    """
+
+    def getColors(self):
+        self._colors = []
+        for i in xrange(1, 9):
+            col = cmds.displayRGBColor("userDefined{0}".format(i), q=True)
+            self._colors.append([int(el * 255) for el in col])
 
     def __init__(self, colWidth=10, parent=None):
         super(HorizHeaderView, self).__init__(QtCore.Qt.Horizontal, parent)
+        self.getColors()
         self.colWidth = colWidth
         self._font = QtGui.QFont("Myriad Pro", 10)
         self._font.setBold(False)
@@ -616,21 +617,14 @@ class TableView(QtWidgets.QTableView):
 # COLOR
 # -------------------------------------------------------------------------------
 class ColorMenu(QtWidgets.QMenu):
-
-    _colors = [
-        (161, 105, 48),
-        (159, 161, 48),
-        (104, 161, 48),
-        (48, 161, 93),
-        (48, 161, 161),
-        (48, 103, 161),
-        (111, 48, 161),
-        (161, 48, 105),
-    ]
+    """
+    _colors = [(161,105,48), (159,161,48), (104,161,48), (48,161,93),
+                (48,161,161), (48,103,161), (111,48,161), (161,48,105)]
+    """
 
     def __init__(self, parent):
         super(ColorMenu, self).__init__(parent)
-
+        self.getColors()
         self._color = None
 
         self.setFixedWidth(20)
@@ -641,6 +635,13 @@ class ColorMenu(QtWidgets.QMenu):
             act = self.addAction("")
             act.setIcon(QtGui.QIcon(pixmap))
             act.triggered.connect(partial(self.pickColor, index))
+
+    def getColors(self):
+        self._colors = []
+        for i in xrange(1, 9):
+            col = cmds.displayRGBColor("userDefined{0}".format(i), q=True)
+            self._colors.append([int(el * 255) for el in col])
+        # cmds.displayRGBColor( "userDefined1", 0, 1, 1, create=True)
 
     def pickColor(self, index):
         self._color = index
