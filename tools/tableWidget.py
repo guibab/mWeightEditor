@@ -320,7 +320,21 @@ class HorizHeaderView(QtWidgets.QHeaderView):
                 self.parent().clearSelection()
         elif self.height() - event.pos().y() < 20:
             index = self.visualIndexAt(event.pos().x())
-            self.setColor(event.pos(), index)
+            if event.button() == QtCore.Qt.LeftButton:
+                self.setColor(event.pos(), index)
+            else:
+                pos = event.globalPos() - QtCore.QPoint(355, 100)
+                theColor = [el / 255.0 for el in self.color(index)]
+                cmds.colorEditor(mini=True, position=[pos.x(), pos.y()], rgbValue=theColor)
+                if cmds.colorEditor(query=True, result=True):
+                    theUserDefinedIndex = (
+                        cmds.getAttr(self.model().fullColumnNames()[index] + ".objectColor") + 1
+                    )
+                    values = cmds.colorEditor(query=True, rgb=True)
+                    print theUserDefinedIndex, values
+                    cmds.displayRGBColor("userDefined{0}".format(theUserDefinedIndex), *values)
+                    self.getColors()
+                    self.repaint()
         else:
             super(HorizHeaderView, self).mousePressEvent(event)
 
