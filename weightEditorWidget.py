@@ -504,10 +504,12 @@ class SkinWeightWin(QtWidgets.QDialog):
         ]
 
     def retrieveSelection(self):
+        self._tv.ignoreReselect = True
         newSel = self._tv.selectionModel().selection()
         for top, left, bottom, right in self.topLeftBotRightSel:
             newSel.select(self._tm.index(top, left), self._tm.index(bottom, right))
         self._tv.selectionModel().select(newSel, QtCore.QItemSelectionModel.ClearAndSelect)
+        self._tv.ignoreReselect = False
 
     def doAddValue(self, val, forceAbsolute=False, average=False):
         self.storeSelection()

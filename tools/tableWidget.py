@@ -553,6 +553,8 @@ class TableView(QtWidgets.QTableView):
     selEmptied = QtCore.Signal(bool, name="selEmptied")
 
     def __init__(self, *args, **kwargs):
+        self.ignoreReselect = False
+
         colWidth = kwargs.pop("colWidth", None)
         QtWidgets.QTableView.__init__(self, *args, **kwargs)
         # self.sizeHintForRow = QtCore.QSize (0,10)
@@ -564,7 +566,6 @@ class TableView(QtWidgets.QTableView):
         self.setVerticalHeader(self.VHeaderView)
 
         self.verticalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
-
         # self.setUniformRowHeights (True)
         # btn = QtWidgets.QPushButton("Hi")
         # self.setCornerWidget(btn)
@@ -622,16 +623,18 @@ class TableView(QtWidgets.QTableView):
         self.repaint()
 
     def selectionChanged(self, selected, deselected):
+        # QItemSelection      selected
         super(TableView, self).selectionChanged(selected, deselected)
-        sel = self.selectionModel().selection()
-        if self.HHeaderView.letVerticesDraw:
-            rowsSel = []
-            for item in sel:
-                rowsSel += range(item.top(), item.bottom() + 1)
-            self.model().datatable.updateDisplayVerts(rowsSel)
-        else:
-            self.model().datatable.updateDisplayVerts([])
-        self.selEmptied.emit(not sel.isEmpty())
+        if not self.ignoreReselect:
+            sel = self.selectionModel().selection()
+            if self.HHeaderView.letVerticesDraw:
+                rowsSel = []
+                for item in sel:
+                    rowsSel += range(item.top(), item.bottom() + 1)
+                self.model().datatable.updateDisplayVerts(rowsSel)
+            else:
+                self.model().datatable.updateDisplayVerts([])
+            self.selEmptied.emit(not sel.isEmpty())
 
     def createPixMap(self, rect):
         # Icon = QtGui.QIcon()
