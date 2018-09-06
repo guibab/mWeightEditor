@@ -811,7 +811,7 @@ class DataOfSkin(object):
         ptr = res.asDoublePtr()
 
         lent = self.rawSkinValues.length()
-        with GlobalContext(message="convertingSkinValues"):
+        with GlobalContext(message="convertingSkinValues", doPrint=False):
             cta = (c_double * lent).from_address(int(ptr))
             arr = np.ctypeslib.as_array(cta)
             self.raw2dArray = np.copy(arr)
@@ -890,13 +890,13 @@ class DataOfSkin(object):
         self.getShortNames()
         self.nbDrivers = len(self.driverNames)
 
-        with GlobalContext(message="rawSkinValues"):
+        with GlobalContext(message="rawSkinValues", doPrint=False):
             res = self.getIndicesFromSelection(sel)
             if isinstance(res, tuple):
                 self.vertices, self.verticesWeight = res
+                arr = np.argsort(self.verticesWeight)
+                self.sortedIndices = arr[::-1]
                 """
-                arr  = np.argsort (self.verticesWeight)
-                sortedIndices = arr[::-1]
                 self.vertices = [self.vertices[ind] for ind in sortedIndices]
                 self.verticesWeight = [self.verticesWeight[ind] for ind in sortedIndices]
                 """

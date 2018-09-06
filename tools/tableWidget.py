@@ -575,6 +575,23 @@ class TableView(QtWidgets.QTableView):
         self.__nw_heading = "Vtx"
         self.addRedrawButton()
 
+    """
+    def keyPressEvent (self,event):
+        theKeyPressed = event.key()        
+        ctrlPressed = event.modifiers () == QtCore.Qt.ControlModifier
+        if event.text() in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" : return
+        super(TableView, self).keyPressEvent(event)
+    """
+
+    def keyPressEvent(self, event):
+        txt = event.text()
+        isIn = txt and txt in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        # print "[{0}] - {1}".format (event.text(), isIn)
+        if isIn:
+            return
+
+        super(TableView, self).keyPressEvent(event)
+
     def rmvRedrawButton(self):
         btn = self.findChild(QtWidgets.QAbstractButton)
         btn.removeEventFilter(self)
