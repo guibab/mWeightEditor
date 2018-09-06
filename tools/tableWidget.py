@@ -328,6 +328,8 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         self.setHighlightSections(True)
         self.setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
 
+        self.letVerticesDraw = True
+
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.showMenu)
 
@@ -367,7 +369,12 @@ class HorizHeaderView(QtWidgets.QHeaderView):
                     self.getColors()
                     self.repaint()
         else:
+            self.letVerticesDraw = False
             super(HorizHeaderView, self).mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self.letVerticesDraw = True
+        super(HorizHeaderView, self).mouseReleaseEvent(event)
 
     def color(self, ind):
         return self._colors[cmds.getAttr(self.model().fullColumnNames()[ind] + ".objectColor")]
@@ -616,13 +623,14 @@ class TableView(QtWidgets.QTableView):
 
     def selectionChanged(self, selected, deselected):
         super(TableView, self).selectionChanged(selected, deselected)
-
         sel = self.selectionModel().selection()
-        rowsSel = []
-        for item in sel:
-            rowsSel += range(item.top(), item.bottom() + 1)
-        self.model().datatable.updateDisplayVerts(rowsSel)
-
+        if self.HHeaderView.letVerticesDraw:
+            rowsSel = []
+            for item in sel:
+                rowsSel += range(item.top(), item.bottom() + 1)
+            self.model().datatable.updateDisplayVerts(rowsSel)
+        else:
+            self.model().datatable.updateDisplayVerts([])
         self.selEmptied.emit(not sel.isEmpty())
 
     def createPixMap(self, rect):
