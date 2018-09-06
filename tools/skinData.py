@@ -10,7 +10,7 @@ from maya import cmds
 
 import numpy as np
 import re
-from utils import GlobalContext
+from utils import GlobalContext, getSoftSelectionValues
 
 
 def isin(element, test_elements, assume_unique=False, invert=False):
@@ -86,7 +86,6 @@ class DataOfSkin(object):
                 )
 
     ###################################################################################
-
     def orderMelList(self, listInd, onlyStr=True):
         # listInd = [49, 60, 61, 62, 80, 81, 82, 83, 100, 101, 102, 103, 113, 119, 120, 121, 138, 139, 140, 158, 159, 178, 179, 198, 230, 231, 250, 251, 252, 270, 271, 272, 273, 274, 291, 292, 293, 319, 320, 321, 360,361,362]
         listInds = []
@@ -128,48 +127,51 @@ class DataOfSkin(object):
         else:
             return listInds
 
-        # print selVertices
-
     def getIndicesFromSelection(self, sel, asList=True):
-        selectedVertices = [el for el in sel if ".vtx[" in el]
-        indices = [el.split(".vtx[")[-1][:-1] for el in selectedVertices if ".vtx[" in el]
-
-        for toSearch in [".f[", ".e["]:
-            selection = [el for el in sel if toSearch in el]
-            kwargs = {"tv": True}
-            if "f" in toSearch:
-                kwargs["ff"] = True
-            else:
-                kwargs["fe"] = True
-            convertedVertices = cmds.polyListComponentConversion(selection, **kwargs)
-            indices += [el.split(".vtx[")[-1][:-1] for el in convertedVertices if ".vtx[" in el]
-        ################### NURBS #####################################################
-        if not indices:
-            surfaceCVs = [el for el in sel if "][" in el]
-            if surfaceCVs:
-                theSurface = surfaceCVs[0].split(".")[0]
-                # numCVsInV_ * indexU + indexV
-                numCVsInV_ = cmds.getAttr(theSurface + ".spansV") + cmds.getAttr(
-                    theSurface + ".degreeV"
-                )
-                indices = [
-                    map(int, re.findall(r"\[(\d+)", el)) for el in cmds.ls(surfaceCVs, flatten=True)
-                ]
-                indices = [numCVsInV_ * indexU + indexV for indexU, indexV in indices]
-                return indices
-            selectedCvs = [el for el in sel if ".cv[" in el]
-            indices = [el.split(".cv[")[-1][:-1] for el in selectedCvs if ".cv[" in el]
-        allIndices = set()
-        for index in indices:
-            if ":" in index:
-                nmbs = map(int, index.split(":"))
-                allIndices.update(range(nmbs[0], nmbs[1] + 1))
-            else:
-                allIndices.add(int(index))
-        if asList:
-            return sorted(list(allIndices))
+        self.softOn = cmds.softSelect(q=True, softSelectEnabled=True)
+        if self.softOn:
+            return getSoftSelectionValues()
         else:
-            return allIndices
+            selectedVertices = [el for el in sel if ".vtx[" in el]
+            indices = [el.split(".vtx[")[-1][:-1] for el in selectedVertices if ".vtx[" in el]
+
+            for toSearch in [".f[", ".e["]:
+                selection = [el for el in sel if toSearch in el]
+                kwargs = {"tv": True}
+                if "f" in toSearch:
+                    kwargs["ff"] = True
+                else:
+                    kwargs["fe"] = True
+                convertedVertices = cmds.polyListComponentConversion(selection, **kwargs)
+                indices += [el.split(".vtx[")[-1][:-1] for el in convertedVertices if ".vtx[" in el]
+            ################### NURBS #####################################################
+            if not indices:
+                surfaceCVs = [el for el in sel if "][" in el]
+                if surfaceCVs:
+                    theSurface = surfaceCVs[0].split(".")[0]
+                    # numCVsInV_ * indexU + indexV
+                    numCVsInV_ = cmds.getAttr(theSurface + ".spansV") + cmds.getAttr(
+                        theSurface + ".degreeV"
+                    )
+                    indices = [
+                        map(int, re.findall(r"\[(\d+)", el))
+                        for el in cmds.ls(surfaceCVs, flatten=True)
+                    ]
+                    indices = [numCVsInV_ * indexU + indexV for indexU, indexV in indices]
+                    return indices
+                selectedCvs = [el for el in sel if ".cv[" in el]
+                indices = [el.split(".cv[")[-1][:-1] for el in selectedCvs if ".cv[" in el]
+            allIndices = set()
+            for index in indices:
+                if ":" in index:
+                    nmbs = map(int, index.split(":"))
+                    allIndices.update(range(nmbs[0], nmbs[1] + 1))
+                else:
+                    allIndices.add(int(index))
+            if asList:
+                return sorted(list(allIndices))
+            else:
+                return allIndices
 
     def getMObject(self, nodeName, returnDagPath=True):
         # We expect here the fullPath of a shape mesh
@@ -290,6 +292,10 @@ class DataOfSkin(object):
             self.influenceIndices.set(i, i)
 
         indicesVertices = [self.vertices[indRow] for indRow in xrange(self.Mtop, self.Mbottom + 1)]
+        self.indicesWeights = np.array(
+            [self.verticesWeight[indRow] for indRow in xrange(self.Mtop, self.Mbottom + 1)]
+        )
+
         if self.isNurbsSurface:
             componentType = OpenMaya.MFn.kSurfaceCVComponent
             fnComponent = OpenMaya.MFnDoubleIndexedComponent()
@@ -469,6 +475,12 @@ class DataOfSkin(object):
             # 6 zero rest array--------------------------------------------------------------------------------------
             ZeroVals = np.full(self.orig2dArray.shape, 0.0)
             np.copyto(new2dArray, ZeroVals, where=self.rmMasks)
+
+            if self.softOn:
+                new2dArray = (
+                    new2dArray * self.indicesWeights[:, np.newaxis]
+                    + self.orig2dArray * (1.0 - self.indicesWeights)[:, np.newaxis]
+                )
         # set Value ------------------------------------------------
         self.actuallySetValue(
             new2dArray,
@@ -525,6 +537,12 @@ class DataOfSkin(object):
             # np.copyto (new2dArray , absValues.filled(0)+remainingValues.filled(0), where = ~self.lockedMask)
             np.copyto(new2dArray, absValues, where=~absValues.mask)
             np.copyto(new2dArray, remainingValues, where=~remainingValues.mask)
+
+            if self.softOn:
+                new2dArray = (
+                    new2dArray * self.indicesWeights[:, np.newaxis]
+                    + self.orig2dArray * (1.0 - self.indicesWeights)[:, np.newaxis]
+                )
         # set Value ------------------------------------------------
         self.actuallySetValue(
             new2dArray,
@@ -606,6 +624,11 @@ class DataOfSkin(object):
             # np.copyto (new2dArray , addValues.filled(0)+remainingValues.filled(0), where = ~self.lockedMask)
             np.copyto(new2dArray, addValues, where=~addValues.mask)
             np.copyto(new2dArray, remainingValues, where=~remainingValues.mask)
+            if self.softOn:
+                new2dArray = (
+                    new2dArray * self.indicesWeights[:, np.newaxis]
+                    + self.orig2dArray * (1.0 - self.indicesWeights)[:, np.newaxis]
+                )
         # set Value ------------------------------------------------
         self.actuallySetValue(
             new2dArray,
@@ -818,6 +841,7 @@ class DataOfSkin(object):
         self.isNurbsSurface = False
 
         self.vertices = []
+        self.verticesWeight = []
         self.driverNames = []
         self.nbDrivers = 0
         self.shortDriverNames = []
@@ -867,11 +891,24 @@ class DataOfSkin(object):
         self.nbDrivers = len(self.driverNames)
 
         with GlobalContext(message="rawSkinValues"):
-            self.vertices = self.getIndicesFromSelection(sel)
+            res = self.getIndicesFromSelection(sel)
+            if isinstance(res, tuple):
+                self.vertices, self.verticesWeight = res
+                """
+                arr  = np.argsort (self.verticesWeight)
+                sortedIndices = arr[::-1]
+                self.vertices = [self.vertices[ind] for ind in sortedIndices]
+                self.verticesWeight = [self.verticesWeight[ind] for ind in sortedIndices]
+                """
+            else:
+                self.vertices = res
+                self.verticesWeight = [1.0] * len(self.vertices)
             if not self.vertices:
                 self.vertices = cmds.getAttr(
                     "{0}.weightList".format(self.theSkinCluster), multiIndices=True
                 )
+                self.verticesWeight = [1.0] * len(self.vertices)
+                self.softOn = 0
                 self.fullShapeIsUsed = True
                 self.rawSkinValues = self.exposeSkinData(self.theSkinCluster)
             else:

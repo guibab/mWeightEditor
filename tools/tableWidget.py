@@ -118,6 +118,9 @@ class TableModel(QtCore.QAbstractTableModel):
         except:
             return "X"
 
+    def isSoftOn(self):
+        return self.datatable.softOn
+
     def flags(self, index):
         if not index.isValid():
             return QtCore.Qt.ItemIsEnabled
@@ -192,7 +195,11 @@ class VertHeaderView(QtWidgets.QHeaderView):
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.showMenu)
 
+        self.whiteCol = QtGui.QColor(200, 200, 200)
+        self.regularCol = QtGui.QColor(130, 130, 130)
+
         self.regularBG = QtGui.QBrush(QtGui.QColor(130, 130, 130))
+        self.whiteBG = QtGui.QBrush(QtGui.QColor(200, 200, 200))
         self.greyBG = QtGui.QBrush(QtGui.QColor(100, 100, 100))
 
     def showMenu(self, pos):
@@ -221,20 +228,44 @@ class VertHeaderView(QtWidgets.QHeaderView):
         popMenu.exec_(self.mapToGlobal(pos))
 
     def paintSection(self, painter, rect, index):
-        theBGBrush = self.greyBG if self.model().datatable.isRowLocked(index) else self.regularBG
-        if self.model().datatable.isRowLocked(index):
-            text = self.model().getRowText(index)
-            painter.save()
-            painter.setBrush(self.greyBG)
-            pen = QtGui.QPen(QtGui.QColor(0, 0, 0))
-            pen.setWidth(2)
-            painter.setPen(pen)
-            painter.drawRect(rect)
-            painter.restore()
-            painter.drawText(rect, QtCore.Qt.AlignCenter, text)
+        if not rect.isValid():
             return
-        else:
-            return super(VertHeaderView, self).paintSection(painter, rect, index)
+        text = self.model().getRowText(index)
+        multVal = self.model().datatable.verticesWeight[index]
+        painter.save()
+        theBGBrush = self.greyBG
+
+        if not self.model().datatable.isRowLocked(index):
+            if self.model().isSoftOn():
+                col = multVal * 255 * 2
+                if col > 255:
+                    RCol = 255
+                    GCol = col - 255
+                else:
+                    GCol = 0.0
+                    RCol = col
+                theBGBrush = QtGui.QBrush(QtGui.QColor(RCol, GCol, 0, 100))
+            else:
+                theBGBrush = self.regularBG
+            """
+            theBGBrush  =QtGui.QBrush( QtGui.QColor(
+                self.regularCol.red()* (multVal) + self.whiteCol.red()*(1.-multVal),
+                self.regularCol.green()* (multVal) + self.whiteCol.green()*(1.-multVal),
+                self.regularCol.blue() *(multVal) + self.whiteCol.blue()*(1.-multVal)))
+            """
+            # self.regularBG * multVal + (1. - multVal) * self.whiteBG
+        painter.setBrush(theBGBrush)
+        pen = QtGui.QPen(QtGui.QColor(0, 0, 0))
+        pen.setWidth(2)
+        painter.setPen(pen)
+        painter.drawRect(rect)
+        painter.restore()
+        painter.drawText(rect, QtCore.Qt.AlignCenter, text)
+        # return
+        """
+        else : 
+            return super (VertHeaderView, self).paintSection (painter, rect, index) 
+        """
 
     def getSelectedRows(self):
         """
@@ -315,7 +346,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         outClick = event.pos().x() > self.colWidth * nbShown
         if outClick:
             if event.button() == QtCore.Qt.MidButton:
-                self.parent().parent().reizeToMinimum()
+                self.parent().parent().resizeToMinimum()
             elif event.button() == QtCore.Qt.LeftButton:
                 self.parent().clearSelection()
         elif self.height() - event.pos().y() < 20:

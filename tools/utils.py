@@ -1,5 +1,6 @@
 from maya import cmds
 import time, datetime
+from maya import OpenMaya
 
 ###################################################################################
 #
@@ -65,3 +66,27 @@ class toggleBlockSignals(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         for widg in self.listWidgets:
             widg.blockSignals(False)
+
+
+def getSoftSelectionValues():
+    richSel = OpenMaya.MRichSelection()
+    try:
+        OpenMaya.MGlobal.getRichSelection(richSel)
+    except RuntimeError:
+        return []
+    richSelList = OpenMaya.MSelectionList()
+    richSel.getSelection(richSelList)
+
+    path = OpenMaya.MDagPath()
+    component = OpenMaya.MObject()
+    richSelList.getDagPath(0, path, component)
+
+    try:
+        componentFn = OpenMaya.MFnSingleIndexedComponent(component)
+    except:
+        return []
+    count = componentFn.elementCount()
+    # elementIndicesWeights = [ (componentFn.element(i), componentFn.weight(i).influence() ) for i in range (count)]
+    elementIndices = [componentFn.element(i) for i in range(count)]
+    elementWeights = [componentFn.weight(i).influence() for i in range(count)]
+    return elementIndices, elementWeights
