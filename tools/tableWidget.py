@@ -661,7 +661,12 @@ class TableView(QtWidgets.QTableView):
         return thePixmap
 
     def eventFilter(self, obj, event):
-        if event.type() != QtCore.QEvent.Paint or not isinstance(obj, QtWidgets.QAbstractButton):
+        try:
+            if event.type() != QtCore.QEvent.Paint or not isinstance(
+                obj, QtWidgets.QAbstractButton
+            ):
+                return False
+        except:
             return False
         # Paint by hand (borrowed from QTableCornerButton)
         opt = QtWidgets.QStyleOptionHeader()

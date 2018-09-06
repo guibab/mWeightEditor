@@ -260,6 +260,7 @@ class SkinWeightWin(QtWidgets.QDialog):
         cmds.optionVar(clearArray="SkinWeightWindow")
         for el in pos.x(), pos.y(), size.width(), size.height():
             cmds.optionVar(intValueAppend=("SkinWeightWindow", el))
+        self._tv.deleteLater()
         # self.headerView.deleteLater()
         super(SkinWeightWin, self).closeEvent(event)
 

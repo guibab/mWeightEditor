@@ -18,4 +18,4 @@ if ( __name__ in ( '__main__', '__builtin__' ) ):
 	# importing from a sub-module
 	from mWeightEditor.weightEditorWidget import SkinWeightWin
 	
-	blurdev.launch( SkinWeightWin, instance=True )
+	blurdev.launch( SkinWeightWin, instance=False )
