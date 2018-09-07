@@ -12,7 +12,7 @@ import blurdev
 from studio.gui.resource import Icons
 from tools.skinData import DataOfSkin
 from tools.tableWidget import TableView, TableModel
-from tools.spinnerSlider import ValueSetting, ButtonWithValue
+from tools.spinnerSlider import ValueSettingWE, ButtonWithValue
 from tools.utils import GlobalContext
 
 _icons = {
@@ -330,7 +330,8 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.lockBtn.toggled.connect(self.changeLock)
         self.topLayout.insertWidget(0, self.lockBtn)
 
-        self.valueSetter = ValueSetting(self)  # ProgressItem("BlendShape", szrad = 0, value = 0)
+        self.valueSetter = ValueSettingWE(self)  # ProgressItem("BlendShape", szrad = 0, value = 0)
+
         Hlayout = QtWidgets.QHBoxLayout(self)
         Hlayout.setContentsMargins(0, 0, 0, 0)
         Hlayout.setSpacing(0)

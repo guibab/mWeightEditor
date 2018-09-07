@@ -86,7 +86,7 @@ class ValueSetting(QtWidgets.QWidget):
         self.theProgress = ProgressItem("skinVal", szrad=0, value=50)
         self.setAddMode(True)
 
-        self.theProgress.mainWindow = parent
+        self.theProgress.prt = self
         self.mainWindow = parent
         # self.displayText = QtWidgets.QLabel (self)
 
@@ -131,14 +131,26 @@ class ValueSetting(QtWidgets.QWidget):
         QtWidgets.QDoubleSpinBox.focusInEvent(self.theSpinner, event)
         cmds.evalDeferred(self.theLineEdit.selectAll)
 
+    def preSet(self):
+        return True
+
+    def doSet(self, theVal):
+        print theVal
+
+    def postSet(self):
+        return
+
     def spinnerValueEntered(self):
         theVal = self.theSpinner.value()
         # print "value Set {0}".format (theVal)
 
-        self.mainWindow.prepareToSetValue()
-        self.mainWindow.doAddValue(theVal / 100.0)
-        self.setVal(self.theProgress.releasedValue)
-        self.mainWindow.dataOfSkin.postSkinSet()
+        self.preSet()
+        self.doSet(theVal / 100.0)
+        if self.theProgress.autoReset:
+            self.setVal(self.theProgress.releasedValue)
+        else:
+            self.theProgress.applyVal(theVal / 100.0)
+        self.postSet()
 
     def setVal(self, val):
         # theVal = val/100.
@@ -148,46 +160,36 @@ class ValueSetting(QtWidgets.QWidget):
             theVal = val / 100.0
         # ------- SETTING FUNCTION ---------------------
         if self.theProgress.startDrag:
-            self.mainWindow.doAddValue(theVal)
+            self.doSet(theVal)
         else:
-            self.mainWindow.dataOfSkin.postSkinSet()
+            self.postSet()
 
         # else : # wheelEvent
         self.theSpinner.setValue(theVal * 100.0)
 
-    def setAddMode(self, addMode):
+    def setAddMode(self, addMode, autoReset=True):
         if addMode:
             self.addMode = True
-            self.theProgress.autoReset = True
+            self.theProgress.autoReset = autoReset
             self.theProgress.releasedValue = 50.0
         else:
             self.addMode = False
-            self.theProgress.autoReset = True
+            self.theProgress.autoReset = autoReset
             self.theProgress.releasedValue = 0.0
         with toggleBlockSignals([self.theProgress]):
             self.theProgress.setValue(self.theProgress.releasedValue)
 
-    """
-    def valueEntered (self, theVal) : 
-        if theVal == 0.0 : # end of drag
-            print "end of drag", theVal
-            self.mainWindow.dataOfSkin.postSkinSet ()
 
-        if self.theProgress.startDrag : 
-            self.mainWindow.doAddValue (theVal)
-        else : # if direct value or whheel we set prepare it
-            print "spinnerValueSet [{0}]".format( theVal )
-            self.mainWindow.prepareToSetValue()
-            self.mainWindow.doAddValue (theVal)
-            self.theProgress.applyVal (self.theProgress.releasedValue)
-            #self.mainWindow.dataOfSkin.postSkinSet ()
+# for the weightEditor
+class ValueSettingWE(ValueSetting):
+    def preSet(self):
+        return self.mainWindow.prepareToSetValue()
 
-    def setVal (self, val) :
-        #theVal = val/100.
-        theVal = (val-50)/50.
-        # ------- SETTING FUNCTION ---------------------
-        self.theSpinner.setValue (theVal)
-    """
+    def doSet(self, theVal):
+        return self.mainWindow.doAddValue(theVal)
+
+    def postSet(self):
+        return self.mainWindow.dataOfSkin.postSkinSet()
 
 
 class ProgressItem(QtWidgets.QProgressBar):
@@ -212,7 +214,7 @@ class ProgressItem(QtWidgets.QProgressBar):
     border-top-right-radius: {szrad}px;
     border-top-left-radius: {szrad}px;}}
     """
-    mainWindow = None
+    prt = None
 
     def __init__(self, theName, value=0, **kwargs):
         super(ProgressItem, self).__init__()
@@ -282,7 +284,9 @@ class ProgressItem(QtWidgets.QProgressBar):
         else:
             cmds.undoInfo(stateWithoutFlush=False)
             # ------------- PREPARE FUNCTION -------------------------------------------------------------------------------------
-            self.startDrag = self.mainWindow.prepareToSetValue()
+            self.startDrag = (
+                self.prt.preSet()
+            )  # self.mainWindow.prepareToSetValue()#self.prt.preSet()
             if self.startDrag:
                 self.applyTheEvent(event)
 
