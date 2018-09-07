@@ -15,6 +15,7 @@ class ButtonWithValue(QtWidgets.QPushButton):
         maximumValue=10,
         step=1,
         clickable=True,
+        minHeight=24,
     ):
         self.usePow = usePow
         self.name = name
@@ -25,7 +26,7 @@ class ButtonWithValue(QtWidgets.QPushButton):
         self.clickable = clickable
         self.optionVarName = "ButtonWithValue_" + name
         super(ButtonWithValue, self).__init__(parent)
-        self.setMinimumHeight(24)
+        self.setMinimumHeight(minHeight)
         self._metrics = QtGui.QFontMetrics(self.font())
         self.getValuePrecision()
 

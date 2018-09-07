@@ -908,6 +908,8 @@ class DataOfSkin(object):
             )
             if inConn:
                 self.blurSkinNode = inConn[0]
+                return self.blurSkinNode
+        return ""
 
     def getAllData(self, displayLocator=True):
         sel = cmds.ls(sl=True)
