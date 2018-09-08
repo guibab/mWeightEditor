@@ -5,6 +5,8 @@ import math
 
 
 class ButtonWithValue(QtWidgets.QPushButton):
+    _valueChanged = QtCore.Signal(int, name="valChanged")
+
     def __init__(
         self,
         parent=None,
@@ -16,7 +18,9 @@ class ButtonWithValue(QtWidgets.QPushButton):
         step=1,
         clickable=True,
         minHeight=24,
+        addSpace=True,
     ):
+        self.addSpace = addSpace
         self.usePow = usePow
         self.name = name
         self.minimumValue = minimumValue
@@ -55,14 +59,17 @@ class ButtonWithValue(QtWidgets.QPushButton):
 
         if self.step != 1:
             self.precision = round(self.precision, 1)
+        self._valueChanged.emit(self.precision)
         self.updateName()
 
     def updateName(self):
         if self.usePow:
             self.precisionValue = math.pow(10, self.precision * -1)
-            theText = " {0} {1} ".format(self.name, self.precisionValue)
+            theText = "{0} {1}".format(self.name, self.precisionValue)
         else:
-            theText = " {0} {1} ".format(self.name, self.precision)
+            theText = "{0} {1}".format(self.name, self.precision)
+        if self.addSpace:
+            theText = " {0} ".format(theText)
         self.setText(theText)
         self.setMinimumWidth(self._metrics.width(theText) + 6)
 
@@ -136,10 +143,10 @@ class ValueSetting(QtWidgets.QWidget):
         return True
 
     def doSet(self, theVal):
-        print theVal
+        pass  # print theVal
 
     def postSet(self):
-        return
+        return True
 
     def spinnerValueEntered(self):
         theVal = self.theSpinner.value()
@@ -302,6 +309,8 @@ class ProgressItem(QtWidgets.QProgressBar):
             super(ProgressItem, self).mouseReleaseEvent(event)
         if self.autoReset:
             self.setValue(self.releasedValue)
+        else:
+            self.prt.postSet()
 
     def applyTheEvent(self, e):
         shitIsHold = e.modifiers() == QtCore.Qt.ShiftModifier

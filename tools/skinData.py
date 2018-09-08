@@ -241,11 +241,8 @@ class DataOfSkin(object):
 
     def prepareValuesforSetSkinData(self, chunks, actualyVisibleColumns):
         # first check if connected  ---------------------------------------------------
-        self.getConnectedBlurskinDisplay()
-        if self.blurSkinNode:
-            cmds.disconnectAttr(
-                self.blurSkinNode + ".weightList", self.theSkinCluster + ".weightList"
-            )
+        self.getConnectedBlurskinDisplay(disconnectWeightList=True)
+
         # MASK selection array -----------------------------------
         lstTopBottom = []
         for top, bottom, left, right in chunks:
@@ -900,14 +897,27 @@ class DataOfSkin(object):
 
         self.UNDOstack = []
 
-    def getConnectedBlurskinDisplay(self):
+    def getConnectedBlurskinDisplay(self, disconnectWeightList=False):
         self.blurSkinNode = ""
         if cmds.objExists(self.theSkinCluster):
             inConn = cmds.listConnections(
-                self.theSkinCluster + ".weightList", s=True, d=False, type="blurSkinDisplay"
+                self.theSkinCluster + ".input[0].inputGeometry",
+                s=True,
+                d=False,
+                type="blurSkinDisplay",
             )
             if inConn:
                 self.blurSkinNode = inConn[0]
+                if disconnectWeightList:
+                    inConn = cmds.listConnections(
+                        self.theSkinCluster + ".weightList",
+                        s=True,
+                        d=False,
+                        p=True,
+                        type="blurSkinDisplay",
+                    )
+                    if inConn:
+                        cmds.disconnectAttr(inConn[0], self.theSkinCluster + ".weightList")
                 return self.blurSkinNode
         return ""
 
