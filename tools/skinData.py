@@ -921,7 +921,7 @@ class DataOfSkin(object):
                 return self.blurSkinNode
         return ""
 
-    def getAllData(self, displayLocator=True):
+    def getAllData(self, displayLocator=True, getskinWeights=True):
         sel = cmds.ls(sl=True)
         theSkinCluster, deformedShape = self.getSkinClusterFromSel(sel)
         if not theSkinCluster:
@@ -975,11 +975,17 @@ class DataOfSkin(object):
                 self.opposite_sortedIndices = range(len(self.vertices))
                 self.softOn = 0
                 self.fullShapeIsUsed = True
-                self.rawSkinValues = self.exposeSkinData(self.theSkinCluster)
+                if getskinWeights:
+                    self.rawSkinValues = self.exposeSkinData(self.theSkinCluster)
             else:
-                self.rawSkinValues = self.exposeSkinData(self.theSkinCluster, indices=self.vertices)
+                if getskinWeights:
+                    self.rawSkinValues = self.exposeSkinData(
+                        self.theSkinCluster, indices=self.vertices
+                    )
                 self.fullShapeIsUsed = False
             # print "rawSkinValues length : {0}" .format (self.rawSkinValues.length())
+            if not getskinWeights:
+                return True
         if self.isNurbsSurface:
             self.rowText = []
             for indVtx in self.vertices:
