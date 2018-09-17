@@ -58,7 +58,12 @@ class DataOfSkin(object):
             cmds.delete(self.pointsDisplayTrans)
 
     def connectDisplayLocator(self):
-        if cmds.objExists(self.pointsDisplayTrans):
+        isMesh = (
+            "shapePath" in self.__dict__
+            and self.shapePath != None
+            and self.shapePath.apiType() == OpenMaya.MFn.kMesh
+        )
+        if cmds.objExists(self.pointsDisplayTrans) and isMesh:
             self.updateDisplayVerts([])
             (meshConnected,) = cmds.listRelatives(self.pointsDisplayTrans, path=True, type="mesh")
             inConn = cmds.listConnections(
@@ -70,7 +75,12 @@ class DataOfSkin(object):
                 cmds.connectAttr(self.deformedShape + ".outMesh", meshConnected + ".inMesh", f=True)
 
     def updateDisplayVerts(self, rowsSel):
-        if cmds.objExists(self.pointsDisplayTrans):
+        isMesh = (
+            "shapePath" in self.__dict__
+            and self.shapePath != None
+            and self.shapePath.apiType() == OpenMaya.MFn.kMesh
+        )
+        if cmds.objExists(self.pointsDisplayTrans) and isMesh:
             (pointsDisplayNode,) = cmds.listRelatives(
                 self.pointsDisplayTrans, path=True, type="pointsDisplay"
             )
@@ -949,9 +959,6 @@ class DataOfSkin(object):
         if not theSkinCluster:
             self.clearData()
             return False
-        if displayLocator:
-            self.connectDisplayLocator()
-
         # get orig vertices -------------------------------
         self.driverNames, self.skinningMethod, self.normalizeWeights = self.getSkinClusterValues(
             self.theSkinCluster
@@ -994,6 +1001,14 @@ class DataOfSkin(object):
             # print "rawSkinValues length : {0}" .format (self.rawSkinValues.length())
             if not getskinWeights:
                 return True
+        isMesh = (
+            "shapePath" in self.__dict__
+            and self.shapePath != None
+            and self.shapePath.apiType() == OpenMaya.MFn.kMesh
+        )
+        if displayLocator and isMesh:
+            self.connectDisplayLocator()
+
         if self.isNurbsSurface:
             self.rowText = []
             for indVtx in self.vertices:

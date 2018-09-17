@@ -18,6 +18,7 @@ from tools.utils import GlobalContext
 _icons = {
     "lock": Icons.getIcon(r"icons8\Android_L\PNG\48\Very_Basic\lock-48"),
     "unlock": Icons.getIcon(r"icons8\Android_L\PNG\48\Very_Basic\unlock-48"),
+    "refresh": Icons.getIcon("refresh"),
 }
 
 styleSheet = """
@@ -300,9 +301,9 @@ class SkinWeightWin(QtWidgets.QDialog):
 
     def changeLock(self, val):
         if val:
-            self.lockBtn.setIcon(_icons["lock"])
+            self.lockBTN.setIcon(_icons["lock"])
         else:
-            self.lockBtn.setIcon(_icons["unlock"])
+            self.lockBTN.setIcon(_icons["unlock"])
         self.unLock = not val
 
     def createWindow(self):
@@ -320,13 +321,12 @@ class SkinWeightWin(QtWidgets.QDialog):
         self._tv.setModel(self._tm)
         # self._tm._tv = self._tv
         self.unLock = True
-        self.lockBtn = QtWidgets.QPushButton(self)
-        self.lockBtn.setIcon(_icons["unlock"])
-        self.lockBtn.setMaximumSize(24, 24)
-        self.lockBtn.setCheckable(True)
-        self.lockBtn.setChecked(False)
-        self.lockBtn.toggled.connect(self.changeLock)
-        self.topLayout.insertWidget(0, self.lockBtn)
+        self.lockBTN.setIcon(_icons["unlock"])
+        self.lockBTN.setMaximumSize(24, 24)
+        self.lockBTN.setCheckable(True)
+        self.lockBTN.setChecked(False)
+        self.lockBTN.toggled.connect(self.changeLock)
+        self.lockBTN.setText("")
 
         self.valueSetter = ValueSettingWE(self)  # ProgressItem("BlendShape", szrad = 0, value = 0)
 
@@ -387,6 +387,8 @@ class SkinWeightWin(QtWidgets.QDialog):
             self.__dict__[nm + "BTN"].hide()
         # -----------------------------------------------------------
         self.refreshBTN.clicked.connect(self.refreshBtn)
+        self.refreshBTN.setIcon(_icons["refresh"])
+        self.refreshBTN.setText("")
 
         self.smoothBTN.clicked.connect(self.smooth)
         self.smoothBTN.clicked.connect(self.refreshBtn)

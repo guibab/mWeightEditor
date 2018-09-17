@@ -68,6 +68,14 @@ class toggleBlockSignals(object):
             widg.blockSignals(False)
 
 
+def deleteTheJobs(toSearch="BrushFunctions.callAfterPaint"):
+    res = cmds.scriptJob(listJobs=True)
+    for job in res:
+        if toSearch in job:
+            jobIndex = int(job.split(":")[0])
+            cmds.scriptJob(kill=jobIndex)
+
+
 def getSoftSelectionValues():
     richSel = OpenMaya.MRichSelection()
     try:

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>466</width>
-    <height>111</height>
+    <width>610</width>
+    <height>277</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -31,6 +31,28 @@
       </property>
       <item>
        <layout class="QHBoxLayout" name="topLayout">
+        <property name="spacing">
+         <number>10</number>
+        </property>
+        <property name="sizeConstraint">
+         <enum>QLayout::SetMinimumSize</enum>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QPushButton" name="lockBTN">
+          <property name="maximumSize">
+           <size>
+            <width>24</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>L</string>
+          </property>
+         </widget>
+        </item>
         <item>
          <widget class="QPushButton" name="normalizeBTN">
           <property name="minimumSize">
@@ -114,9 +136,27 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="refreshBTN">
+         <widget class="QPushButton" name="problemVertBTN">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>23</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>select long vertices on edge</string>
+          </property>
           <property name="text">
-           <string>Refresh</string>
+           <string>problem verts</string>
+          </property>
+          <property name="checkable">
+           <bool>false</bool>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
           </property>
          </widget>
         </item>
@@ -124,6 +164,35 @@
       </item>
       <item>
        <layout class="QHBoxLayout" name="botLayout">
+        <item>
+         <widget class="QPushButton" name="refreshBTN">
+          <property name="maximumSize">
+           <size>
+            <width>24</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>R</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Fixed</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>8</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
         <item>
          <widget class="QPushButton" name="copyBTN">
           <property name="text">
