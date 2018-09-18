@@ -334,3 +334,24 @@ class ProgressItem(QtWidgets.QProgressBar):
         if self.startDrag:
             self.applyTheEvent(event)
         super(ProgressItem, self).mouseMoveEvent(event)
+
+
+class VerticalBtn(QtWidgets.QPushButton):
+    def __init__(self, *args):
+        QtWidgets.QPushButton.__init__(self, *args)
+
+    def paintEvent(self, event):
+        QtWidgets.QPushButton.paintEvent(self, event)
+        painter = QtGui.QPainter(self)
+        painter.translate(0, self.height())
+        painter.rotate(-90)
+        self.setGeometry(self.x(), self.y(), self.height(), self.width())
+        QtWidgets.QPushButton.render(self, painter)
+
+    def minimumSizeHint(self):
+        size = QtWidgets.QPushButton.minimumSizeHint(self)
+        return QtCore.QSize(size.height(), size.width())
+
+    def sizeHint(self):
+        size = QtWidgets.QPushButton.sizeHint(self)
+        return QtCore.QSize(size.height(), size.width())
