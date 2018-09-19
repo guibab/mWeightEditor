@@ -223,6 +223,9 @@ class VertHeaderView(QtWidgets.QHeaderView):
         unlockAction.triggered.connect(self.unlockSelectedRows)
         unlockAction.setEnabled(not selectionIsEmpty)
 
+        highliteAction = popMenu.addAction("highlite lock Verts")
+        highliteAction.triggered.connect(self.highliteLockRows)
+
         clearLocksAction = popMenu.addAction("clear all Locks")
         clearLocksAction.triggered.connect(self.clearLocks)
         popMenu.exec_(self.mapToGlobal(pos))
@@ -284,6 +287,17 @@ class VertHeaderView(QtWidgets.QHeaderView):
     def selectVerts(self):
         selectedIndices = self.getSelectedRows()
         self.model().datatable.selectVerts(selectedIndices)
+
+    def highliteLockRows(self):
+        model = self.model()
+        modData = self.model().datatable
+        newSel = self.selectionModel().selection()
+        newSel.clear()
+        nbColumns = modData.columnCount
+        for row in range(self.count()):
+            if modData.vertices[row] in modData.lockedVertices:
+                newSel.select(model.index(row, 0), model.index(row, nbColumns - 1))
+        self.selectionModel().select(newSel, QtCore.QItemSelectionModel.ClearAndSelect)
 
     def lockSelectedRows(self):
         selectedIndices = self.getSelectedRows()
