@@ -38,20 +38,27 @@ class DataOfSkin(object):
 
     def createDisplayLocator(self):
         self.pointsDisplayTrans = None
-        if not cmds.pluginInfo("pointsDisplay", query=True, loaded=True):
-            cmds.loadPlugin("pointsDisplay")
-
+        # if not cmds.pluginInfo ("pointsDisplay",query=True, loaded=True) :  cmds.loadPlugin("pointsDisplay")
+        if cmds.ls("MSkinWeightEditorDisplay*"):
+            cmds.delete(cmds.ls("MSkinWeightEditorDisplay*"))
         self.pointsDisplayTrans = cmds.createNode("transform", n="MSkinWeightEditorDisplay")
         pointsDisplayNode = cmds.createNode("pointsDisplay", p=self.pointsDisplayTrans)
+        nurbsConnected = cmds.createNode("nurbsSurface", p=self.pointsDisplayTrans)
+        curveConnected = cmds.createNode("nurbsCurve", p=self.pointsDisplayTrans)
         meshConnected = cmds.createNode("mesh", p=self.pointsDisplayTrans)
-        cmds.setAttr(meshConnected + ".v", False)
-        cmds.setAttr(meshConnected + ".ihi", False)
-        cmds.connectAttr(meshConnected + ".outMesh", pointsDisplayNode + ".inMesh", f=True)
+        for nd in [nurbsConnected, meshConnected, curveConnected]:
+            cmds.setAttr(nd + ".v", False)
+            cmds.setAttr(nd + ".ihi", False)
+        # cmds.connectAttr (nurbsConnected+".worldSpace", pointsDisplayNode+".inGeometry", f=True)
+        # cmds.connectAttr (meshConnected+".outMesh", pointsDisplayNode+".inMesh", f=True)
+        # cmds.connectAttr (meshConnected+".outMesh", pointsDisplayNode+".inGeometry", f=True)
+
         cmds.setAttr(pointsDisplayNode + ".pointWidth", 6)
         cmds.setAttr(pointsDisplayNode + ".inputColor", 0.0, 1.0, 1.0)
-
-        for nd in [self.pointsDisplayTrans, pointsDisplayNode, meshConnected]:
-            cmds.setAttr(nd + ".hiddenInOutliner", True)
+        """
+        for nd in [self.pointsDisplayTrans,pointsDisplayNode, meshConnected, nurbsConnected, curveConnected] : 
+            cmds.setAttr (nd+".hiddenInOutliner", True)
+        """
 
     def deleteDisplayLocator(self):
         if cmds.objExists(self.pointsDisplayTrans):
@@ -63,16 +70,27 @@ class DataOfSkin(object):
             and self.shapePath != None
             and self.shapePath.apiType() == OpenMaya.MFn.kMesh
         )
-        if cmds.objExists(self.pointsDisplayTrans) and isMesh:
+        if cmds.objExists(self.pointsDisplayTrans):
             self.updateDisplayVerts([])
-            (meshConnected,) = cmds.listRelatives(self.pointsDisplayTrans, path=True, type="mesh")
-            inConn = cmds.listConnections(
-                meshConnected + ".inMesh", s=True, d=False, p=True, scn=True
+            if isMesh:
+                geoType = "mesh"
+                outPlug = ".outMesh"
+                inPlug = ".inMesh"
+            else:  # self.isNurbsSurface :
+                geoType = "nurbsSurface" if self.isNurbsSurface else "nurbsCurve"
+                outPlug = ".worldSpace"
+                inPlug = ".create"
+            (pointsDisplayNode,) = cmds.listRelatives(
+                self.pointsDisplayTrans, path=True, type="pointsDisplay"
             )
+            (Connected,) = cmds.listRelatives(self.pointsDisplayTrans, path=True, type=geoType)
+            cmds.connectAttr(Connected + outPlug, pointsDisplayNode + ".inGeometry", f=True)
+            inConn = cmds.listConnections(Connected + inPlug, s=True, d=False, p=True, scn=True)
+
             if inConn:
-                cmds.disconnectAttr(inConn[0], meshConnected + ".inMesh")
-            if cmds.nodeType(self.deformedShape) == "mesh":
-                cmds.connectAttr(self.deformedShape + ".outMesh", meshConnected + ".inMesh", f=True)
+                cmds.disconnectAttr(inConn[0], Connected + inPlug)
+            if cmds.nodeType(self.deformedShape) == geoType:
+                cmds.connectAttr(self.deformedShape + outPlug, Connected + inPlug, f=True)
 
     def updateDisplayVerts(self, rowsSel):
         isMesh = (
@@ -80,13 +98,24 @@ class DataOfSkin(object):
             and self.shapePath != None
             and self.shapePath.apiType() == OpenMaya.MFn.kMesh
         )
-        if cmds.objExists(self.pointsDisplayTrans) and isMesh:
+        if cmds.objExists(self.pointsDisplayTrans):
             (pointsDisplayNode,) = cmds.listRelatives(
                 self.pointsDisplayTrans, path=True, type="pointsDisplay"
             )
             if rowsSel:
-                selVertices = self.orderMelList([self.vertices[ind] for ind in rowsSel])
-                inList = ["vtx[{0}]".format(el) for el in selVertices]
+                if isMesh:
+                    selVertices = self.orderMelList([self.vertices[ind] for ind in rowsSel])
+                    inList = ["vtx[{0}]".format(el) for el in selVertices]
+                elif self.isNurbsSurface:
+                    inList = []
+                    selectedVertices = [self.vertices[ind] for ind in rowsSel]
+                    for indVtx in selectedVertices:
+                        indexV = indVtx % self.numCVsInV_
+                        indexU = indVtx / self.numCVsInV_
+                        inList.append("cv[{0}][{1}]".format(indexU, indexV))
+                else:
+                    selVertices = self.orderMelList([self.vertices[ind] for ind in rowsSel])
+                    inList = ["cv[{0}]".format(el) for el in selVertices]
             else:
                 inList = []
             if cmds.objExists(pointsDisplayNode):
@@ -1007,7 +1036,8 @@ class DataOfSkin(object):
             and self.shapePath != None
             and self.shapePath.apiType() == OpenMaya.MFn.kMesh
         )
-        if displayLocator and isMesh:
+        # if displayLocator and (isMesh or self.isNurbsSurface) : self.connectDisplayLocator ()
+        if displayLocator:
             self.connectDisplayLocator()
 
         if self.isNurbsSurface:
@@ -1081,8 +1111,16 @@ class DataOfSkin(object):
 
     def selectVerts(self, selectedIndices):
         selectedVertices = set([self.vertices[ind] for ind in selectedIndices])
-        toSel = self.orderMelList(selectedVertices, onlyStr=True)
-        toSel = ["{0}.vtx[{1}]".format(self.deformedShape, vtx) for vtx in toSel]
+        if self.isNurbsSurface:
+            toSel = []
+            for indVtx in selectedVertices:
+                indexV = indVtx % self.numCVsInV_
+                indexU = indVtx / self.numCVsInV_
+                toSel += ["{0}.cv[{1}][{2}]".format(self.deformedShape, indexU, indexV)]
+        else:
+            toSel = self.orderMelList(selectedVertices, onlyStr=True)
+            toSel = ["{0}.vtx[{1}]".format(self.deformedShape, vtx) for vtx in toSel]
+        print toSel
         cmds.select(toSel)
 
     def unLockRows(self, selectedIndices):
