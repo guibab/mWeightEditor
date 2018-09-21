@@ -27,8 +27,9 @@ def isin(element, test_elements, assume_unique=False, invert=False):
 #
 ###################################################################################
 class DataOfSkin(object):
-    def __init__(self, useShortestNames=False):
+    def __init__(self, useShortestNames=False, hideZeroColumn=True):
         self.useShortestNames = useShortestNames
+        self.hideZeroColumn = hideZeroColumn
         self.clearData()
         sel = cmds.ls(sl=True)
         hil = cmds.ls(hilite=True)

@@ -127,7 +127,9 @@ class SkinWeightWin(QtWidgets.QDialog):
         # QtWidgets.QWidget.__init__(self, parent)
         self.buildRCMenu()
 
-        self.dataOfSkin = DataOfSkin(useShortestNames=self.useShortestNames)
+        self.dataOfSkin = DataOfSkin(
+            useShortestNames=self.useShortestNames, hideZeroColumn=self.hideZeroColumn
+        )
         self.get_data_frame()
         self.createWindow()
         self.setStyleSheet(styleSheet)
@@ -158,6 +160,15 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.dataOfSkin.clearData()
         self._tm.endResetModel()
 
+    def toggleZeroColumn(self, checked):
+        cmds.optionVar(intValue=["hideZeroColumn", checked])
+        self.hideZeroColumn = checked
+        for ind in self.dataOfSkin.hideColumnIndices:
+            if self.hideZeroColumn:
+                self._tv.hideColumn(ind)
+            else:
+                self._tv.showColumn(ind)
+
     def buildRCMenu(self):
         self.autoPrune = (
             cmds.optionVar(q="autoPrune") if cmds.optionVar(exists="autoPrune") else False
@@ -171,6 +182,9 @@ class SkinWeightWin(QtWidgets.QDialog):
             cmds.optionVar(q="useShortestNames")
             if cmds.optionVar(exists="useShortestNames")
             else True
+        )
+        self.hideZeroColumn = (
+            cmds.optionVar(q="hideZeroColumn") if cmds.optionVar(exists="hideZeroColumn") else True
         )
         # -------------------
         self.popMenu = QtWidgets.QMenu(self)
@@ -577,8 +591,9 @@ class SkinWeightWin(QtWidgets.QDialog):
 
     def hideColumns(self):
         # self.dataOfSkin.getZeroColumns ()
-        for ind in self.dataOfSkin.hideColumnIndices:
-            self._tv.hideColumn(ind)
+        if self.hideZeroColumn:
+            for ind in self.dataOfSkin.hideColumnIndices:
+                self._tv.hideColumn(ind)
         # self._tv.headerView.setMaximumWidth(self.colWidth*len (self.dataOfSkin.usedDeformersIndices))
 
     def get_data_frame(self):
