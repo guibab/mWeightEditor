@@ -7,11 +7,11 @@ from functools import partial
 import time, datetime
 
 from ctypes import c_double, c_float
-from maya import cmds
+from maya import cmds, mel
 
 import numpy as np
 import re
-from utils import GlobalContext, getSoftSelectionValues
+from utils import GlobalContext, getSoftSelectionValuesNEW, getThreeIndices
 
 
 def isin(element, test_elements, assume_unique=False, invert=False):
@@ -76,21 +76,43 @@ class DataOfSkin(object):
                 geoType = "mesh"
                 outPlug = ".outMesh"
                 inPlug = ".inMesh"
+            elif self.isLattice:
+                geoType = "lattice"
+                outPlug = ".worldLattice"
+                inPlug = ".latticeInput"
             else:  # self.isNurbsSurface :
                 geoType = "nurbsSurface" if self.isNurbsSurface else "nurbsCurve"
                 outPlug = ".worldSpace"
                 inPlug = ".create"
+            if cmds.nodeType(self.deformedShape) != geoType:
+                return  # something weird happening, not expected geo
+
             (pointsDisplayNode,) = cmds.listRelatives(
                 self.pointsDisplayTrans, path=True, type="pointsDisplay"
             )
-            (Connected,) = cmds.listRelatives(self.pointsDisplayTrans, path=True, type=geoType)
-            cmds.connectAttr(Connected + outPlug, pointsDisplayNode + ".inGeometry", f=True)
-            inConn = cmds.listConnections(Connected + inPlug, s=True, d=False, p=True, scn=True)
-
-            if inConn:
-                cmds.disconnectAttr(inConn[0], Connected + inPlug)
-            if cmds.nodeType(self.deformedShape) == geoType:
-                cmds.connectAttr(self.deformedShape + outPlug, Connected + inPlug, f=True)
+            pdt_geometry = cmds.listRelatives(self.pointsDisplayTrans, path=True, type=geoType)
+            if pdt_geometry:
+                pdt_geometry = pdt_geometry[0]
+                inGeoConn = cmds.listConnections(
+                    pointsDisplayNode + ".inGeometry", s=True, d=False, p=True
+                )
+                if not inGeoConn or inGeoConn[0] != pdt_geometry + outPlug:
+                    cmds.connectAttr(
+                        pdt_geometry + outPlug, pointsDisplayNode + ".inGeometry", f=True
+                    )
+                inConn = cmds.listConnections(
+                    pdt_geometry + inPlug, s=True, d=False, p=True, scn=True
+                )
+                if not inConn or inConn[0] != self.deformedShape + outPlug:
+                    cmds.connectAttr(self.deformedShape + outPlug, pdt_geometry + inPlug, f=True)
+            else:  # for the lattice direct connections -------------------------------------
+                inConn = cmds.listConnections(
+                    pointsDisplayNode + ".inGeometry", s=True, d=False, p=True, scn=True
+                )
+                if not inConn or inConn[0] != self.deformedShape + outPlug:
+                    cmds.connectAttr(
+                        self.deformedShape + outPlug, pointsDisplayNode + ".inGeometry", f=True
+                    )
 
     def updateDisplayVerts(self, rowsSel):
         isMesh = (
@@ -113,6 +135,15 @@ class DataOfSkin(object):
                         indexV = indVtx % self.numCVsInV_
                         indexU = indVtx / self.numCVsInV_
                         inList.append("cv[{0}][{1}]".format(indexU, indexV))
+                elif self.isLattice:
+                    inList = []
+                    selectedVertices = [self.vertices[ind] for ind in rowsSel]
+                    div_s = cmds.getAttr(self.deformedShape + ".sDivisions")
+                    div_t = cmds.getAttr(self.deformedShape + ".tDivisions")
+                    div_u = cmds.getAttr(self.deformedShape + ".uDivisions")
+                    for indVtx in selectedVertices:
+                        s, t, u = getThreeIndices(div_s, div_t, div_u, indVtx)
+                        inList.append("pt[{0}][{1}][{2}]".format(s, t, u))
                 else:
                     selVertices = self.orderMelList([self.vertices[ind] for ind in rowsSel])
                     inList = ["cv[{0}]".format(el) for el in selVertices]
@@ -166,52 +197,6 @@ class DataOfSkin(object):
             return listIndString
         else:
             return listInds
-
-    def getIndicesFromSelection(self, sel, asList=True):
-        self.softOn = cmds.softSelect(q=True, softSelectEnabled=True)
-        if self.softOn:
-            return getSoftSelectionValues()
-        else:
-            selectedVertices = [el for el in sel if ".vtx[" in el]
-            indices = [el.split(".vtx[")[-1][:-1] for el in selectedVertices if ".vtx[" in el]
-
-            for toSearch in [".f[", ".e["]:
-                selection = [el for el in sel if toSearch in el]
-                kwargs = {"tv": True}
-                if "f" in toSearch:
-                    kwargs["ff"] = True
-                else:
-                    kwargs["fe"] = True
-                convertedVertices = cmds.polyListComponentConversion(selection, **kwargs)
-                indices += [el.split(".vtx[")[-1][:-1] for el in convertedVertices if ".vtx[" in el]
-            ################### NURBS #####################################################
-            if not indices:
-                surfaceCVs = [el for el in sel if "][" in el]
-                if surfaceCVs:
-                    theSurface = surfaceCVs[0].split(".")[0]
-                    # numCVsInV_ * indexU + indexV
-                    numCVsInV_ = cmds.getAttr(theSurface + ".spansV") + cmds.getAttr(
-                        theSurface + ".degreeV"
-                    )
-                    indices = [
-                        map(int, re.findall(r"\[(\d+)", el))
-                        for el in cmds.ls(surfaceCVs, flatten=True)
-                    ]
-                    indices = [numCVsInV_ * indexU + indexV for indexU, indexV in indices]
-                    return indices
-                selectedCvs = [el for el in sel if ".cv[" in el]
-                indices = [el.split(".cv[")[-1][:-1] for el in selectedCvs if ".cv[" in el]
-            allIndices = set()
-            for index in indices:
-                if ":" in index:
-                    nmbs = map(int, index.split(":"))
-                    allIndices.update(range(nmbs[0], nmbs[1] + 1))
-                else:
-                    allIndices.add(int(index))
-            if asList:
-                return sorted(list(allIndices))
-            else:
-                return allIndices
 
     def getMObject(self, nodeName, returnDagPath=True):
         # We expect here the fullPath of a shape mesh
@@ -335,22 +320,35 @@ class DataOfSkin(object):
         for i in xrange(self.nbDrivers):
             self.influenceIndices.set(i, i)
 
-        self.indicesVertices = [
-            self.vertices[indRow] for indRow in xrange(self.Mtop, self.Mbottom + 1)
-        ]
+        self.indicesVertices = np.array(
+            [self.vertices[indRow] for indRow in xrange(self.Mtop, self.Mbottom + 1)]
+        )
         self.indicesWeights = np.array(
             [self.verticesWeight[indRow] for indRow in xrange(self.Mtop, self.Mbottom + 1)]
         )
-
+        if self.softOn and (self.isNurbsSurface or self.isLattice):  # revert indices
+            self.indicesVertices = self.indicesVertices[self.opposite_sortedIndices]
+            # self.indicesWeights  = self.indicesWeights  [self.opposite_sortedIndices]
         if self.isNurbsSurface:
             componentType = OpenMaya.MFn.kSurfaceCVComponent
             fnComponent = OpenMaya.MFnDoubleIndexedComponent()
             self.userComponents = fnComponent.create(componentType)
+
             for indVtx in self.indicesVertices:
                 indexV = indVtx % self.numCVsInV_
                 indexU = indVtx / self.numCVsInV_
                 fnComponent.addElement(indexU, indexV)
-        else:
+        elif self.isLattice:
+            componentType = OpenMaya.MFn.kLatticeComponent
+            fnComponent = OpenMaya.MFnTripleIndexedComponent()
+            self.userComponents = fnComponent.create(componentType)
+            div_s = cmds.getAttr(self.deformedShape + ".sDivisions")
+            div_t = cmds.getAttr(self.deformedShape + ".tDivisions")
+            div_u = cmds.getAttr(self.deformedShape + ".uDivisions")
+            for indVtx in self.indicesVertices:
+                s, t, v = getThreeIndices(div_s, div_t, div_u, indVtx)
+                fnComponent.addElement(s, t, v)
+        else:  # single component
             if self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve:
                 componentType = OpenMaya.MFn.kCurveCVComponent
             else:
@@ -522,7 +520,7 @@ class DataOfSkin(object):
             ZeroVals = np.full(self.orig2dArray.shape, 0.0)
             np.copyto(new2dArray, ZeroVals, where=self.rmMasks)
 
-            if self.softOn:
+            if self.softOn:  # mult soft Value
                 new2dArray = (
                     new2dArray * self.indicesWeights[:, np.newaxis]
                     + self.orig2dArray * (1.0 - self.indicesWeights)[:, np.newaxis]
@@ -584,7 +582,7 @@ class DataOfSkin(object):
             np.copyto(new2dArray, absValues, where=~absValues.mask)
             np.copyto(new2dArray, remainingValues, where=~remainingValues.mask)
 
-            if self.softOn:
+            if self.softOn:  # mult soft Value
                 new2dArray = (
                     new2dArray * self.indicesWeights[:, np.newaxis]
                     + self.orig2dArray * (1.0 - self.indicesWeights)[:, np.newaxis]
@@ -670,7 +668,7 @@ class DataOfSkin(object):
             # np.copyto (new2dArray , addValues.filled(0)+remainingValues.filled(0), where = ~self.lockedMask)
             np.copyto(new2dArray, addValues, where=~addValues.mask)
             np.copyto(new2dArray, remainingValues, where=~remainingValues.mask)
-            if self.softOn:
+            if self.softOn:  # mult soft Value
                 new2dArray = (
                     new2dArray * self.indicesWeights[:, np.newaxis]
                     + self.orig2dArray * (1.0 - self.indicesWeights)[:, np.newaxis]
@@ -772,6 +770,12 @@ class DataOfSkin(object):
 
         fnComponent = OpenMaya.MFnSingleIndexedComponent()
         self.isNurbsSurface = False
+        self.isLattice = False
+        componentAlreadyBuild = False
+        if self.softOn:
+            revertSortedIndices = np.array(indices)[self.opposite_sortedIndices]
+        else:
+            revertSortedIndices = indices
         if (
             self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve
         ):  # cmds.nodeType(shapeName) == 'nurbsCurve':
@@ -785,6 +789,7 @@ class DataOfSkin(object):
             self.shapePath.apiType() == OpenMaya.MFn.kNurbsSurface
         ):  # cmds.nodeType(shapeName) == 'nurbsSurface':
             self.isNurbsSurface = True
+            componentAlreadyBuild = True
             componentType = OpenMaya.MFn.kSurfaceCVComponent
             MfnSurface = OpenMaya.MFnNurbsSurface(self.shapePath)
             # cvPoints = OpenMaya.MPointArray()
@@ -797,20 +802,37 @@ class DataOfSkin(object):
             if not indices:
                 fnComponent.setCompleteData(numCVsInU_, self.numCVsInV_)
             else:
-                for indVtx in self.vertices:
+                for indVtx in revertSortedIndices:
                     indexV = indVtx % self.numCVsInV_
                     indexU = indVtx / self.numCVsInV_
                     fnComponent.addElement(indexU, indexV)
-        else:
+        elif self.shapePath.apiType() == OpenMaya.MFn.kLattice:  # lattice
+            self.isLattice = True
+            componentAlreadyBuild = True
+            componentType = OpenMaya.MFn.kLatticeComponent
+            fnComponent = OpenMaya.MFnTripleIndexedComponent()
+            self.fullComponent = fnComponent.create(componentType)
+            div_s = cmds.getAttr(shapeName + ".sDivisions")
+            div_t = cmds.getAttr(shapeName + ".tDivisions")
+            div_u = cmds.getAttr(shapeName + ".uDivisions")
+            if not indices:
+                fnComponent.setCompleteData(div_s, div_t, div_u)
+            else:
+                for indVtx in revertSortedIndices:
+                    s, t, v = getThreeIndices(div_s, div_t, div_u, indVtx)
+                    fnComponent.addElement(s, t, v)
+        elif self.shapePath.apiType() == OpenMaya.MFn.kMesh:  # mesh
             componentType = OpenMaya.MFn.kMeshVertComponent
             mshFn = OpenMaya.MFnMesh(self.shapePath)
             vertexCount = mshFn.numVertices()
-        if not self.isNurbsSurface:
+        else:
+            return None
+        if not componentAlreadyBuild:
             self.fullComponent = fnComponent.create(componentType)
             if not indices:
                 fnComponent.setCompleteData(vertexCount)
             else:
-                for ind in indices:
+                for ind in revertSortedIndices:
                     fnComponent.addElement(ind)
         #####################################################
         weights = OpenMaya.MDoubleArray()
@@ -884,7 +906,6 @@ class DataOfSkin(object):
             self.display2dArray = self.raw2dArray[self.sortedIndices]
         else:
             self.display2dArray = self.raw2dArray
-
         # now find the zeroColumns ------------------------------------
 
         myAny = np.any(self.raw2dArray, axis=0)
@@ -997,7 +1018,9 @@ class DataOfSkin(object):
         self.nbDrivers = len(self.driverNames)
 
         with GlobalContext(message="rawSkinValues", doPrint=False):
-            res = self.getIndicesFromSelection(sel)
+            dicOfSel = getSoftSelectionValuesNEW()
+            self.softOn = cmds.softSelect(q=True, softSelectEnabled=True)
+            res = dicOfSel[self.deformedShape] if self.deformedShape in dicOfSel else []
             if isinstance(res, tuple):
                 self.vertices, self.verticesWeight = res
                 arr = np.argsort(self.verticesWeight)
@@ -1047,6 +1070,14 @@ class DataOfSkin(object):
                 indexU = indVtx / self.numCVsInV_
                 # vertInd = self.numCVsInV_ * indexU + indexV
                 self.rowText.append(" {0} - {1} ".format(indexU, indexV))
+        elif self.isLattice:
+            self.rowText = []
+            div_s = cmds.getAttr(self.deformedShape + ".sDivisions")
+            div_t = cmds.getAttr(self.deformedShape + ".tDivisions")
+            div_u = cmds.getAttr(self.deformedShape + ".uDivisions")
+            for indVtx in self.vertices:
+                s, t, u = getThreeIndices(div_s, div_t, div_u, indVtx)
+                self.rowText.append(" {0} - {1} - {2} ".format(s, t, u))
         else:
             self.rowText = [
                 " {0} ".format(ind) for ind in self.vertices
@@ -1117,11 +1148,28 @@ class DataOfSkin(object):
                 indexV = indVtx % self.numCVsInV_
                 indexU = indVtx / self.numCVsInV_
                 toSel += ["{0}.cv[{1}][{2}]".format(self.deformedShape, indexU, indexV)]
+        elif self.isLattice:
+            toSel = []
+            div_s = cmds.getAttr(self.deformedShape + ".sDivisions")
+            div_t = cmds.getAttr(self.deformedShape + ".tDivisions")
+            div_u = cmds.getAttr(self.deformedShape + ".uDivisions")
+            prt = (
+                cmds.listRelatives(self.deformedShape, p=True, path=True)[0]
+                if cmds.nodeType(self.deformedShape) == "lattice"
+                else self.deformedShape
+            )
+            for indVtx in self.vertices:
+                s, t, u = getThreeIndices(div_s, div_t, div_u, indVtx)
+                toSel += ["{0}.pt[{1}][{2}][{3}]".format(prt, s, t, u)]
         else:
             toSel = self.orderMelList(selectedVertices, onlyStr=True)
-            toSel = ["{0}.vtx[{1}]".format(self.deformedShape, vtx) for vtx in toSel]
+            if cmds.nodeType(self.deformedShape) == "mesh":
+                toSel = ["{0}.vtx[{1}]".format(self.deformedShape, vtx) for vtx in toSel]
+            else:  # nurbsCurve
+                toSel = ["{0}.cv[{1}]".format(self.deformedShape, vtx) for vtx in toSel]
         print toSel
-        cmds.select(toSel)
+        # mel.eval ("select -r " + " ".join(toSel))
+        cmds.select(toSel, r=True)
 
     def unLockRows(self, selectedIndices):
         self.lockRows(selectedIndices, doLock=False)
