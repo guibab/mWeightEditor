@@ -574,7 +574,7 @@ class SkinWeightWin(QtWidgets.QDialog):
             for ind in self.dataOfSkin.hideColumnIndices:
                 self._tv.showColumn(ind)
             with GlobalContext(message="weightEdtior getAllData", doPrint=False):
-                resultData = self.dataOfSkin.getAllData()
+                resultData = self.dataOfSkin.getAllData(force=force)
             self._tm.endResetModel()
             self.setColumnVisSize()
             if not resultData:

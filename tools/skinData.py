@@ -27,6 +27,8 @@ def isin(element, test_elements, assume_unique=False, invert=False):
 #
 ###################################################################################
 class DataOfSkin(object):
+    verbose = False
+
     def __init__(self, useShortestNames=False, hideZeroColumn=True):
         self.useShortestNames = useShortestNames
         self.hideZeroColumn = hideZeroColumn
@@ -537,7 +539,7 @@ class DataOfSkin(object):
         )
 
     def absoluteVal(self, val):
-        with GlobalContext(message="absoluteVal", doPrint=False):
+        with GlobalContext(message="absoluteVal", doPrint=self.verbose):
             new2dArray = np.copy(self.orig2dArray)
             selectArr = np.full(self.orig2dArray.shape, val)
 
@@ -602,7 +604,7 @@ class DataOfSkin(object):
         self, val, percent=False, autoPrune=False, average=False, autoPruneValue=0.0001
     ):
         # if percent : print "percent"
-        with GlobalContext(message="setSkinData", doPrint=False):
+        with GlobalContext(message="setSkinData", doPrint=self.verbose):
             new2dArray = np.copy(self.orig2dArray)
             selectArr = np.copy(self.orig2dArray)
             remainingArr = np.copy(self.orig2dArray)
@@ -629,7 +631,8 @@ class DataOfSkin(object):
                 valuesToAdd = val / self.nbIndicesSettable[:, np.newaxis]
                 addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0) + valuesToAdd
             else:  # ----- average ---------
-                print "average"
+                if verbose:
+                    print "average"
                 theMask = sumMasksUpdate
                 addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0)
                 sumCols_addValues = addValues.mean(axis=0)
@@ -719,7 +722,7 @@ class DataOfSkin(object):
     def actuallySetValue(
         self, theValues, sub2DArrayToSet, userComponents, influenceIndices, shapePath, sknFn
     ):
-        with GlobalContext(message="actuallySetValue", doPrint=False):
+        with GlobalContext(message="actuallySetValue", doPrint=self.verbose):
             if self.softOn:
                 arrayForSetting = np.copy(theValues[self.opposite_sortedIndices])
             else:
@@ -751,11 +754,13 @@ class DataOfSkin(object):
 
     def callUndo(self):
         if self.UNDOstack:
-            print "UNDO"
+            if verbose:
+                print "UNDO"
             undoArgs = self.UNDOstack.pop()
             self.actuallySetValue(*undoArgs)
         else:
-            print "No more undo"
+            if verbose:
+                print "No more undo"
 
     def exposeSkinData(self, inputSkinCluster, indices=[]):
         self.skinClusterObj = self.getMObject(inputSkinCluster, returnDagPath=False)
@@ -897,7 +902,7 @@ class DataOfSkin(object):
         ptr = res.asDoublePtr()
 
         lent = self.rawSkinValues.length()
-        with GlobalContext(message="convertingSkinValues", doPrint=False):
+        with GlobalContext(message="convertingSkinValues", doPrint=self.verbose):
             cta = (c_double * lent).from_address(int(ptr))
             arr = np.ctypeslib.as_array(cta)
             self.raw2dArray = np.copy(arr)
@@ -933,6 +938,9 @@ class DataOfSkin(object):
         self.theSkinCluster, self.deformedShape, self.shapeShortName = "", "", ""
         self.isNurbsSurface = False
         self.blurSkinNode = ""
+
+        self.softOn = cmds.softSelect(q=True, softSelectEnabled=True)
+        self.prevSoftSel = cmds.softSelect(q=True, softSelectDistance=True)
 
         self.vertices = []
         self.verticesWeight = []
@@ -992,8 +1000,16 @@ class DataOfSkin(object):
         if not theSkinCluster:
             return False
         # check if reloading is necessary
-        isPreloaded = sel == self.preSel  # same selection as before
+        # isPreloaded = theSkinCluster == self.theSkinCluster and   deformedShape == self.deformedShape # same selection as before
+        softOn = cmds.softSelect(q=True, softSelectEnabled=True)
+        prevSoftSel = cmds.softSelect(q=True, softSelectDistance=True)
+        isPreloaded = (
+            self.preSel == sel and prevSoftSel == self.prevSoftSel and softOn == self.softOn
+        )
+
         self.preSel = sel
+        self.prevSoftSel = prevSoftSel
+        self.softOn = softOn
         # self.theSkinCluster == theSkinCluster and self.deformedShape == deformedShape
         if not force and isPreloaded:
             return False
@@ -1018,9 +1034,8 @@ class DataOfSkin(object):
         self.getShortNames()
         self.nbDrivers = len(self.driverNames)
 
-        with GlobalContext(message="rawSkinValues", doPrint=False):
+        with GlobalContext(message="rawSkinValues", doPrint=self.verbose):
             dicOfSel = getSoftSelectionValuesNEW()
-            self.softOn = cmds.softSelect(q=True, softSelectEnabled=True)
             res = dicOfSel[self.deformedShape] if self.deformedShape in dicOfSel else []
             if isinstance(res, tuple):
                 self.vertices, self.verticesWeight = res
@@ -1201,5 +1216,6 @@ class DataOfSkin(object):
         vertexIndex = self.vertices[row]
         deformerName = self.driverNames[column]
         theVtx = "{0}.vtx[{1}]".format(self.deformedShape, vertexIndex)
-        print self.theSkinCluster, theVtx, deformerName, value
+        if verbose:
+            print self.theSkinCluster, theVtx, deformerName, value
         # cmds.skinPercent( self.theSkinCluster,theVtx, transformValue=(deformerName, float (value)), normalize = True)
