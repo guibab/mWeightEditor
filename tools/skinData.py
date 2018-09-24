@@ -359,7 +359,7 @@ class DataOfSkin(object):
             fnComponent = OpenMaya.MFnSingleIndexedComponent()
             self.userComponents = fnComponent.create(componentType)
             for ind in self.indicesVertices:
-                fnComponent.addElement(ind)
+                fnComponent.addElement(int(ind))
         lengthArray = self.nbDrivers * (bottom - top + 1)
         self.newArray = OpenMaya.MDoubleArray()
         self.newArray.setLength(lengthArray)
