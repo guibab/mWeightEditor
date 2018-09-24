@@ -436,6 +436,10 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         selectedIndices = self.getSelectedColumns()
         self.model().datatable.selectDeformers(selectedIndices)
 
+    def displayVertices(self, sel=True):
+        selectedColumns = self.getSelectedColumns()
+        self.model().datatable.selectVertsOfColumns(selectedColumns, sel=sel)
+
     def clearLocks(self):
         self.model().datatable.unLockColumns(range(self.count() - 1))
 
@@ -447,6 +451,11 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         selAction = popMenu.addAction("select deformers")
         selAction.triggered.connect(self.selectDeformers)
         selAction.setEnabled(not selectionIsEmpty)
+
+        selVertices = popMenu.addAction("select vertices")
+        selVertices.triggered.connect(self.displayVertices)
+        selVertices.setEnabled(not selectionIsEmpty)
+
         popMenu.addSeparator()
 
         lockAction = popMenu.addAction("lock selected")
@@ -653,7 +662,8 @@ class TableView(QtWidgets.QTableView):
                     rowsSel += range(item.top(), item.bottom() + 1)
                 self.model().datatable.updateDisplayVerts(rowsSel)
             else:
-                self.model().datatable.updateDisplayVerts([])
+                self.HHeaderView.displayVertices(sel=False)
+                # self.model().datatable.updateDisplayVerts ([])
             self.selEmptied.emit(not sel.isEmpty())
 
     def createPixMap(self, rect):

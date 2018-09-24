@@ -27,7 +27,7 @@ def isin(element, test_elements, assume_unique=False, invert=False):
 #
 ###################################################################################
 class DataOfSkin(object):
-    verbose = False
+    verbose = True
 
     def __init__(self, useShortestNames=False, hideZeroColumn=True):
         self.useShortestNames = useShortestNames
@@ -56,7 +56,7 @@ class DataOfSkin(object):
         # cmds.connectAttr (meshConnected+".outMesh", pointsDisplayNode+".inMesh", f=True)
         # cmds.connectAttr (meshConnected+".outMesh", pointsDisplayNode+".inGeometry", f=True)
 
-        cmds.setAttr(pointsDisplayNode + ".pointWidth", 6)
+        cmds.setAttr(pointsDisplayNode + ".pointWidth", 5)
         cmds.setAttr(pointsDisplayNode + ".inputColor", 0.0, 1.0, 1.0)
         """
         for nd in [self.pointsDisplayTrans,pointsDisplayNode, meshConnected, nurbsConnected, curveConnected] : 
@@ -127,7 +127,7 @@ class DataOfSkin(object):
             (pointsDisplayNode,) = cmds.listRelatives(
                 self.pointsDisplayTrans, path=True, type="pointsDisplay"
             )
-            if rowsSel:
+            if rowsSel != []:
                 if isMesh:
                     selVertices = self.orderMelList([self.vertices[ind] for ind in rowsSel])
                     inList = ["vtx[{0}]".format(el) for el in selVertices]
@@ -631,7 +631,7 @@ class DataOfSkin(object):
                 valuesToAdd = val / self.nbIndicesSettable[:, np.newaxis]
                 addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0) + valuesToAdd
             else:  # ----- average ---------
-                if verbose:
+                if self.verbose:
                     print "average"
                 theMask = sumMasksUpdate
                 addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0)
@@ -754,12 +754,12 @@ class DataOfSkin(object):
 
     def callUndo(self):
         if self.UNDOstack:
-            if verbose:
+            if self.verbose:
                 print "UNDO"
             undoArgs = self.UNDOstack.pop()
             self.actuallySetValue(*undoArgs)
         else:
-            if verbose:
+            if self.verbose:
                 print "No more undo"
 
     def exposeSkinData(self, inputSkinCluster, indices=[]):
@@ -939,7 +939,8 @@ class DataOfSkin(object):
         self.isNurbsSurface = False
         self.blurSkinNode = ""
 
-        self.softOn = cmds.softSelect(q=True, softSelectEnabled=True)
+        self.softIsReallyOn = cmds.softSelect(q=True, softSelectEnabled=True)
+        self.softOn = self.softIsReallyOn
         self.prevSoftSel = cmds.softSelect(q=True, softSelectDistance=True)
 
         self.vertices = []
@@ -1004,12 +1005,13 @@ class DataOfSkin(object):
         softOn = cmds.softSelect(q=True, softSelectEnabled=True)
         prevSoftSel = cmds.softSelect(q=True, softSelectDistance=True)
         isPreloaded = (
-            self.preSel == sel and prevSoftSel == self.prevSoftSel and softOn == self.softOn
+            self.preSel == sel and prevSoftSel == self.prevSoftSel and softOn == self.softIsReallyOn
         )
 
         self.preSel = sel
         self.prevSoftSel = prevSoftSel
         self.softOn = softOn
+        self.softIsReallyOn = softOn
         # self.theSkinCluster == theSkinCluster and self.deformedShape == deformedShape
         if not force and isPreloaded:
             return False
@@ -1156,6 +1158,20 @@ class DataOfSkin(object):
         cmds.select(toSel)
         cmds.selectMode(object=True)
 
+    def getZeroRows(self, selectedColumns):
+        res = self.display2dArray[:, selectedColumns]
+        myAny = np.any(res, axis=1)
+        noneZeroRows = np.where(myAny)[0]
+        zeroRows = np.where(~myAny)[0]
+        return noneZeroRows
+
+    def selectVertsOfColumns(self, selectedColumns, sel=False):
+        selectedIndices = self.getZeroRows(selectedColumns)
+        if sel:
+            self.selectVerts(selectedIndices)
+        else:
+            self.updateDisplayVerts(selectedIndices)
+
     def selectVerts(self, selectedIndices):
         selectedVertices = set([self.vertices[ind] for ind in selectedIndices])
         if self.isNurbsSurface:
@@ -1216,6 +1232,6 @@ class DataOfSkin(object):
         vertexIndex = self.vertices[row]
         deformerName = self.driverNames[column]
         theVtx = "{0}.vtx[{1}]".format(self.deformedShape, vertexIndex)
-        if verbose:
+        if self.verbose:
             print self.theSkinCluster, theVtx, deformerName, value
         # cmds.skinPercent( self.theSkinCluster,theVtx, transformValue=(deformerName, float (value)), normalize = True)
