@@ -16,7 +16,7 @@ class TableModel(QtCore.QAbstractTableModel):
         self.whiteBrush = QtGui.QBrush(QtGui.QColor(200, 200, 200))
 
     def update(self, dataIn):
-        print "Updating Model"
+        # print 'Updating Model'
         self.datatable = dataIn
         # print 'Datatable : {0}'.format(self.datatable)
 
@@ -66,7 +66,7 @@ class TableModel(QtCore.QAbstractTableModel):
         # super(TableModel, self).setData( index, value, role)
         row = index.row()
         column = index.column()
-        print row, column, value
+        # print row, column, value
 
         # now set the value
         self.parent().prepareToSetValue()
@@ -379,7 +379,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
                         cmds.getAttr(self.model().fullColumnNames()[index] + ".objectColor") + 1
                     )
                     values = cmds.colorEditor(query=True, rgb=True)
-                    print theUserDefinedIndex, values
+                    # print theUserDefinedIndex, values
                     cmds.displayRGBColor("userDefined{0}".format(theUserDefinedIndex), *values)
                     self.getColors()
                     self.repaint()

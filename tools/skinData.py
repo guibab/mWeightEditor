@@ -27,7 +27,7 @@ def isin(element, test_elements, assume_unique=False, invert=False):
 #
 ###################################################################################
 class DataOfSkin(object):
-    verbose = True
+    verbose = False
 
     def __init__(self, useShortestNames=False, hideZeroColumn=True):
         self.useShortestNames = useShortestNames
@@ -1182,7 +1182,7 @@ class DataOfSkin(object):
 
     def selectVerts(self, selectedIndices):
         selectedVertices = set([self.vertices[ind] for ind in selectedIndices])
-        print selectedVertices
+        # print selectedVertices
 
         if self.isNurbsSurface:
             toSel = []
@@ -1209,7 +1209,7 @@ class DataOfSkin(object):
                 toSel = ["{0}.vtx[{1}]".format(self.deformedShape, vtx) for vtx in toSel]
             else:  # nurbsCurve
                 toSel = ["{0}.cv[{1}]".format(self.deformedShape, vtx) for vtx in toSel]
-        print toSel
+        # print toSel
         # mel.eval ("select -r " + " ".join(toSel))
         cmds.select(toSel, r=True)
 
