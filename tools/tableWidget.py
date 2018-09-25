@@ -417,6 +417,9 @@ class HorizHeaderView(QtWidgets.QHeaderView):
             chunks = np.union1d(chunks, range(item.left(), item.right() + 1))
 
         selectedIndices = [indCol for indCol in chunks if not self.isSectionHidden(indCol)]
+        lastCol = self.count() - 1
+        if lastCol in selectedIndices:
+            selectedIndices.remove(lastCol)
         return selectedIndices
 
     def lockSelectedColumns(self):
@@ -436,9 +439,10 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         selectedIndices = self.getSelectedColumns()
         self.model().datatable.selectDeformers(selectedIndices)
 
-    def displayVertices(self, sel=True):
+    def displayVertices(self, doSelect=True):
         selectedColumns = self.getSelectedColumns()
-        self.model().datatable.selectVertsOfColumns(selectedColumns, sel=sel)
+
+        self.model().datatable.selectVertsOfColumns(selectedColumns, doSelect=doSelect)
 
     def clearLocks(self):
         self.model().datatable.unLockColumns(range(self.count() - 1))
@@ -453,7 +457,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         selAction.setEnabled(not selectionIsEmpty)
 
         selVertices = popMenu.addAction("select vertices")
-        selVertices.triggered.connect(self.displayVertices)
+        selVertices.triggered.connect(partial(self.displayVertices, True))
         selVertices.setEnabled(not selectionIsEmpty)
 
         popMenu.addSeparator()
@@ -662,7 +666,7 @@ class TableView(QtWidgets.QTableView):
                     rowsSel += range(item.top(), item.bottom() + 1)
                 self.model().datatable.updateDisplayVerts(rowsSel)
             else:
-                self.HHeaderView.displayVertices(sel=False)
+                self.HHeaderView.displayVertices(doSelect=False)
                 # self.model().datatable.updateDisplayVerts ([])
             self.selEmptied.emit(not sel.isEmpty())
 

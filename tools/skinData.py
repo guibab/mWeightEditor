@@ -118,6 +118,9 @@ class DataOfSkin(object):
                     )
 
     def updateDisplayVerts(self, rowsSel):
+        if isinstance(rowsSel, np.ndarray):
+            rowsSel = rowsSel.tolist()
+
         isMesh = (
             "shapePath" in self.__dict__
             and self.shapePath != None
@@ -1165,15 +1168,18 @@ class DataOfSkin(object):
         zeroRows = np.where(~myAny)[0]
         return noneZeroRows
 
-    def selectVertsOfColumns(self, selectedColumns, sel=False):
+    def selectVertsOfColumns(self, selectedColumns, doSelect=True):
         selectedIndices = self.getZeroRows(selectedColumns)
-        if sel:
+        # print doSelect,  selectedColumns, selectedIndices
+        if doSelect:
             self.selectVerts(selectedIndices)
         else:
             self.updateDisplayVerts(selectedIndices)
 
     def selectVerts(self, selectedIndices):
         selectedVertices = set([self.vertices[ind] for ind in selectedIndices])
+        print selectedVertices
+
         if self.isNurbsSurface:
             toSel = []
             for indVtx in selectedVertices:
