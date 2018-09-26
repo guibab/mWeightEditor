@@ -217,54 +217,80 @@ class DataOfSkin(object):
         selList.getDagPath(0, mshPath, depNode)
         return mshPath
 
-    def getVerticesOrigShape(self):
+    def fixAroundVertices(self, tolerance=3):
+        with GlobalContext(message="fixAroundVertices", doPrint=True):
+            geometriesOut = OpenMaya.MObjectArray()
+            self.sknFn.getOutputGeometry(geometriesOut)
+            outMesh = OpenMaya.MFnMesh(geometriesOut[0])
+
+            geometriesIn = OpenMaya.MObjectArray()
+            self.sknFn.getInputGeometry(geometriesIn)
+            inMesh = OpenMaya.MFnMesh(geometriesIn[0])
+
+            iterVert = OpenMaya.MItMeshVertex(self.shapePath)
+
+            origVerts = OpenMaya.MFloatPointArray()
+            destVerts = OpenMaya.MFloatPointArray()
+            inMesh.getPoints(origVerts)
+            outMesh.getPoints(destVerts)
+            theVert = 0
+
+            problemVerts = set()
+
+            while not iterVert.isDone():
+                vertices = OpenMaya.MIntArray()
+                iterVert.getConnectedVertices(vertices)
+
+                for i in range(vertices.length()):
+                    connVert = vertices[i]
+                    origDist = origVerts[theVert].distanceTo(origVerts[connVert])
+                    destDist = destVerts[theVert].distanceTo(destVerts[connVert])
+                    if (destDist / origDist) > tolerance:
+                        problemVerts.add(theVert)
+                theVert += 1
+                iterVert.next()
+        problemVerts = list(problemVerts)
+        return problemVerts
+
+    def getVerticesOrigShape(self, outPut=False):
         # from ctypes import c_float
         # inMesh,= cmds.listConnections(self.theSkinCluster+".input[0].inputGeometry", s=True, d=False, p=False, c=False, scn=True)
         # origShape = cmds.ls (cmds.listHistory( inMesh), type = "shape") [0]
         # origMesh = OpenMaya.MFnMesh(self.getMObject(origShape,returnDagPath=True))
-        inputGeo = OpenMaya.MObjectArray()
-        self.sknFn.getInputGeometry(inputGeo)
-        inputMObject = inputGeo[0]
+        geometries = OpenMaya.MObjectArray()
+        if outPut:
+            self.sknFn.getOutputGeometry(geometries)
+        else:
+            self.sknFn.getInputGeometry(geometries)
+        theMObject = geometries[0]
 
         if (
             self.shapePath.apiType() == OpenMaya.MFn.kMesh
         ):  # cmds.nodeType(shapeName) == 'nurbsCurve':
-            origMesh = OpenMaya.MFnMesh(inputMObject)
-            lent = origMesh.numVertices() * 3
+            theMesh = OpenMaya.MFnMesh(theMObject)
+            lent = theMesh.numVertices() * 3
 
-            cta = (c_float * lent).from_address(int(origMesh.getRawPoints()))
+            cta = (c_float * lent).from_address(int(theMesh.getRawPoints()))
             arr = np.ctypeslib.as_array(cta)
-            origVertices = np.reshape(arr, (-1, 3))
+            theVertices = np.reshape(arr, (-1, 3))
         else:
             cvPoints = OpenMaya.MPointArray()
             if (
                 self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve
             ):  # cmds.nodeType(shapeName) == 'nurbsCurve':
-                crvFn = OpenMaya.MFnNurbsCurve(inputMObject)
+                crvFn = OpenMaya.MFnNurbsCurve(theMObject)
                 crvFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
             elif (
                 self.shapePath.apiType() == OpenMaya.MFn.kNurbsSurface
             ):  # cmds.nodeType(shapeName) == 'nurbsSurface':
-                surfaceFn = OpenMaya.MFnNurbsSurface(inputMObject)
+                surfaceFn = OpenMaya.MFnNurbsSurface(theMObject)
                 surfaceFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
             pointList = []
             for i in range(cvPoints.length()):
                 pointList.append([cvPoints[i][0], cvPoints[i][1], cvPoints[i][2]])
-            origVertices = np.array(pointList)
-            """
-            res = OpenMaya.MScriptUtil( cvPoints)
-            util = OpenMaya.MScriptUtil()
-            ptr = res.asDoublePtr()
-
-            lent = cvPoints.length()
-            cta = (c_double * lent ).from_address(int(ptr))
-            arr = np.ctypeslib.as_array(cta)
-            origVertices = np.copy (arr)
-            #self.raw2dArray = np.reshape(self.raw2dArray, (-1, self.nbDrivers))
-            #vertexCount = crvFn.numCVs()
-            """
-        self.origVerticesPosition = np.take(origVertices, self.vertices, axis=0)
-
+            theVertices = np.array(pointList)
+        verticesPosition = np.take(theVertices, self.vertices, axis=0)
+        return verticesPosition
         # now subArray of vertices
         # self.origVertices [152]
         # cmds.xform (origShape+".vtx [152]", q=True,ws=True, t=True )
@@ -438,7 +464,7 @@ class DataOfSkin(object):
         # print "reassignLocally"
         with GlobalContext(message="reassignLocally", doPrint=True):
             # 0 get orig shape ----------------------------------------------------------------
-            self.getVerticesOrigShape()
+            self.origVerticesPosition = self.getVerticesOrigShape()
             self.origVertsPos = self.origVerticesPosition[
                 self.Mtop : self.Mbottom + 1,
             ]
