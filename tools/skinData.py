@@ -29,19 +29,21 @@ def isin(element, test_elements, assume_unique=False, invert=False):
 class DataOfSkin(object):
     verbose = False
 
-    def __init__(self, useShortestNames=False, hideZeroColumn=True):
+    def __init__(self, useShortestNames=False, hideZeroColumn=True, createDisplayLocator=True):
         self.useShortestNames = useShortestNames
         self.hideZeroColumn = hideZeroColumn
         self.clearData()
         sel = cmds.ls(sl=True)
         hil = cmds.ls(hilite=True)
-        self.createDisplayLocator()
+        if createDisplayLocator:
+            self.createDisplayLocator()
         cmds.select(sel)
         cmds.hilite(hil)
 
     def createDisplayLocator(self):
         self.pointsDisplayTrans = None
-        # if not cmds.pluginInfo ("pointsDisplay",query=True, loaded=True) :  cmds.loadPlugin("pointsDisplay")
+        if not cmds.pluginInfo("blurSkin", query=True, loaded=True):
+            cmds.loadPlugin("blurSkin")
         if cmds.ls("MSkinWeightEditorDisplay*"):
             cmds.delete(cmds.ls("MSkinWeightEditorDisplay*"))
         self.pointsDisplayTrans = cmds.createNode("transform", n="MSkinWeightEditorDisplay")
@@ -460,6 +462,88 @@ class DataOfSkin(object):
             self.sknFn,
         )
 
+    def mirrorArray(self, direction, leftInfluence="*_L_*", rightInfluence="*_R_*"):
+        prt = (
+            cmds.listRelatives(self.deformedShape, path=-True, parent=True)[0]
+            if not cmds.nodeType(self.deformedShape) == "transform"
+            else self.deformedShape
+        )
+        for att in ["symmetricVertices", "rightVertices", "leftVertices", "centerVertices"]:
+            if not cmds.attributeQuery(att, node=prt, exists=True):
+                return
+        symmetricVertices = cmds.getAttr(prt + ".symmetricVertices")
+        rightVertices = cmds.getAttr(prt + ".rightVertices")
+        leftVertices = cmds.getAttr(prt + ".leftVertices")
+        centerVertices = cmds.getAttr(prt + ".centerVertices")
+
+        print leftInfluence, rightInfluence
+        leftSpl = leftInfluence.split(" ")
+        rightSpl = rightInfluence.split(" ")
+        while "" in leftSpl:
+            leftSpl.remove("")
+        while "" in rightSpl:
+            rightSpl.remove("")
+        if len(leftSpl) != len(rightSpl):
+            return
+
+        with GlobalContext(message="mirrorArray", doPrint=self.verbose):
+            oppDriverNames = {}
+            driverNames_oppIndices = [-1] * len(self.driverNames)
+
+            for indInfluence, influence in enumerate(self.driverNames):
+                if driverNames_oppIndices[indInfluence] != -1:
+                    continue
+                oppInfluence = influence
+                for i, leftSearch in enumerate(leftSpl):
+                    rightSearch = rightSpl[i].replace("*", ".*")
+                    leftSearch = leftSpl[i].replace("*", ".*")
+                    rightReplace = rightSpl[i].replace("*", "")
+                    leftReplace = leftSpl[i].replace("*", "")
+
+                    if re.search(leftSearch, influence, re.IGNORECASE) != None:
+                        oppInfluence = influence.replace(leftReplace, rightReplace)
+                        break
+                    elif re.search(rightSearch, influence, re.IGNORECASE) != None:
+                        oppInfluence = influence.replace(rightReplace, leftReplace)
+                        break
+                if oppInfluence in self.driverNames and oppInfluence != influence:
+                    oppDriverNames[influence] = oppInfluence
+                    oppDriverNames[oppInfluence] = influence
+                    oppInfluenceIndex = self.driverNames.index(oppInfluence)
+                    driverNames_oppIndices[indInfluence] = oppInfluenceIndex
+                    driverNames_oppIndices[oppInfluenceIndex] = indInfluence
+                else:
+                    oppDriverNames[influence] = influence
+                    driverNames_oppIndices[indInfluence] = indInfluence
+            # print oppDriverNames
+            # print driverNames_oppIndices
+        # skin setting -----------------------------
+        componentType = OpenMaya.MFn.kMeshVertComponent
+        fnComponent = OpenMaya.MFnSingleIndexedComponent()
+        userComponents = fnComponent.create(componentType)
+        symVerts = [int(symmetricVertices[vert]) for vert in self.vertices]
+        symVertsSorted = sorted(symVerts)
+        indicesSort = [symVerts.index(vert) for vert in symVertsSorted]
+        # vertices --------------------------------
+        for vert in symVertsSorted:
+            fnComponent.addElement(int(vert))
+        # joints ----------------
+        influenceIndices = OpenMaya.MIntArray()
+        influenceIndices.setLength(self.nbDrivers)
+        for i in xrange(self.nbDrivers):
+            influenceIndices.set(i, i)
+
+        # now the weights -----------------------
+        new2dArray = np.copy(self.display2dArray)
+        # permutation = np.argsort(driverNames_oppIndices)
+        # new2dArray = new2dArray[:,permutation]
+        new2dArray = new2dArray[:, np.array(driverNames_oppIndices)]
+        new2dArray = new2dArray[np.array(indicesSort), :]
+        self.softOn = False
+        self.actuallySetValue(
+            new2dArray, None, userComponents, influenceIndices, self.shapePath, self.sknFn
+        )
+
     def reassignLocally(self):
         # print "reassignLocally"
         with GlobalContext(message="reassignLocally", doPrint=True):
@@ -778,8 +862,9 @@ class DataOfSkin(object):
             )
 
             # do the stting in the 2dArray -----
-            np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), theValues)
-            self.computeSumArray()
+            if sub2DArrayToSet != None:
+                np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), theValues)
+                self.computeSumArray()
 
     def callUndo(self):
         if self.UNDOstack:
