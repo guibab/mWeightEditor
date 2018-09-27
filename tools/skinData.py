@@ -462,6 +462,48 @@ class DataOfSkin(object):
             self.sknFn,
         )
 
+    def getArrayOppInfluences(self, leftInfluence="*_L_*", rightInfluence="*_R_*"):
+        leftSpl = leftInfluence.split(" ")
+        rightSpl = rightInfluence.split(" ")
+        while "" in leftSpl:
+            leftSpl.remove("")
+        while "" in rightSpl:
+            rightSpl.remove("")
+        if len(leftSpl) != len(rightSpl):
+            return []
+
+        oppDriverNames = {}
+        driverNames_oppIndices = [-1] * len(self.driverNames)
+
+        for indInfluence, influence in enumerate(self.driverNames):
+            if driverNames_oppIndices[indInfluence] != -1:
+                continue
+            oppInfluence = influence
+            for i, leftSearch in enumerate(leftSpl):
+                rightSearch = rightSpl[i].replace("*", ".*")
+                leftSearch = leftSpl[i].replace("*", ".*")
+                rightReplace = rightSpl[i].replace("*", "")
+                leftReplace = leftSpl[i].replace("*", "")
+
+                if re.search(leftSearch, influence, re.IGNORECASE) != None:
+                    oppInfluence = influence.replace(leftReplace, rightReplace)
+                    break
+                elif re.search(rightSearch, influence, re.IGNORECASE) != None:
+                    oppInfluence = influence.replace(rightReplace, leftReplace)
+                    break
+            if oppInfluence in self.driverNames and oppInfluence != influence:
+                oppDriverNames[influence] = oppInfluence
+                oppDriverNames[oppInfluence] = influence
+                oppInfluenceIndex = self.driverNames.index(oppInfluence)
+                driverNames_oppIndices[indInfluence] = oppInfluenceIndex
+                driverNames_oppIndices[oppInfluenceIndex] = indInfluence
+            else:
+                oppDriverNames[influence] = influence
+                driverNames_oppIndices[indInfluence] = indInfluence
+        # print oppDriverNames
+        # print driverNames_oppIndices
+        return driverNames_oppIndices
+
     def mirrorArray(self, direction, leftInfluence="*_L_*", rightInfluence="*_R_*"):
         prt = (
             cmds.listRelatives(self.deformedShape, path=-True, parent=True)[0]
@@ -476,73 +518,39 @@ class DataOfSkin(object):
         leftVertices = cmds.getAttr(prt + ".leftVertices")
         centerVertices = cmds.getAttr(prt + ".centerVertices")
 
-        print leftInfluence, rightInfluence
-        leftSpl = leftInfluence.split(" ")
-        rightSpl = rightInfluence.split(" ")
-        while "" in leftSpl:
-            leftSpl.remove("")
-        while "" in rightSpl:
-            rightSpl.remove("")
-        if len(leftSpl) != len(rightSpl):
-            return
-
         with GlobalContext(message="mirrorArray", doPrint=self.verbose):
-            oppDriverNames = {}
-            driverNames_oppIndices = [-1] * len(self.driverNames)
+            driverNames_oppIndices = self.getArrayOppInfluences(
+                leftInfluence=leftInfluence, rightInfluence=rightInfluence
+            )
+            if not driverNames_oppIndices:
+                return
 
-            for indInfluence, influence in enumerate(self.driverNames):
-                if driverNames_oppIndices[indInfluence] != -1:
-                    continue
-                oppInfluence = influence
-                for i, leftSearch in enumerate(leftSpl):
-                    rightSearch = rightSpl[i].replace("*", ".*")
-                    leftSearch = leftSpl[i].replace("*", ".*")
-                    rightReplace = rightSpl[i].replace("*", "")
-                    leftReplace = leftSpl[i].replace("*", "")
+            # skin setting -----------------------------
+            componentType = OpenMaya.MFn.kMeshVertComponent
+            fnComponent = OpenMaya.MFnSingleIndexedComponent()
+            userComponents = fnComponent.create(componentType)
+            symVerts = [int(symmetricVertices[vert]) for vert in self.vertices]
+            symVertsSorted = sorted(symVerts)
+            indicesSort = [symVerts.index(vert) for vert in symVertsSorted]
+            # vertices --------------------------------
+            for vert in symVertsSorted:
+                fnComponent.addElement(int(vert))
+            # joints ----------------
+            influenceIndices = OpenMaya.MIntArray()
+            influenceIndices.setLength(self.nbDrivers)
+            for i in xrange(self.nbDrivers):
+                influenceIndices.set(i, i)
 
-                    if re.search(leftSearch, influence, re.IGNORECASE) != None:
-                        oppInfluence = influence.replace(leftReplace, rightReplace)
-                        break
-                    elif re.search(rightSearch, influence, re.IGNORECASE) != None:
-                        oppInfluence = influence.replace(rightReplace, leftReplace)
-                        break
-                if oppInfluence in self.driverNames and oppInfluence != influence:
-                    oppDriverNames[influence] = oppInfluence
-                    oppDriverNames[oppInfluence] = influence
-                    oppInfluenceIndex = self.driverNames.index(oppInfluence)
-                    driverNames_oppIndices[indInfluence] = oppInfluenceIndex
-                    driverNames_oppIndices[oppInfluenceIndex] = indInfluence
-                else:
-                    oppDriverNames[influence] = influence
-                    driverNames_oppIndices[indInfluence] = indInfluence
-            # print oppDriverNames
-            # print driverNames_oppIndices
-        # skin setting -----------------------------
-        componentType = OpenMaya.MFn.kMeshVertComponent
-        fnComponent = OpenMaya.MFnSingleIndexedComponent()
-        userComponents = fnComponent.create(componentType)
-        symVerts = [int(symmetricVertices[vert]) for vert in self.vertices]
-        symVertsSorted = sorted(symVerts)
-        indicesSort = [symVerts.index(vert) for vert in symVertsSorted]
-        # vertices --------------------------------
-        for vert in symVertsSorted:
-            fnComponent.addElement(int(vert))
-        # joints ----------------
-        influenceIndices = OpenMaya.MIntArray()
-        influenceIndices.setLength(self.nbDrivers)
-        for i in xrange(self.nbDrivers):
-            influenceIndices.set(i, i)
-
-        # now the weights -----------------------
-        new2dArray = np.copy(self.display2dArray)
-        # permutation = np.argsort(driverNames_oppIndices)
-        # new2dArray = new2dArray[:,permutation]
-        new2dArray = new2dArray[:, np.array(driverNames_oppIndices)]
-        new2dArray = new2dArray[np.array(indicesSort), :]
-        self.softOn = False
-        self.actuallySetValue(
-            new2dArray, None, userComponents, influenceIndices, self.shapePath, self.sknFn
-        )
+            # now the weights -----------------------
+            new2dArray = np.copy(self.display2dArray)
+            # permutation = np.argsort(driverNames_oppIndices)
+            # new2dArray = new2dArray[:,permutation]
+            new2dArray = new2dArray[:, np.array(driverNames_oppIndices)]
+            new2dArray = new2dArray[np.array(indicesSort), :]
+            self.softOn = False
+            self.actuallySetValue(
+                new2dArray, None, userComponents, influenceIndices, self.shapePath, self.sknFn
+            )
 
     def reassignLocally(self):
         # print "reassignLocally"
