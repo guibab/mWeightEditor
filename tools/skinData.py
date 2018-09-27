@@ -552,6 +552,18 @@ class DataOfSkin(object):
                 new2dArray, None, userComponents, influenceIndices, self.shapePath, self.sknFn
             )
 
+            # undoArray = np.copy (self.orig2dArray)
+            # self.UNDOstack.append ((undoArray, self.sub2DArrayToSet, self.userComponents, self.influenceIndices, self.shapePath, self.sknFn))
+        if self.blurSkinNode and cmds.objExists(self.blurSkinNode):
+            # set the vertices
+            selVertices = self.orderMelList(symVertsSorted)
+            inList = ["vtx[{0}]".format(el) for el in selVertices]
+            cmds.setAttr(
+                self.blurSkinNode + ".inputComponents",
+                *([len(inList)] + inList),
+                type="componentList"
+            )
+
     def reassignLocally(self):
         # print "reassignLocally"
         with GlobalContext(message="reassignLocally", doPrint=True):
@@ -873,6 +885,8 @@ class DataOfSkin(object):
             if sub2DArrayToSet != None:
                 np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), theValues)
                 self.computeSumArray()
+            else:
+                return UndoValues
 
     def callUndo(self):
         if self.UNDOstack:
