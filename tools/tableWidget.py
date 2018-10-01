@@ -355,6 +355,22 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         self.redBG = QtGui.QBrush(QtGui.QColor(134, 119, 127))
         self.yellowBG = QtGui.QBrush(QtGui.QColor(144, 144, 122))
 
+    def mouseDoubleClickEvent(self, event):
+        if self.height() - event.pos().y() < 20:
+            index = self.visualIndexAt(event.pos().x())
+
+            pos = event.globalPos() - QtCore.QPoint(355, 100)
+            theColor = [el / 255.0 for el in self.color(index)]
+            cmds.colorEditor(mini=True, position=[pos.x(), pos.y()], rgbValue=theColor)
+            if cmds.colorEditor(query=True, result=True, mini=True):
+                col = cmds.colorEditor(query=True, rgb=True)
+                influence = self.model().fullColumnNames()[index]
+                cmds.setAttr(influence + ".wireColorRGB", *col)
+                self.repaint()
+                self.parent().parent().refreshPaintEditor()
+        else:
+            super(HorizHeaderView, self).mouseDoubleClickEvent(event)
+
     def mousePressEvent(self, event):
         nbShown = 0
         for ind in range(self.count()):
@@ -366,33 +382,37 @@ class HorizHeaderView(QtWidgets.QHeaderView):
                 self.parent().parent().resizeToMinimum()
             elif event.button() == QtCore.Qt.LeftButton:
                 self.parent().clearSelection()
-        elif self.height() - event.pos().y() < 20:
-            index = self.visualIndexAt(event.pos().x())
-            if event.button() == QtCore.Qt.LeftButton:
-                self.setColor(event.pos(), index)
-            else:
-                pos = event.globalPos() - QtCore.QPoint(355, 100)
-                theColor = [el / 255.0 for el in self.color(index)]
-                cmds.colorEditor(mini=True, position=[pos.x(), pos.y()], rgbValue=theColor)
-                if cmds.colorEditor(query=True, result=True):
-                    theUserDefinedIndex = (
-                        cmds.getAttr(self.model().fullColumnNames()[index] + ".objectColor") + 1
-                    )
-                    values = cmds.colorEditor(query=True, rgb=True)
-                    # print theUserDefinedIndex, values
-                    cmds.displayRGBColor("userDefined{0}".format(theUserDefinedIndex), *values)
-                    self.getColors()
-                    self.repaint()
         else:
             self.letVerticesDraw = False
             super(HorizHeaderView, self).mousePressEvent(event)
+        """ # for the color if using objectColor
+        elif self.height() - event.pos().y() < 20 :
+            index = self.visualIndexAt (event.pos().x())            
+            if event.button() == QtCore.Qt.LeftButton  :
+                self.setColor (event.pos(), index)
+            else : 
+                pos = event.globalPos() - QtCore.QPoint (355,100)
+                theColor = [el/255. for el in self.color (index)]
+                cmds.colorEditor(mini=True, position=[pos.x(), pos.y()], rgbValue = theColor)
+                if cmds.colorEditor(query=True, result=True):
+                    theUserDefinedIndex = cmds.getAttr(self.model().fullColumnNames()[index]+'.objectColor') + 1
+                    values = cmds.colorEditor(query=True, rgb=True)
+                    #print theUserDefinedIndex, values
+                    cmds.displayRGBColor ("userDefined{0}".format (theUserDefinedIndex),*values)
+                    self.getColors ()
+                    self.repaint ()
+        """
 
     def mouseReleaseEvent(self, event):
         self.letVerticesDraw = True
         super(HorizHeaderView, self).mouseReleaseEvent(event)
 
     def color(self, ind):
-        return self._colors[cmds.getAttr(self.model().fullColumnNames()[ind] + ".objectColor")]
+        # return self._colors[cmds.getAttr(self.model().fullColumnNames()[ind]+'.objectColor')]
+        return [
+            255.0 * el
+            for el in cmds.getAttr(self.model().fullColumnNames()[ind] + ".wireColorRGB")[0]
+        ]
 
     def setColor(self, pos, index):
         menu = ColorMenu(self)
@@ -425,15 +445,18 @@ class HorizHeaderView(QtWidgets.QHeaderView):
     def lockSelectedColumns(self):
         selectedIndices = self.getSelectedColumns()
         self.model().datatable.lockColumns(selectedIndices)
+        self.parent().parent().refreshPaintEditor()
 
     def lockAllButSelectedColumns(self):
         selectedIndices = set(range(self.count() - 1))
         selectedIndices.difference_update(self.getSelectedColumns())
         self.model().datatable.lockColumns(selectedIndices)
+        self.parent().parent().refreshPaintEditor()
 
     def unlockSelectedColumns(self):
         selectedIndices = self.getSelectedColumns()
         self.model().datatable.unLockColumns(selectedIndices)
+        self.parent().parent().refreshPaintEditor()
 
     def selectDeformers(self):
         selectedIndices = self.getSelectedColumns()
@@ -446,6 +469,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
 
     def clearLocks(self):
         self.model().datatable.unLockColumns(range(self.count() - 1))
+        self.parent().parent().refreshPaintEditor()
 
     def showMenu(self, pos):
         popMenu = QtWidgets.QMenu(self)

@@ -570,6 +570,12 @@ class SkinWeightWin(QtWidgets.QDialog):
         self.refresh(force=True)
         self.retrieveSelection()
 
+    def refreshPaintEditor(self):
+        import __main__
+
+        if "paintEditor" in __main__.__dict__ and __main__.paintEditor.isVisible():
+            __main__.paintEditor.refreshColorsAndLocks()
+
     def highlightSelectedDeformers(self):
         selection = cmds.ls(sl=True)
         selection = set(cmds.ls(sl=True))
