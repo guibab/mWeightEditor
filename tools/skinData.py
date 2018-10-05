@@ -369,8 +369,8 @@ class DataOfSkin(object):
             self.userComponents = fnComponent.create(componentType)
 
             for indVtx in self.indicesVertices:
-                indexV = indVtx % self.numCVsInV_
-                indexU = indVtx / self.numCVsInV_
+                indexV = int(indVtx % self.numCVsInV_)
+                indexU = int(indVtx / self.numCVsInV_)
                 fnComponent.addElement(indexU, indexV)
         elif self.isLattice:
             componentType = OpenMaya.MFn.kLatticeComponent
