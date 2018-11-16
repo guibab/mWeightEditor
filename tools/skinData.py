@@ -1270,6 +1270,37 @@ class DataOfSkin(object):
         self.getZeroColumns()
         return True
 
+    def smoothSkin(self, selectedIndices, repeat=1, percentMvt=1):
+        # cmds.blurSkinCmd (command = "smooth", repeat = self.smoothBTN.precision, percentMvt = self.percentBTN.precision)
+        rowsSel = []
+        for item in selectedIndices:
+            rowsSel += range(item[0], item[1] + 1)
+        selectedVertices = sorted([self.vertices[ind] for ind in rowsSel])
+
+        if self.isNurbsSurface:
+            listCVsIndices = []
+            for indVtx in selectedVertices:
+                indexV = indVtx % self.numCVsInV_
+                indexU = indVtx / self.numCVsInV_
+                listCVsIndices.append((indexU, indexV))
+            cmds.blurSkinCmd(
+                command="smooth",
+                repeat=repeat,
+                percentMvt=percentMvt,
+                meshName=self.deformedShape,
+                listCVsIndices=listCVsIndices,
+            )
+        elif self.isLattice:
+            cmds.blurSkinCmd(command="smooth", repeat=repeat, percentMvt=percentMvt)
+        else:
+            cmds.blurSkinCmd(
+                command="smooth",
+                repeat=repeat,
+                percentMvt=percentMvt,
+                meshName=self.deformedShape,
+                listVerticesIndices=selectedVertices,
+            )
+
     def rebuildRawSkin(self):
         if self.fullShapeIsUsed:
             self.rawSkinValues = self.exposeSkinData(self.theSkinCluster)
