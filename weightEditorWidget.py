@@ -184,7 +184,7 @@ class SkinWeightWin(QtWidgets.QDialog):
             else True
         )
         self.hideZeroColumn = (
-            cmds.optionVar(q="hideZeroColumn") if cmds.optionVar(exists="hideZeroColumn") else True
+            cmds.optionVar(q="hideZeroColumn") if cmds.optionVar(exists="hideZeroColumn") else False
         )
         # -------------------
         self.popMenu = QtWidgets.QMenu(self)

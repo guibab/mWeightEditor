@@ -847,7 +847,7 @@ class DataOfSkin(object):
         # if connected  ---------------------------------------------------
         if self.blurSkinNode:
             # set the vertices
-            if self.indicesVertices:
+            if self.indicesVertices.size > 0:
                 selVertices = self.orderMelList(self.indicesVertices)
                 inList = ["vtx[{0}]".format(el) for el in selVertices]
                 if cmds.objExists(self.blurSkinNode):
