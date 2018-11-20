@@ -1358,6 +1358,7 @@ class DataOfSkin(object):
 
     def selectVertsOfColumns(self, selectedColumns, doSelect=True):
         selectedIndices = self.getZeroRows(selectedColumns)
+
         # print doSelect,  selectedColumns, selectedIndices
         if doSelect:
             self.selectVerts(selectedIndices)
@@ -1366,6 +1367,9 @@ class DataOfSkin(object):
 
     def selectVerts(self, selectedIndices):
         selectedVertices = set([self.vertices[ind] for ind in selectedIndices])
+        if not selectedVertices:
+            cmds.select(clear=True)
+            return
         # print selectedVertices
 
         if self.isNurbsSurface:
