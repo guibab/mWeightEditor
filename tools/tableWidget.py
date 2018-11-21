@@ -184,8 +184,9 @@ class HighlightDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class VertHeaderView(QtWidgets.QHeaderView):
-    def __init__(self, parent=None):
+    def __init__(self, mainWindow=None, parent=None):
         super(VertHeaderView, self).__init__(QtCore.Qt.Vertical, parent)
+        self.mainWindow = mainWindow
         self.setMinimumWidth(20)
 
         self.setSectionsClickable(True)
@@ -328,9 +329,10 @@ class HorizHeaderView(QtWidgets.QHeaderView):
             col = cmds.displayRGBColor("userDefined{0}".format(i), q=True)
             self._colors.append([int(el * 255) for el in col])
 
-    def __init__(self, colWidth=10, parent=None):
+    def __init__(self, mainWindow=None, colWidth=10, parent=None):
         super(HorizHeaderView, self).__init__(QtCore.Qt.Horizontal, parent)
 
+        self.mainWindow = mainWindow
         self.getColors()
         self.colWidth = colWidth
         self._font = QtGui.QFont("Myriad Pro", 10)
@@ -367,7 +369,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
                 influence = self.model().fullColumnNames()[index]
                 cmds.setAttr(influence + ".wireColorRGB", *col)
                 self.repaint()
-                self.parent().parent().refreshPaintEditor()
+                self.mainWindow.refreshPaintEditor()
         else:
             super(HorizHeaderView, self).mouseDoubleClickEvent(event)
 
@@ -379,7 +381,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         outClick = event.pos().x() > self.colWidth * nbShown
         if outClick:
             if event.button() == QtCore.Qt.MidButton:
-                self.parent().parent().resizeToMinimum()
+                self.mainWindow.resizeToMinimum()
             elif event.button() == QtCore.Qt.LeftButton:
                 self.parent().clearSelection()
         else:
@@ -445,18 +447,18 @@ class HorizHeaderView(QtWidgets.QHeaderView):
     def lockSelectedColumns(self):
         selectedIndices = self.getSelectedColumns()
         self.model().datatable.lockColumns(selectedIndices)
-        self.parent().parent().refreshPaintEditor()
+        self.mainWindow.refreshPaintEditor()
 
     def lockAllButSelectedColumns(self):
         selectedIndices = set(range(self.count() - 1))
         selectedIndices.difference_update(self.getSelectedColumns())
         self.model().datatable.lockColumns(selectedIndices)
-        self.parent().parent().refreshPaintEditor()
+        self.mainWindow.refreshPaintEditor()
 
     def unlockSelectedColumns(self):
         selectedIndices = self.getSelectedColumns()
         self.model().datatable.unLockColumns(selectedIndices)
-        self.parent().parent().refreshPaintEditor()
+        self.mainWindow.refreshPaintEditor()
 
     def selectDeformers(self):
         selectedIndices = self.getSelectedColumns()
@@ -469,7 +471,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
 
     def clearLocks(self):
         self.model().datatable.unLockColumns(range(self.count() - 1))
-        self.parent().parent().refreshPaintEditor()
+        self.mainWindow.refreshPaintEditor()
 
     def showMenu(self, pos):
         popMenu = QtWidgets.QMenu(self)
@@ -505,27 +507,27 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         # newAction .setChecked (self.isDockable)
         model = self.model()
         hideColumnIndices = model.datatable.hideColumnIndices
-        if len(hideColumnIndices) > 0:
-            columnNames = model.columnNames()
-            popMenu.addSeparator()
-            hideZeroColumnsAction = popMenu.addAction("hide zero columns")
-            hideZeroColumnsAction.setCheckable(True)
-            hideZeroColumnsAction.setChecked(self.parent().parent().hideZeroColumn)
-            hideZeroColumnsAction.toggled.connect(self.parent().parent().toggleZeroColumn)
+        # if len (hideColumnIndices) >0 :
+        columnNames = model.columnNames()
+        popMenu.addSeparator()
+        hideZeroColumnsAction = popMenu.addAction("hide zero columns")
+        hideZeroColumnsAction.setCheckable(True)
+        hideZeroColumnsAction.setChecked(self.mainWindow.hideZeroColumn)
+        hideZeroColumnsAction.toggled.connect(self.mainWindow.toggleZeroColumn)
 
-            subMenuFollow = popMenu.addMenu("show Columns")
-            for ind in hideColumnIndices:
-                # newAction = subMenuFollow .addAction(columnNames [ind])
-                # newAction.setCheckable (True)
-                # newAction.setChecked (False)
-                chbox = QtWidgets.QCheckBox(columnNames[ind], subMenuFollow)
+        subMenuFollow = popMenu.addMenu("show Columns")
+        for ind in hideColumnIndices:
+            # newAction = subMenuFollow .addAction(columnNames [ind])
+            # newAction.setCheckable (True)
+            # newAction.setChecked (False)
+            chbox = QtWidgets.QCheckBox(columnNames[ind], subMenuFollow)
 
-                chbox.setChecked(not self.isSectionHidden(ind))
-                chbox.toggled.connect(partial(self.toggledColumn, ind, columnNames[ind]))
+            chbox.setChecked(not self.isSectionHidden(ind))
+            chbox.toggled.connect(partial(self.toggledColumn, ind, columnNames[ind]))
 
-                checkableAction = QtWidgets.QWidgetAction(subMenuFollow)
-                checkableAction.setDefaultWidget(chbox)
-                subMenuFollow.addAction(checkableAction)
+            checkableAction = QtWidgets.QWidgetAction(subMenuFollow)
+            checkableAction.setDefaultWidget(chbox)
+            subMenuFollow.addAction(checkableAction)
         popMenu.exec_(self.mapToGlobal(pos))
 
     def toggledColumn(self, ind, ColumnName, checked):
@@ -609,16 +611,18 @@ class TableView(QtWidgets.QTableView):
 
     selEmptied = QtCore.Signal(bool, name="selEmptied")
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, parent, colWidth=10):
         self.ignoreReselect = False
 
-        colWidth = kwargs.pop("colWidth", None)
-        QtWidgets.QTableView.__init__(self, *args, **kwargs)
+        colWidth = colWidth  # kwargs.pop('colWidth', None)
+        QtWidgets.QTableView.__init__(self, parent)
+        self.mainWindow = parent
         # self.sizeHintForRow = QtCore.QSize (0,10)
         self._hd = HighlightDelegate(self)
         self.setItemDelegate(self._hd)
-        self.HHeaderView = HorizHeaderView(colWidth)
-        self.VHeaderView = VertHeaderView()
+        self.HHeaderView = HorizHeaderView(self.mainWindow, colWidth)
+        self.VHeaderView = VertHeaderView(self.mainWindow)
+
         self.setHorizontalHeader(self.HHeaderView)
         self.setVerticalHeader(self.VHeaderView)
 
