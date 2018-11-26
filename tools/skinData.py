@@ -1154,7 +1154,7 @@ class DataOfSkin(object):
 
     preSel = ""
 
-    def getAllData(self, displayLocator=True, getskinWeights=True, force=True):
+    def getAllData(self, displayLocator=True, getskinWeights=True, force=True, inputVertices=None):
         sel = cmds.ls(sl=True)
 
         theSkinCluster, deformedShape = self.getSkinClusterFromSel(sel)
@@ -1199,6 +1199,8 @@ class DataOfSkin(object):
         with GlobalContext(message="rawSkinValues", doPrint=self.verbose):
             dicOfSel = getSoftSelectionValuesNEW()
             res = dicOfSel[self.deformedShape] if self.deformedShape in dicOfSel else []
+            if inputVertices != None:
+                res = inputVertices
             if isinstance(res, tuple):
                 self.vertices, self.verticesWeight = res
                 arr = np.argsort(self.verticesWeight)
