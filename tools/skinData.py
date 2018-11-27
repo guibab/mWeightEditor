@@ -1155,6 +1155,9 @@ class DataOfSkin(object):
     preSel = ""
 
     def getAllData(self, displayLocator=True, getskinWeights=True, force=True, inputVertices=None):
+        if inputVertices != None:
+            inputVertices = map(int, inputVertices)
+        # print inputVertices
         sel = cmds.ls(sl=True)
 
         theSkinCluster, deformedShape = self.getSkinClusterFromSel(sel)
