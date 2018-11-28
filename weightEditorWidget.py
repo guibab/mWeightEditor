@@ -2,7 +2,7 @@
 import __main__
 self = __main__.weightEditor
 """
-from Qt import QtGui, QtCore, QtWidgets
+from Qt import QtGui, QtCore, QtWidgets, QtCompat
 
 # import shiboken2 as shiboken
 from functools import partial
@@ -588,7 +588,10 @@ class SkinWeightWin(Window):
     def refreshPaintEditor(self):
         import __main__
 
-        if "paintEditor" in __main__.__dict__ and __main__.paintEditor.isVisible():
+        if (
+            hasattr(__main__, "paintEditor")
+            and __main__.paintEditor in QtWidgets.QApplication.instance().topLevelWidgets()
+        ):
             __main__.paintEditor.refreshColorsAndLocks()
 
     def highlightSelectedDeformers(self):
