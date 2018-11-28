@@ -600,7 +600,8 @@ class DataOfSkin(object):
             lstDriverPrePosition = []
             lent = bindPreMatrixArrayPlug.numElements()
 
-            for ind in xrange(lent):
+            # for ind in xrange ( lent ):
+            for ind in self.indicesJoints:
                 preMatrixPlug = bindPreMatrixArrayPlug.elementByLogicalIndex(ind)
                 matFn = OpenMaya.MFnMatrixData(preMatrixPlug.asMObject())
                 mat = matFn.matrix().inverse()
