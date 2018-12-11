@@ -1440,9 +1440,18 @@ class DataOfSkin(object):
             print self.theSkinCluster, theVtx, deformerName, value
         # cmds.skinPercent( self.theSkinCluster,theVtx, transformValue=(deformerName, float (value)), normalize = True)
 
-    def driverNamesChangedCB(self, oldName, newName):
+    def renameCB(self, oldName, newName):
+        # print "weightEditor call back is Invoked : -{}-  to -{}- ".format (oldName, newName)
         if oldName in self.driverNames:
             ind = self.driverNames.index(oldName)
             self.driverNames[ind] = newName
-            return True
-        return False
+            self.getShortNames()
+        if oldName == self.theSkinCluster:
+            self.theSkinCluster = newName
+        if oldName == self.deformedShape:
+            self.deformedShape = newName
+            shapeShortName = cmds.listRelatives(newName, p=True)[0].split(":")[-1].split("|")[-1]
+            splt = shapeShortName.split("_")
+            if len(splt) > 5:
+                shapeShortName = "_".join(splt[-7:-4])
+            self.shapeShortName = shapeShortName

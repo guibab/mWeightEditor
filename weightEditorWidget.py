@@ -162,13 +162,8 @@ class SkinWeightWin(Window):
         )
 
     def renameCB(self, oldName, newName):
-        if oldName in self.dataOfSkin.driverNames:
-            ind = self.dataOfSkin.driverNames.index(oldName)
-            self.dataOfSkin.driverNames[ind] = newName
-            # print "weightEditor call back is Invoked : -{}-  to -{}- ".format (oldName, newName)
-            # return True
-            self.dataOfSkin.getShortNames()
-        # return False
+        if self.dataOfSkin:
+            self.dataOfSkin.renameCB(oldName, newName)
 
     def addCallBacks(self):
         self.refreshSJ = cmds.scriptJob(event=["SelectionChanged", self.refresh])
