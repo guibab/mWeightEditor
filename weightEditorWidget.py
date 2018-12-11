@@ -7,6 +7,7 @@ from Qt import QtGui, QtCore, QtWidgets, QtCompat
 # import shiboken2 as shiboken
 from functools import partial
 from maya import cmds, OpenMaya
+import os
 import blurdev
 from blurdev.gui import Window
 
@@ -16,9 +17,17 @@ from tools.tableWidget import TableView, TableModel
 from tools.spinnerSlider import ValueSettingWE, ButtonWithValue
 from tools.utils import GlobalContext, addNameChangedCallback, removeNameChangedCallback
 
+
+def getIcon(iconNm):
+    fileVar = os.path.realpath(__file__)
+    uiFolder, filename = os.path.split(fileVar)
+    iconPth = os.path.join(uiFolder, "img", iconNm + ".png")
+    return QtGui.QIcon(iconPth)
+
+
 _icons = {
-    "lock": Icons.getIcon(r"icons8\Android_L\PNG\48\Very_Basic\lock-48"),
-    "unlock": Icons.getIcon(r"icons8\Android_L\PNG\48\Very_Basic\unlock-48"),
+    "lock": getIcon("lock-48"),
+    "unlock": getIcon("unlock-48"),
     "refresh": Icons.getIcon("refresh"),
 }
 
