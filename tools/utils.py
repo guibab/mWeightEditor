@@ -378,3 +378,26 @@ def getComponentIndexList(componentList=[]):
             )
     # Return Result
     return componentIndexList
+
+
+# ------------------------ callBacks ------------------------------------------------
+def addNameChangedCallback(callback):
+    def omcallback(mobject, oldname, _):  # (1)
+        newname = OpenMaya.MFnDependencyNode(mobject).name()
+        callback(oldname, newname)  #
+
+    listenTo = OpenMaya.MObject()
+    return OpenMaya.MNodeMessage.addNameChangedCallback(listenTo, omcallback)
+
+
+def removeNameChangedCallback(callbackId):
+    OpenMaya.MNodeMessage.removeCallback(callbackId)
+
+
+"""
+def cb(oldname, newname):
+    print "call back is Invoked : -{}-  to -{}- ".format (oldname, newname)
+
+globaCallBackRename = addNameChangedCallback(cb)
+removeNameChangedCallback (globaCallBackRename )
+"""

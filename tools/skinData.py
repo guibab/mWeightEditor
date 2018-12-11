@@ -1439,3 +1439,10 @@ class DataOfSkin(object):
         if self.verbose:
             print self.theSkinCluster, theVtx, deformerName, value
         # cmds.skinPercent( self.theSkinCluster,theVtx, transformValue=(deformerName, float (value)), normalize = True)
+
+    def driverNamesChangedCB(self, oldName, newName):
+        if oldName in self.driverNames:
+            ind = self.driverNames.index(oldName)
+            self.driverNames[ind] = newName
+            return True
+        return False

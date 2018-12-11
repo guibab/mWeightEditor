@@ -14,7 +14,7 @@ from studio.gui.resource import Icons
 from tools.skinData import DataOfSkin
 from tools.tableWidget import TableView, TableModel
 from tools.spinnerSlider import ValueSettingWE, ButtonWithValue
-from tools.utils import GlobalContext
+from tools.utils import GlobalContext, addNameChangedCallback, removeNameChangedCallback
 
 _icons = {
     "lock": Icons.getIcon(r"icons8\Android_L\PNG\48\Very_Basic\lock-48"),
@@ -161,8 +161,19 @@ class SkinWeightWin(Window):
             cmds.optionVar(q="hideZeroColumn") if cmds.optionVar(exists="hideZeroColumn") else False
         )
 
+    def renameCB(self, oldName, newName):
+        if oldName in self.dataOfSkin.driverNames:
+            ind = self.dataOfSkin.driverNames.index(oldName)
+            self.dataOfSkin.driverNames[ind] = newName
+            # print "weightEditor call back is Invoked : -{}-  to -{}- ".format (oldName, newName)
+            # return True
+            self.dataOfSkin.getShortNames()
+        # return False
+
     def addCallBacks(self):
         self.refreshSJ = cmds.scriptJob(event=["SelectionChanged", self.refresh])
+        self.renameCallBack = addNameChangedCallback(self.renameCB)
+
         # self.listJobEvents =[refreshSJ]
         sceneUpdateCallback = OpenMaya.MSceneMessage.addCallback(
             OpenMaya.MSceneMessage.kBeforeNew, self.deselectAll
@@ -174,6 +185,7 @@ class SkinWeightWin(Window):
 
     def deleteCallBacks(self):
         # for jobNum in self.listJobEvents   : cmds.scriptJob( kill=jobNum, force=True)
+        removeNameChangedCallback(self.renameCallBack)
         self.dataOfSkin.deleteDisplayLocator()
         cmds.scriptJob(kill=self.refreshSJ, force=True)
         for callBck in self.close_callback:
@@ -608,6 +620,8 @@ class SkinWeightWin(Window):
                 newSel.select(self._tm.index(0, index), self._tm.index(nbRows - 1, index))
                 self._tv.showColumn(index)
             self._tv.selectionModel().select(newSel, QtCore.QItemSelectionModel.ClearAndSelect)
+        else:
+            self.dataOfSkin.updateDisplayVerts([])
 
     def refresh(self, force=False):
         if self.unLock or force:
