@@ -1199,10 +1199,11 @@ class DataOfSkin(object):
         )
         self.getShortNames()
         self.nbDrivers = len(self.driverNames)
+        (deformedShape_longName,) = cmds.ls(deformedShape, l=True)
 
         with GlobalContext(message="rawSkinValues", doPrint=self.verbose):
             dicOfSel = getSoftSelectionValuesNEW()
-            res = dicOfSel[self.deformedShape] if self.deformedShape in dicOfSel else []
+            res = dicOfSel[deformedShape_longName] if deformedShape_longName in dicOfSel else []
             if inputVertices != None:
                 res = inputVertices
             if isinstance(res, tuple):

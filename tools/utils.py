@@ -139,6 +139,10 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
             transform = dagPath.transform()
             node = dagPath.node()
             depNode = OpenMaya.MFnDependencyNode(node)
+            depNode_name = dagPath.fullPathName()  # depNode.absoluteName ()
+
+            # print depNode_name,
+
             # print depNode.name()
             elementIndices = []
             elementWeights = []
@@ -191,8 +195,8 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
                             # returnValues.append ((singleFn.element( i),weight ))
                             # print  "      Component[" , singleFn.element( i) , "] has influence weight " , weight.influence() , " and seam weight " , weight.seam()
                 elif componentFn.componentType() == OpenMaya.MFn.kSurfaceCVComponent:
-                    numCVsInV_ = cmds.getAttr(depNode.name() + ".spansV") + cmds.getAttr(
-                        depNode.name() + ".degreeV"
+                    numCVsInV_ = cmds.getAttr(depNode_name + ".spansV") + cmds.getAttr(
+                        depNode_name + ".degreeV"
                     )
 
                     doubleFn = OpenMaya.MFnDoubleIndexedComponent(component)
@@ -216,9 +220,9 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
                     div_t = vVal.getInt(ptrv)
                     div_u = wVal.getInt(ptrw)
                     """
-                    div_s = cmds.getAttr(depNode.name() + ".sDivisions")
-                    div_t = cmds.getAttr(depNode.name() + ".tDivisions")
-                    div_u = cmds.getAttr(depNode.name() + ".uDivisions")
+                    div_s = cmds.getAttr(depNode_name + ".sDivisions")
+                    div_t = cmds.getAttr(depNode_name + ".tDivisions")
+                    div_u = cmds.getAttr(depNode_name + ".uDivisions")
 
                     tripleFn = OpenMaya.MFnTripleIndexedComponent(component)
                     for i in range(count):
@@ -245,9 +249,9 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
                         # returnValues.append (( (u,v, w),weight ))
                         # print  "      Component[" , u , "," , v , "," , w , "] has influence weight " , weight.influence() , " and seam weight " , weight.seam()
             if forceReturnWeight or softOn:
-                toReturn[depNode.name()] = (elementIndices, elementWeights)
+                toReturn[depNode_name] = (elementIndices, elementWeights)
             else:
-                toReturn[depNode.name()] = elementIndices
+                toReturn[depNode_name] = elementIndices
             iterSel.next()
     return toReturn
 
