@@ -24,13 +24,16 @@ class TableModel(QtCore.QAbstractTableModel):
         return self.datatable.rowCount
 
     def columnCount(self, parent=QtCore.QModelIndex()):
-        return self.datatable.columnCount + 1
+        if self.datatable.isSkinData:
+            return self.datatable.columnCount + 1
+        else:
+            return self.datatable.columnCount
 
     def columnNames(self):
-        return self.datatable.shortDriverNames
+        return self.datatable.shortColumnsNames
 
     def fullColumnNames(self):
-        return self.datatable.driverNames
+        return self.datatable.columnsNames
 
     def data(self, index, role=QtCore.Qt.DisplayRole):
         # print 'Data Call'
@@ -86,12 +89,12 @@ class TableModel(QtCore.QAbstractTableModel):
 
     def isSumColumn(self, index):
         column = index.column()
-        return column >= self.datatable.nbDrivers
+        return self.datatable.isSkinData and column >= self.datatable.nbDrivers
 
     def headerData(self, col, orientation, role):
         if role == QtCore.Qt.DisplayRole:
             if orientation == QtCore.Qt.Horizontal:
-                return self.datatable.driverNames[col]
+                return self.datatable.columnsNames[col]
             else:
                 return self.datatable.rowText[col]
         elif role == QtCore.Qt.TextAlignmentRole:
@@ -101,7 +104,7 @@ class TableModel(QtCore.QAbstractTableModel):
 
     def getColumnText(self, col):
         try:
-            return self.datatable.shortDriverNames[col]
+            return self.datatable.shortColumnsNames[col]
         except:
             return "total"
 
@@ -110,7 +113,7 @@ class TableModel(QtCore.QAbstractTableModel):
 
     def getColumnSide(self, col):
         try:
-            driverName = self.datatable.driverNames[col]
+            driverName = self.datatable.columnsNames[col]
             for letter in "LRM":
                 if "_{0}_".format(letter) in driverName:
                     return letter
@@ -127,7 +130,7 @@ class TableModel(QtCore.QAbstractTableModel):
         # sresult = super(TableModel,self).flags(index)
         # result = sresult | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
         column = index.column()
-        if column == self.datatable.nbDrivers:  # sum column
+        if self.datatable.isSkinData and column == self.datatable.nbDrivers:  # sum column
             result = QtCore.Qt.ItemIsEnabled
         elif self.isLocked(index):
             result = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
@@ -410,11 +413,15 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         super(HorizHeaderView, self).mouseReleaseEvent(event)
 
     def color(self, ind):
+        # return [255.*el for el in cmds.getAttr(self.model().fullColumnNames()[ind]+'.wireColorRGB') [0]]
         # return self._colors[cmds.getAttr(self.model().fullColumnNames()[ind]+'.objectColor')]
-        return [
-            255.0 * el
-            for el in cmds.getAttr(self.model().fullColumnNames()[ind] + ".wireColorRGB")[0]
-        ]
+        if self.model().datatable.isSkinData:
+            return [
+                255.0 * el
+                for el in cmds.getAttr(self.model().fullColumnNames()[ind] + ".wireColorRGB")[0]
+            ]
+        else:
+            return [255, 155, 55]
 
     def setColor(self, pos, index):
         menu = ColorMenu(self)
@@ -542,7 +549,9 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         # https://github.com/openwebos/qt/blob/master/src/gui/itemviews/qheaderview.cpp
         if not rect.isValid():
             return
-        isLastColumn = index >= self.model().datatable.nbDrivers
+        isLastColumn = (
+            self.model().datatable.isSkinData and index >= self.model().datatable.nbDrivers
+        )
         data = self._get_data(index)
 
         if isLastColumn:

@@ -1,259 +1,36 @@
-# https://github.com/chadmv/cmt/blob/master/scripts/cmt/deform/skinio.py
-
 from maya import OpenMayaUI, OpenMaya, OpenMayaAnim
+from maya import cmds, mel
 from functools import partial
 
 # import shiboken2 as shiboken
 import time, datetime
 
 from ctypes import c_double, c_float
-from maya import cmds, mel
 
 import numpy as np
 import re
 from utils import GlobalContext, getSoftSelectionValuesNEW, getThreeIndices
 
-
-def isin(element, test_elements, assume_unique=False, invert=False):
-    element = np.asarray(element)
-    return np.in1d(element, test_elements, assume_unique=assume_unique, invert=invert).reshape(
-        element.shape
-    )
-
+from .abstractData import DataAbstract, isin
 
 ###################################################################################
 #
 #   SKIN FUNCTIONS
 #
 ###################################################################################
-class DataOfSkin(object):
+class DataOfSkin(DataAbstract):
     verbose = False
 
     def __init__(self, useShortestNames=False, hideZeroColumn=True, createDisplayLocator=True):
         self.useShortestNames = useShortestNames
         self.hideZeroColumn = hideZeroColumn
         self.clearData()
-        sel = cmds.ls(sl=True)
-        hil = cmds.ls(hilite=True)
-        if createDisplayLocator:
-            self.createDisplayLocator()
-        cmds.select(sel)
-        cmds.hilite(hil)
+        super(DataOfSkin, self).__init__(createDisplayLocator=createDisplayLocator)
+        self.isSkinData = True
 
-    def createDisplayLocator(self):
-        self.pointsDisplayTrans = None
-        if not cmds.pluginInfo("blurSkin", query=True, loaded=True):
-            cmds.loadPlugin("blurSkin")
-        if cmds.ls("MSkinWeightEditorDisplay*"):
-            cmds.delete(cmds.ls("MSkinWeightEditorDisplay*"))
-        self.pointsDisplayTrans = cmds.createNode("transform", n="MSkinWeightEditorDisplay")
-        pointsDisplayNode = cmds.createNode("pointsDisplay", p=self.pointsDisplayTrans)
-        nurbsConnected = cmds.createNode("nurbsSurface", p=self.pointsDisplayTrans)
-        curveConnected = cmds.createNode("nurbsCurve", p=self.pointsDisplayTrans)
-        meshConnected = cmds.createNode("mesh", p=self.pointsDisplayTrans)
-        for nd in [nurbsConnected, meshConnected, curveConnected]:
-            cmds.setAttr(nd + ".v", False)
-            cmds.setAttr(nd + ".ihi", False)
-        # cmds.connectAttr (nurbsConnected+".worldSpace", pointsDisplayNode+".inGeometry", f=True)
-        # cmds.connectAttr (meshConnected+".outMesh", pointsDisplayNode+".inMesh", f=True)
-        # cmds.connectAttr (meshConnected+".outMesh", pointsDisplayNode+".inGeometry", f=True)
-
-        cmds.setAttr(pointsDisplayNode + ".pointWidth", 5)
-        cmds.setAttr(pointsDisplayNode + ".inputColor", 0.0, 1.0, 1.0)
-        """
-        for nd in [self.pointsDisplayTrans,pointsDisplayNode, meshConnected, nurbsConnected, curveConnected] : 
-            cmds.setAttr (nd+".hiddenInOutliner", True)
-        """
-
-    def deleteDisplayLocator(self):
-        if cmds.objExists(self.pointsDisplayTrans):
-            cmds.delete(self.pointsDisplayTrans)
-
-    def connectDisplayLocator(self):
-        isMesh = (
-            "shapePath" in self.__dict__
-            and self.shapePath != None
-            and self.shapePath.apiType() == OpenMaya.MFn.kMesh
-        )
-        if cmds.objExists(self.pointsDisplayTrans):
-            self.updateDisplayVerts([])
-            if isMesh:
-                geoType = "mesh"
-                outPlug = ".outMesh"
-                inPlug = ".inMesh"
-            elif self.isLattice:
-                geoType = "lattice"
-                outPlug = ".worldLattice"
-                inPlug = ".latticeInput"
-            else:  # self.isNurbsSurface :
-                geoType = "nurbsSurface" if self.isNurbsSurface else "nurbsCurve"
-                outPlug = ".worldSpace"
-                inPlug = ".create"
-            if cmds.nodeType(self.deformedShape) != geoType:
-                return  # something weird happening, not expected geo
-
-            (pointsDisplayNode,) = cmds.listRelatives(
-                self.pointsDisplayTrans, path=True, type="pointsDisplay"
-            )
-            pdt_geometry = cmds.listRelatives(self.pointsDisplayTrans, path=True, type=geoType)
-            if pdt_geometry:
-                pdt_geometry = pdt_geometry[0]
-                inGeoConn = cmds.listConnections(
-                    pointsDisplayNode + ".inGeometry", s=True, d=False, p=True
-                )
-                if not inGeoConn or inGeoConn[0] != pdt_geometry + outPlug:
-                    cmds.connectAttr(
-                        pdt_geometry + outPlug, pointsDisplayNode + ".inGeometry", f=True
-                    )
-                inConn = cmds.listConnections(
-                    pdt_geometry + inPlug, s=True, d=False, p=True, scn=True
-                )
-                if not inConn or inConn[0] != self.deformedShape + outPlug:
-                    cmds.connectAttr(self.deformedShape + outPlug, pdt_geometry + inPlug, f=True)
-            else:  # for the lattice direct connections -------------------------------------
-                inConn = cmds.listConnections(
-                    pointsDisplayNode + ".inGeometry", s=True, d=False, p=True, scn=True
-                )
-                if not inConn or inConn[0] != self.deformedShape + outPlug:
-                    cmds.connectAttr(
-                        self.deformedShape + outPlug, pointsDisplayNode + ".inGeometry", f=True
-                    )
-
-    def updateDisplayVerts(self, rowsSel):
-        if isinstance(rowsSel, np.ndarray):
-            rowsSel = rowsSel.tolist()
-
-        isMesh = (
-            "shapePath" in self.__dict__
-            and self.shapePath != None
-            and self.shapePath.apiType() == OpenMaya.MFn.kMesh
-        )
-        if cmds.objExists(self.pointsDisplayTrans):
-            (pointsDisplayNode,) = cmds.listRelatives(
-                self.pointsDisplayTrans, path=True, type="pointsDisplay"
-            )
-            if rowsSel != []:
-                if isMesh:
-                    selVertices = self.orderMelList([self.vertices[ind] for ind in rowsSel])
-                    inList = ["vtx[{0}]".format(el) for el in selVertices]
-                elif self.isNurbsSurface:
-                    inList = []
-                    selectedVertices = [self.vertices[ind] for ind in rowsSel]
-                    for indVtx in selectedVertices:
-                        indexV = indVtx % self.numCVsInV_
-                        indexU = indVtx / self.numCVsInV_
-                        inList.append("cv[{0}][{1}]".format(indexU, indexV))
-                elif self.isLattice:
-                    inList = []
-                    selectedVertices = [self.vertices[ind] for ind in rowsSel]
-                    div_s = cmds.getAttr(self.deformedShape + ".sDivisions")
-                    div_t = cmds.getAttr(self.deformedShape + ".tDivisions")
-                    div_u = cmds.getAttr(self.deformedShape + ".uDivisions")
-                    for indVtx in selectedVertices:
-                        s, t, u = getThreeIndices(div_s, div_t, div_u, indVtx)
-                        inList.append("pt[{0}][{1}][{2}]".format(s, t, u))
-                else:
-                    selVertices = self.orderMelList([self.vertices[ind] for ind in rowsSel])
-                    inList = ["cv[{0}]".format(el) for el in selVertices]
-            else:
-                inList = []
-            if cmds.objExists(pointsDisplayNode):
-                cmds.setAttr(
-                    pointsDisplayNode + ".inputComponents",
-                    *([len(inList)] + inList),
-                    type="componentList"
-                )
-
-    ###################################################################################
-    def orderMelList(self, listInd, onlyStr=True):
-        # listInd = [49, 60, 61, 62, 80, 81, 82, 83, 100, 101, 102, 103, 113, 119, 120, 121, 138, 139, 140, 158, 159, 178, 179, 198, 230, 231, 250, 251, 252, 270, 271, 272, 273, 274, 291, 292, 293, 319, 320, 321, 360,361,362]
-        listInds = []
-        listIndString = []
-        # listIndStringAndCount = []
-
-        it = iter(listInd)
-        currentValue = it.next()
-        while True:
-            try:
-                firstVal = currentValue
-                theVal = firstVal
-                while currentValue == theVal:
-                    currentValue = it.next()
-                    theVal += 1
-                theVal -= 1
-                if firstVal != theVal:
-                    toAppend = [firstVal, theVal]
-                else:
-                    toAppend = [firstVal]
-                if onlyStr:
-                    listIndString.append(":".join(map(unicode, toAppend)))
-                else:
-                    listInds.append(toAppend)
-                # listIndStringAndCount .append ((theStr,theVal - firstVal + 1))
-            except StopIteration:
-                if firstVal != theVal:
-                    toAppend = [firstVal, theVal]
-                else:
-                    toAppend = [firstVal]
-                if onlyStr:
-                    listIndString.append(":".join(map(unicode, toAppend)))
-                else:
-                    listInds.append(toAppend)
-                # listIndStringAndCount .append ((theStr,theVal - firstVal + 1))
-                break
-        if onlyStr:
-            return listIndString
-        else:
-            return listInds
-
-    def getMObject(self, nodeName, returnDagPath=True):
-        # We expect here the fullPath of a shape mesh
-        selList = OpenMaya.MSelectionList()
-        OpenMaya.MGlobal.getSelectionListByName(nodeName, selList)
-        depNode = OpenMaya.MObject()
-        selList.getDependNode(0, depNode)
-
-        if returnDagPath == False:
-            return depNode
-        mshPath = OpenMaya.MDagPath()
-        selList.getDagPath(0, mshPath, depNode)
-        return mshPath
-
-    def fixAroundVertices(self, tolerance=3):
-        with GlobalContext(message="fixAroundVertices", doPrint=True):
-            geometriesOut = OpenMaya.MObjectArray()
-            self.sknFn.getOutputGeometry(geometriesOut)
-            outMesh = OpenMaya.MFnMesh(geometriesOut[0])
-
-            geometriesIn = OpenMaya.MObjectArray()
-            self.sknFn.getInputGeometry(geometriesIn)
-            inMesh = OpenMaya.MFnMesh(geometriesIn[0])
-
-            iterVert = OpenMaya.MItMeshVertex(self.shapePath)
-
-            origVerts = OpenMaya.MFloatPointArray()
-            destVerts = OpenMaya.MFloatPointArray()
-            inMesh.getPoints(origVerts)
-            outMesh.getPoints(destVerts)
-            theVert = 0
-
-            problemVerts = set()
-
-            while not iterVert.isDone():
-                vertices = OpenMaya.MIntArray()
-                iterVert.getConnectedVertices(vertices)
-
-                for i in range(vertices.length()):
-                    connVert = vertices[i]
-                    origDist = origVerts[theVert].distanceTo(origVerts[connVert])
-                    destDist = destVerts[theVert].distanceTo(destVerts[connVert])
-                    if (destDist / origDist) > tolerance:
-                        problemVerts.add(theVert)
-                theVert += 1
-                iterVert.next()
-        problemVerts = list(problemVerts)
-        return problemVerts
-
+    # -------------------------------------------------------------------------------------------
+    # MObject base function --------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
     def getVerticesOrigShape(self, outPut=False):
         # from ctypes import c_float
         # inMesh,= cmds.listConnections(self.theSkinCluster+".input[0].inputGeometry", s=True, d=False, p=False, c=False, scn=True)
@@ -297,126 +74,74 @@ class DataOfSkin(object):
         # self.origVertices [152]
         # cmds.xform (origShape+".vtx [152]", q=True,ws=True, t=True )
 
-    def prepareValuesforSetSkinData(self, chunks, actualyVisibleColumns):
-        # first check if connected  ---------------------------------------------------
-        self.getConnectedBlurskinDisplay(disconnectWeightList=True)
+    # -------------------------------------------------------------------------------------------
+    # functions --------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
+    def smoothSkin(self, selectedIndices, repeat=1, percentMvt=1):
+        # cmds.blurSkinCmd (command = "smooth", repeat = self.smoothBTN.precision, percentMvt = self.percentBTN.precision)
+        rowsSel = []
+        for item in selectedIndices:
+            rowsSel += range(item[0], item[1] + 1)
+        selectedVertices = sorted([self.vertices[ind] for ind in rowsSel])
 
-        # MASK selection array -----------------------------------
-        lstTopBottom = []
-        for top, bottom, left, right in chunks:
-            lstTopBottom.append(top)
-            lstTopBottom.append(bottom)
-        self.Mtop, self.Mbottom = min(lstTopBottom), max(lstTopBottom)
-        # nb rows selected -------------
-        nbRows = self.Mbottom - self.Mtop + 1
-
-        # GET the sub ARRAY ---------------------------------------------------------------------------------
-        # self.sub2DArrayToSet = self.raw2dArray [self.Mtop:self.Mbottom+1,]
-        self.sub2DArrayToSet = self.display2dArray[
-            self.Mtop : self.Mbottom + 1,
-        ]
-        self.orig2dArray = np.copy(self.sub2DArrayToSet)
-
-        # GET the mask ARRAY ---------------------------------------------------------------------------------
-        maskSelection = np.full(self.orig2dArray.shape, False, dtype=bool)
-        for top, bottom, left, right in chunks:
-            maskSelection[top - self.Mtop : bottom - self.Mtop + 1, left : right + 1] = True
-
-        maskOppSelection = ~maskSelection
-        # remove from mask hiddenColumns indices ------------------------------------------------
-        hiddenColumns = np.setdiff1d(self.hideColumnIndices, actualyVisibleColumns)
-        maskSelection[:, hiddenColumns] = False
-        maskOppSelection[:, hiddenColumns] = False
-
-        self.maskColumns = np.full(self.orig2dArray.shape, True, dtype=bool)
-        self.maskColumns[:, hiddenColumns] = False
-        # get the mask of the locks ------------------------------------------
-        self.lockedMask = np.tile(self.lockedColumns, (nbRows, 1))
-        lockedRows = [
-            ind for ind in range(nbRows) if self.vertices[ind + self.Mtop] in self.lockedVertices
-        ]
-        self.lockedMask[lockedRows] = True
-
-        # update mask with Locks  ------------------------------------------------------------------------
-        self.sumMasks = ~np.add(~maskSelection, self.lockedMask)
-        self.nbIndicesSettable = np.sum(self.sumMasks, axis=1)
-        self.rmMasks = ~np.add(~maskOppSelection, self.lockedMask)
-
-        # get normalize values  --------------------------------------------------------------------------
-        toNormalizeTo = np.ma.array(self.orig2dArray, mask=~self.lockedMask, fill_value=0.0)
-        self.toNormalizeToSum = 1.0 - toNormalizeTo.sum(axis=1).filled(0.0)
-
-        # ---------------------------------------------------------------------------------------------
-        # NOW Prepare for settingSkin Cluster ---------------------------------------------------------
-        # ---------------------------------------------------------------------------------------------
-        self.influenceIndices = OpenMaya.MIntArray()
-        self.influenceIndices.setLength(self.nbDrivers)
-        for i in xrange(self.nbDrivers):
-            self.influenceIndices.set(i, i)
-
-        self.indicesVertices = np.array(
-            [self.vertices[indRow] for indRow in xrange(self.Mtop, self.Mbottom + 1)]
-        )
-        self.indicesWeights = np.array(
-            [self.verticesWeight[indRow] for indRow in xrange(self.Mtop, self.Mbottom + 1)]
-        )
-        if self.softOn and (self.isNurbsSurface or self.isLattice):  # revert indices
-            self.indicesVertices = self.indicesVertices[self.opposite_sortedIndices]
-            # self.indicesWeights  = self.indicesWeights  [self.opposite_sortedIndices]
         if self.isNurbsSurface:
-            componentType = OpenMaya.MFn.kSurfaceCVComponent
-            fnComponent = OpenMaya.MFnDoubleIndexedComponent()
-            self.userComponents = fnComponent.create(componentType)
-
-            for indVtx in self.indicesVertices:
-                indexV = int(indVtx % self.numCVsInV_)
-                indexU = int(indVtx / self.numCVsInV_)
-                fnComponent.addElement(indexU, indexV)
+            listCVsIndices = []
+            for indVtx in selectedVertices:
+                indexV = indVtx % self.numCVsInV_
+                indexU = indVtx / self.numCVsInV_
+                listCVsIndices.append((indexU, indexV))
+            cmds.blurSkinCmd(
+                command="smooth",
+                repeat=repeat,
+                percentMvt=percentMvt,
+                meshName=self.deformedShape,
+                listCVsIndices=listCVsIndices,
+            )
         elif self.isLattice:
-            componentType = OpenMaya.MFn.kLatticeComponent
-            fnComponent = OpenMaya.MFnTripleIndexedComponent()
-            self.userComponents = fnComponent.create(componentType)
-            div_s = cmds.getAttr(self.deformedShape + ".sDivisions")
-            div_t = cmds.getAttr(self.deformedShape + ".tDivisions")
-            div_u = cmds.getAttr(self.deformedShape + ".uDivisions")
-            for indVtx in self.indicesVertices:
-                s, t, v = getThreeIndices(div_s, div_t, div_u, indVtx)
-                fnComponent.addElement(s, t, v)
-        else:  # single component
-            if self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve:
-                componentType = OpenMaya.MFn.kCurveCVComponent
-            else:
-                componentType = OpenMaya.MFn.kMeshVertComponent
-            fnComponent = OpenMaya.MFnSingleIndexedComponent()
-            self.userComponents = fnComponent.create(componentType)
-            for ind in self.indicesVertices:
-                fnComponent.addElement(int(ind))
-        lengthArray = self.nbDrivers * (bottom - top + 1)
-        self.newArray = OpenMaya.MDoubleArray()
-        self.newArray.setLength(lengthArray)
+            cmds.blurSkinCmd(command="smooth", repeat=repeat, percentMvt=percentMvt)
+        else:
+            cmds.blurSkinCmd(
+                command="smooth",
+                repeat=repeat,
+                percentMvt=percentMvt,
+                meshName=self.deformedShape,
+                listVerticesIndices=selectedVertices,
+            )
 
-        # set normalize FALSE --------------------------------------------------------
-        cmds.setAttr(self.theSkinCluster + ".normalizeWeights", 0)
+    def fixAroundVertices(self, tolerance=3):
+        with GlobalContext(message="fixAroundVertices", doPrint=True):
+            geometriesOut = OpenMaya.MObjectArray()
+            self.sknFn.getOutputGeometry(geometriesOut)
+            outMesh = OpenMaya.MFnMesh(geometriesOut[0])
 
-    def printArrayData(self, theArr, theMask):
-        # theArr = self.orig2dArray
-        # theMask
-        rows = theArr.shape[0]
-        cols = theArr.shape[1]
-        for x in range(0, rows):
-            toPrint = ""
-            sum = 0.0
-            for y in range(0, cols):
-                if theMask[x, y]:
-                    val = theArr[x, y]
-                    if isinstance(val, np.ma.core.MaskedConstant):
-                        toPrint += " --- |"
-                    else:
-                        toPrint += " {0:.1f} |".format(val * 100)
-                        # toPrint += str(round(val*100, 1))
-                        sum += val
-            toPrint += "  -->  {0} ".format(round(sum * 100, 1))
-            print toPrint
+            geometriesIn = OpenMaya.MObjectArray()
+            self.sknFn.getInputGeometry(geometriesIn)
+            inMesh = OpenMaya.MFnMesh(geometriesIn[0])
+
+            iterVert = OpenMaya.MItMeshVertex(self.shapePath)
+
+            origVerts = OpenMaya.MFloatPointArray()
+            destVerts = OpenMaya.MFloatPointArray()
+            inMesh.getPoints(origVerts)
+            outMesh.getPoints(destVerts)
+            theVert = 0
+
+            problemVerts = set()
+
+            while not iterVert.isDone():
+                vertices = OpenMaya.MIntArray()
+                iterVert.getConnectedVertices(vertices)
+
+                for i in range(vertices.length()):
+                    connVert = vertices[i]
+                    origDist = origVerts[theVert].distanceTo(origVerts[connVert])
+                    destDist = destVerts[theVert].distanceTo(destVerts[connVert])
+                    if (destDist / origDist) > tolerance:
+                        problemVerts.add(theVert)
+                theVert += 1
+                iterVert.next()
+        problemVerts = list(problemVerts)
+        return problemVerts
 
     def normalize(self):
         with GlobalContext(message="normalize", doPrint=True):
@@ -574,16 +299,6 @@ class DataOfSkin(object):
                 type="componentList"
             )
 
-    def undoSymetry(self):
-        tmpUndoValues = OpenMaya.MDoubleArray()
-        if self.undoMirrorValues:
-            prevValues, userComponents, influenceIndices = self.undoMirrorValues.pop()
-            self.sknFn.setWeights(
-                self.shapePath, userComponents, influenceIndices, prevValues, False, tmpUndoValues
-            )
-        else:
-            print "NO MORE SYM UNDO"
-
     def reassignLocally(self):
         # print "reassignLocally"
         with GlobalContext(message="reassignLocally", doPrint=True):
@@ -651,9 +366,7 @@ class DataOfSkin(object):
             normalizedDotProduct = resDot / (lengthVectorB * lengthVectorB)
             normalizedDotProduct = normalizedDotProduct.clip(min=0.0, max=1.0)
             ################################################################################################################
-            ################################################################################################################
             # FINISH #######################################################################################################
-            ################################################################################################################
             ################################################################################################################
             theMask = self.sumMasks
             # now set the values in the array correct if cross product is positive
@@ -859,20 +572,6 @@ class DataOfSkin(object):
                     )
             # cmds.evalDeferred (partial(cmds.connectAttr, self.blurSkinNode+".weightList", self.theSkinCluster+".weightList", f=True))
 
-    def storeUndoStack(self):
-        # add to the Undo stack -----------------------------------------
-        undoArray = np.copy(self.orig2dArray)
-        self.UNDOstack.append(
-            (
-                undoArray,
-                self.sub2DArrayToSet,
-                self.userComponents,
-                self.influenceIndices,
-                self.shapePath,
-                self.sknFn,
-            )
-        )
-
     def actuallySetValue(
         self, theValues, sub2DArrayToSet, userComponents, influenceIndices, shapePath, sknFn
     ):
@@ -909,6 +608,33 @@ class DataOfSkin(object):
             else:
                 self.undoMirrorValues.append([UndoValues, userComponents, influenceIndices])
 
+    # -------------------------------------------------------------------------------------------
+    # undo functions ---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
+    def undoSymetry(self):
+        tmpUndoValues = OpenMaya.MDoubleArray()
+        if self.undoMirrorValues:
+            prevValues, userComponents, influenceIndices = self.undoMirrorValues.pop()
+            self.sknFn.setWeights(
+                self.shapePath, userComponents, influenceIndices, prevValues, False, tmpUndoValues
+            )
+        else:
+            print "NO MORE SYM UNDO"
+
+    def storeUndoStack(self):
+        # add to the Undo stack -----------------------------------------
+        undoArray = np.copy(self.orig2dArray)
+        self.UNDOstack.append(
+            (
+                undoArray,
+                self.sub2DArrayToSet,
+                self.userComponents,
+                self.influenceIndices,
+                self.shapePath,
+                self.sknFn,
+            )
+        )
+
     def callUndo(self):
         if self.UNDOstack:
             if self.verbose:
@@ -919,6 +645,9 @@ class DataOfSkin(object):
             if self.verbose:
                 print "No more undo"
 
+    # -------------------------------------------------------------------------------------------
+    # get data ---------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
     def exposeSkinData(self, inputSkinCluster, indices=[]):
         self.skinClusterObj = self.getMObject(inputSkinCluster, returnDagPath=False)
         self.sknFn = OpenMayaAnim.MFnSkinCluster(self.skinClusterObj)
@@ -1011,23 +740,11 @@ class DataOfSkin(object):
 
         return weights
 
-    def addLockVerticesAttribute(self):
-        if not cmds.attributeQuery("lockedVertices", node=self.deformedShape, exists=True):
-            cmds.addAttr(self.deformedShape, longName="lockedVertices", dataType="Int32Array")
-            # cmds.makePaintable( "mesh", "lockedVertices")
-
-    def getSkinClusterFromSel(self, sel):
-        if sel:
-            hist = cmds.listHistory(sel, lv=0, pruneDagObjects=True)
-            if hist:
-                skinClusters = cmds.ls(hist, type="skinCluster")
-                if skinClusters:
-                    skinCluster = skinClusters[0]
-                    theDeformedShape = cmds.ls(
-                        cmds.listHistory(skinCluster, af=True, f=True), type="shape"
-                    )
-                    return skinCluster, theDeformedShape[0]
-        return "", ""
+    def rebuildRawSkin(self):
+        if self.fullShapeIsUsed:
+            self.rawSkinValues = self.exposeSkinData(self.theSkinCluster)
+        else:
+            self.rawSkinValues = self.exposeSkinData(self.theSkinCluster, indices=self.vertices)
 
     def getSkinClusterValues(self, skinCluster):
         driverNames = cmds.skinCluster(skinCluster, q=True, inf=True)
@@ -1084,50 +801,13 @@ class DataOfSkin(object):
             self.sumArray = self.raw2dArray.sum(axis=1)
 
     def getShortNames(self):
-        self.shortDriverNames = []
+        self.shortColumnsNames = []
         for el in self.driverNames:
             shortName = el.split(":")[-1].split("|")[-1]
             if self.useShortestNames and shortName.startswith("Dfm_"):
                 splt = shortName.split("_")
                 shortName = " ".join(splt[1:])
-            self.shortDriverNames.append(shortName)
-
-    def clearData(self):
-        self.AllWght = []
-        self.theSkinCluster, self.deformedShape, self.shapeShortName = "", "", ""
-        self.isNurbsSurface = False
-        self.blurSkinNode = ""
-
-        self.softIsReallyOn = cmds.softSelect(q=True, softSelectEnabled=True)
-        self.softOn = self.softIsReallyOn
-        self.prevSoftSel = cmds.softSelect(q=True, softSelectDistance=True)
-
-        self.vertices = []
-        self.verticesWeight = []
-        self.driverNames = []
-        self.indicesJoints = []
-        self.nbDrivers = 0
-        self.shortDriverNames = []
-        self.rowText = []
-        self.skinningMethod = ""
-        self.normalizeWeights = []
-
-        # for soft order ----------------
-        self.sortedIndices = []
-        self.opposite_sortedIndices = []
-
-        self.lockedColumns = []
-        self.lockedVertices = []
-
-        self.rowCount = 0
-        self.columnCount = 0
-
-        self.usedDeformersIndices = []
-        self.hideColumnIndices = []
-        self.fullShapeIsUsed = False
-
-        self.UNDOstack = []
-        self.undoMirrorValues = []
+            self.shortColumnsNames.append(shortName)
 
     def getConnectedBlurskinDisplay(self, disconnectWeightList=False):
         self.blurSkinNode = ""
@@ -1153,72 +833,46 @@ class DataOfSkin(object):
                 return self.blurSkinNode
         return ""
 
-    preSel = ""
+    # -------------------------------------------------------------------------------------------
+    # redefine abstract data functions ---------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
+    def clearData(self):
+        super(DataOfSkin, self).clearData()
+        self.AllWght = []
+        self.theSkinCluster = ""
+        self.blurSkinNode = ""
+
+        self.driverNames = []
+        self.indicesJoints = []
+        self.nbDrivers = 0
+        self.skinningMethod = ""
+        self.normalizeWeights = []
+
+        self.UNDOstack = []
+        self.undoMirrorValues = []
 
     def getAllData(self, displayLocator=True, getskinWeights=True, force=True, inputVertices=None):
-        if inputVertices != None:
-            inputVertices = map(int, inputVertices)
-        # print inputVertices
-        sel = cmds.ls(sl=True)
-
-        theSkinCluster, deformedShape = self.getSkinClusterFromSel(sel)
-        if not theSkinCluster:
-            return False
-        # check if reloading is necessary
-        # isPreloaded = theSkinCluster == self.theSkinCluster and   deformedShape == self.deformedShape # same selection as before
-        softOn = cmds.softSelect(q=True, softSelectEnabled=True)
-        prevSoftSel = cmds.softSelect(q=True, softSelectDistance=True)
-        isPreloaded = (
-            self.preSel == sel and prevSoftSel == self.prevSoftSel and softOn == self.softIsReallyOn
+        success = self.getDataFromSelection(
+            typeOfDeformer="skinCluster", force=force, inputVertices=inputVertices
         )
-
-        self.preSel = sel
-        self.prevSoftSel = prevSoftSel
-        self.softOn = softOn
-        self.softIsReallyOn = softOn
-        # self.theSkinCluster == theSkinCluster and self.deformedShape == deformedShape
-        if not force and isPreloaded:
+        if not success:
             return False
+        else:
+            self.theSkinCluster = self.theDeformer
 
-        self.theSkinCluster, self.deformedShape = theSkinCluster, deformedShape
-        self.shapeShortName = (
-            cmds.listRelatives(deformedShape, p=True)[0].split(":")[-1].split("|")[-1]
-        )
-        splt = self.shapeShortName.split("_")
-        if len(splt) > 5:
-            self.shapeShortName = "_".join(splt[-7:-4])
-
-        self.raw2dArray = None
-
-        if not theSkinCluster:
-            self.clearData()
-            return False
-        # get orig vertices -------------------------------
+        # get skin infos vertices -------------------------------
         self.driverNames, self.skinningMethod, self.normalizeWeights = self.getSkinClusterValues(
             self.theSkinCluster
         )
         self.getShortNames()
         self.nbDrivers = len(self.driverNames)
-        (deformedShape_longName,) = cmds.ls(deformedShape, l=True)
 
+        self.columnsNames = self.driverNames
+
+        # use vertex selection  -------------------------------
         with GlobalContext(message="rawSkinValues", doPrint=self.verbose):
-            dicOfSel = getSoftSelectionValuesNEW()
-            res = dicOfSel[deformedShape_longName] if deformedShape_longName in dicOfSel else []
-            if inputVertices != None:
-                res = inputVertices
-            if isinstance(res, tuple):
-                self.vertices, self.verticesWeight = res
-                arr = np.argsort(self.verticesWeight)
-                self.sortedIndices = arr[::-1]
-                self.opposite_sortedIndices = np.argsort(self.sortedIndices)
-                # do the sorting
-                self.vertices = [self.vertices[ind] for ind in self.sortedIndices]
-                self.verticesWeight = [self.verticesWeight[ind] for ind in self.sortedIndices]
-            else:
-                self.vertices = res
-                self.verticesWeight = [1.0] * len(self.vertices)
-                self.sortedIndices = range(len(self.vertices))
-                self.opposite_sortedIndices = range(len(self.vertices))
+            self.getSoftSelectionVertices(inputVertices=inputVertices)
+
             if not self.vertices:
                 self.vertices = cmds.getAttr(
                     "{0}.weightList".format(self.theSkinCluster), multiIndices=True
@@ -1239,34 +893,11 @@ class DataOfSkin(object):
             # print "rawSkinValues length : {0}" .format (self.rawSkinValues.length())
             if not getskinWeights:
                 return True
-        isMesh = (
-            "shapePath" in self.__dict__
-            and self.shapePath != None
-            and self.shapePath.apiType() == OpenMaya.MFn.kMesh
-        )
-        # if displayLocator and (isMesh or self.isNurbsSurface) : self.connectDisplayLocator ()
+        # isMesh = "shapePath" in self.__dict__ and self.shapePath !=None and self.shapePath.apiType() == OpenMaya.MFn.kMesh
         if displayLocator:
             self.connectDisplayLocator()
+        self.createRowText()
 
-        if self.isNurbsSurface:
-            self.rowText = []
-            for indVtx in self.vertices:
-                indexV = indVtx % self.numCVsInV_
-                indexU = indVtx / self.numCVsInV_
-                # vertInd = self.numCVsInV_ * indexU + indexV
-                self.rowText.append(" {0} - {1} ".format(indexU, indexV))
-        elif self.isLattice:
-            self.rowText = []
-            div_s = cmds.getAttr(self.deformedShape + ".sDivisions")
-            div_t = cmds.getAttr(self.deformedShape + ".tDivisions")
-            div_u = cmds.getAttr(self.deformedShape + ".uDivisions")
-            for indVtx in self.vertices:
-                s, t, u = getThreeIndices(div_s, div_t, div_u, indVtx)
-                self.rowText.append(" {0} - {1} - {2} ".format(s, t, u))
-        else:
-            self.rowText = [
-                " {0} ".format(ind) for ind in self.vertices
-            ]  # map (str, self.vertices)
         self.hideColumnIndices = []
         self.usedDeformersIndices = range(self.nbDrivers)
 
@@ -1277,61 +908,84 @@ class DataOfSkin(object):
         self.getZeroColumns()
         return True
 
-    def smoothSkin(self, selectedIndices, repeat=1, percentMvt=1):
-        # cmds.blurSkinCmd (command = "smooth", repeat = self.smoothBTN.precision, percentMvt = self.percentBTN.precision)
-        rowsSel = []
-        for item in selectedIndices:
-            rowsSel += range(item[0], item[1] + 1)
-        selectedVertices = sorted([self.vertices[ind] for ind in rowsSel])
+    def preSettingValuesFn(self, chunks, actualyVisibleColumns):
+        # first check if connected  ---------------------------------------------------
+        self.getConnectedBlurskinDisplay(disconnectWeightList=True)
+
+        super(DataOfSkin, self).preSettingValuesFn(chunks, actualyVisibleColumns)
+
+        # get normalize values  --------------------------------------------------------------------------
+        toNormalizeTo = np.ma.array(self.orig2dArray, mask=~self.lockedMask, fill_value=0.0)
+        self.toNormalizeToSum = 1.0 - toNormalizeTo.sum(axis=1).filled(0.0)
+
+        # ---------------------------------------------------------------------------------------------
+        # NOW Prepare for settingSkin Cluster ---------------------------------------------------------
+        # ---------------------------------------------------------------------------------------------
+        self.influenceIndices = OpenMaya.MIntArray()
+        self.influenceIndices.setLength(self.nbDrivers)
+        for i in xrange(self.nbDrivers):
+            self.influenceIndices.set(i, i)
 
         if self.isNurbsSurface:
-            listCVsIndices = []
-            for indVtx in selectedVertices:
-                indexV = indVtx % self.numCVsInV_
-                indexU = indVtx / self.numCVsInV_
-                listCVsIndices.append((indexU, indexV))
-            cmds.blurSkinCmd(
-                command="smooth",
-                repeat=repeat,
-                percentMvt=percentMvt,
-                meshName=self.deformedShape,
-                listCVsIndices=listCVsIndices,
-            )
+            componentType = OpenMaya.MFn.kSurfaceCVComponent
+            fnComponent = OpenMaya.MFnDoubleIndexedComponent()
+            self.userComponents = fnComponent.create(componentType)
+
+            for indVtx in self.indicesVertices:
+                indexV = int(indVtx % self.numCVsInV_)
+                indexU = int(indVtx / self.numCVsInV_)
+                fnComponent.addElement(indexU, indexV)
         elif self.isLattice:
-            cmds.blurSkinCmd(command="smooth", repeat=repeat, percentMvt=percentMvt)
-        else:
-            cmds.blurSkinCmd(
-                command="smooth",
-                repeat=repeat,
-                percentMvt=percentMvt,
-                meshName=self.deformedShape,
-                listVerticesIndices=selectedVertices,
-            )
+            componentType = OpenMaya.MFn.kLatticeComponent
+            fnComponent = OpenMaya.MFnTripleIndexedComponent()
+            self.userComponents = fnComponent.create(componentType)
+            div_s = cmds.getAttr(self.deformedShape + ".sDivisions")
+            div_t = cmds.getAttr(self.deformedShape + ".tDivisions")
+            div_u = cmds.getAttr(self.deformedShape + ".uDivisions")
+            for indVtx in self.indicesVertices:
+                s, t, v = getThreeIndices(div_s, div_t, div_u, indVtx)
+                fnComponent.addElement(s, t, v)
+        else:  # single component
+            if self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve:
+                componentType = OpenMaya.MFn.kCurveCVComponent
+            else:
+                componentType = OpenMaya.MFn.kMeshVertComponent
+            fnComponent = OpenMaya.MFnSingleIndexedComponent()
+            self.userComponents = fnComponent.create(componentType)
+            for ind in self.indicesVertices:
+                fnComponent.addElement(int(ind))
+        # lengthArray = self.nbDrivers * (bottom - top +1)
+        lengthArray = self.nbDrivers * (self.Mbottom - self.Mtop + 1)
+        self.newArray = OpenMaya.MDoubleArray()
+        self.newArray.setLength(lengthArray)
 
-    def rebuildRawSkin(self):
-        if self.fullShapeIsUsed:
-            self.rawSkinValues = self.exposeSkinData(self.theSkinCluster)
-        else:
-            self.rawSkinValues = self.exposeSkinData(self.theSkinCluster, indices=self.vertices)
+        # set normalize FALSE --------------------------------------------------------
+        cmds.setAttr(self.theSkinCluster + ".normalizeWeights", 0)
 
+    def getValue(self, row, column):
+        return self.display2dArray[row][column] if column < self.nbDrivers else self.sumArray[row]
+        # return self.raw2dArray [row][column] if column < self.nbDrivers else self.sumArray [row]
+
+    def setValue(self, row, column, value):
+        vertexIndex = self.vertices[row]
+        deformerName = self.driverNames[column]
+        theVtx = "{0}.vtx[{1}]".format(self.deformedShape, vertexIndex)
+        if self.verbose:
+            print self.theSkinCluster, theVtx, deformerName, value
+        # cmds.skinPercent( self.theSkinCluster,theVtx, transformValue=(deformerName, float (value)), normalize = True)
+
+    # -------------------------------------------------------------------------------------------
+    # ------ locks -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
     def getLocksInfo(self):
-        self.lockedColumns = []
-        self.lockedVertices = []
+        super(DataOfSkin, self).getLocksInfo()
 
+        self.lockedColumns = []
         for driver in self.driverNames:
             isLocked = False
             if cmds.attributeQuery("lockInfluenceWeights", node=driver, exists=True):
                 isLocked = cmds.getAttr(driver + ".lockInfluenceWeights")
             self.lockedColumns.append(isLocked)
-        # now vertices ------------------
-        self.addLockVerticesAttribute()
-        self.lockedVertices = cmds.getAttr(self.deformedShape + ".lockedVertices") or []
-
-    def isLocked(self, row, columnIndex):
-        return self.isColumnLocked(columnIndex) or self.isRowLocked(row)
-
-    def isRowLocked(self, row):
-        return self.vertices[row] in self.lockedVertices
 
     def isColumnLocked(self, columnIndex):
         return columnIndex >= self.nbDrivers or self.lockedColumns[columnIndex]
@@ -1347,6 +1001,18 @@ class DataOfSkin(object):
                     cmds.setAttr(driver + ".lockInfluenceWeights", doLock)
                     self.lockedColumns[column] = doLock
 
+    def lockRows(self, selectedIndices, doLock=True):
+        super(DataOfSkin, self).lockRows(selectedIndices, doLock=doLock)
+
+        if not self.blurSkinNode or not cmds.objExists(self.blurSkinNode):
+            self.getConnectedBlurskinDisplay()
+        if self.blurSkinNode and cmds.objExists(self.blurSkinNode):
+            cmds.setAttr(self.blurSkinNode + ".getLockWeights", True)
+            # update
+
+    # -------------------------------------------------------------------------------------------
+    # ------ selection  ------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
     def selectDeformers(self, selectedIndices):
         toSel = [
             self.driverNames[column]
@@ -1408,39 +1074,9 @@ class DataOfSkin(object):
         # mel.eval ("select -r " + " ".join(toSel))
         cmds.select(toSel, r=True)
 
-    def unLockRows(self, selectedIndices):
-        self.lockRows(selectedIndices, doLock=False)
-
-    def lockRows(self, selectedIndices, doLock=True):
-        lockVtx = cmds.getAttr(self.deformedShape + ".lockedVertices") or []
-        lockVtx = set(lockVtx)
-
-        selectedVertices = set([self.vertices[ind] for ind in selectedIndices])
-        if doLock:
-            lockVtx.update(selectedVertices)
-        else:
-            lockVtx.difference_update(selectedVertices)
-
-        self.lockedVertices = sorted(list(lockVtx))
-        cmds.setAttr(self.deformedShape + ".lockedVertices", self.lockedVertices, type="Int32Array")
-        if not self.blurSkinNode or not cmds.objExists(self.blurSkinNode):
-            self.getConnectedBlurskinDisplay()
-        if self.blurSkinNode and cmds.objExists(self.blurSkinNode):
-            cmds.setAttr(self.blurSkinNode + ".getLockWeights", True)
-            # update
-
-    def getValue(self, row, column):
-        return self.display2dArray[row][column] if column < self.nbDrivers else self.sumArray[row]
-        # return self.raw2dArray [row][column] if column < self.nbDrivers else self.sumArray [row]
-
-    def setValue(self, row, column, value):
-        vertexIndex = self.vertices[row]
-        deformerName = self.driverNames[column]
-        theVtx = "{0}.vtx[{1}]".format(self.deformedShape, vertexIndex)
-        if self.verbose:
-            print self.theSkinCluster, theVtx, deformerName, value
-        # cmds.skinPercent( self.theSkinCluster,theVtx, transformValue=(deformerName, float (value)), normalize = True)
-
+    # -------------------------------------------------------------------------------------------
+    # callBacks --------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
     def renameCB(self, oldName, newName):
         # print "weightEditor call back is Invoked : -{}-  to -{}- ".format (oldName, newName)
         if oldName in self.driverNames:

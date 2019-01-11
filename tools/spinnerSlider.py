@@ -197,7 +197,7 @@ class ValueSettingWE(ValueSetting):
         return self.mainWindow.doAddValue(theVal)
 
     def postSet(self):
-        return self.mainWindow.dataOfSkin.postSkinSet()
+        return self.mainWindow.postSetValue()
 
 
 class ProgressItem(QtWidgets.QProgressBar):

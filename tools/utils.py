@@ -2,13 +2,9 @@ from maya import cmds
 import time, datetime
 from maya import OpenMaya
 
-###################################################################################
-#
-#   Global FUNCTIONS
-#
-###################################################################################
-
-
+# -------------------------------------------------------------------------------------------
+# ------------------------ global functions -------------------------------------------------
+# -------------------------------------------------------------------------------------------
 class GlobalContext(object):
     def __init__(
         self,
@@ -68,12 +64,9 @@ class toggleBlockSignals(object):
             widg.blockSignals(False)
 
 
-def deleteTheJobs(toSearch="BrushFunctions.callAfterPaint"):
-    res = cmds.scriptJob(listJobs=True)
-    for job in res:
-        if toSearch in job:
-            jobIndex = int(job.split(":")[0])
-            cmds.scriptJob(kill=jobIndex)
+# -------------------------------------------------------------------------------------------
+# ------------------------ softSelections ---------------------------------------------------
+# -------------------------------------------------------------------------------------------
 
 
 def getSoftSelectionValues():
@@ -384,7 +377,17 @@ def getComponentIndexList(componentList=[]):
     return componentIndexList
 
 
-# ------------------------ callBacks ------------------------------------------------
+# -------------------------------------------------------------------------------------------
+# ------------------------ callBacks --------------------------------------------------------
+# -------------------------------------------------------------------------------------------
+def deleteTheJobs(toSearch="BrushFunctions.callAfterPaint"):
+    res = cmds.scriptJob(listJobs=True)
+    for job in res:
+        if toSearch in job:
+            jobIndex = int(job.split(":")[0])
+            cmds.scriptJob(kill=jobIndex)
+
+
 def addNameChangedCallback(callback):
     def omcallback(mobject, oldname, _):  # (1)
         newname = OpenMaya.MFnDependencyNode(mobject).name()
