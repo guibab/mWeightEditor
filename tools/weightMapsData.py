@@ -26,6 +26,7 @@ cmds.setAttr ("blendShape1.inputTarget[0].baseWeights[0:2]",*values, size=len(va
 
 class DataOfBlendShape(DataAbstract):
     verbose = False
+    useAPI = True  # for setting values use API
 
     def __init__(self, useShortestNames=False, hideZeroColumn=True, createDisplayLocator=True):
         self.useShortestNames = useShortestNames
@@ -79,41 +80,84 @@ class DataOfBlendShape(DataAbstract):
         else:
             return [], []
 
-    def getBlendShapeValues(self):
+    def getBlendShapeValues(self, indices=[]):
         nbAttrs = len(self.listAttrs)
         # initialize array at 1.0
-        self.raw2dArray = np.full((self.nbVertices, nbAttrs), 1.0)
-        """
-        indices = [10L,15L,32L]
-        values = [0.1,0.3,0.4]
-        arr [indices,1] = values
-        """
+        fullBlendShapeArr = np.full((self.nbVertices, nbAttrs), 1.0)
         with GlobalContext():
             for indAtt, att in enumerate(self.listAttrs):
-                indices = cmds.getAttr(att, mi=True)
-                if indices:
+                indicesAtt = cmds.getAttr(att, mi=True)
+                if indicesAtt:
                     values = cmds.getAttr(att)[0]
-                    self.raw2dArray[indices, indAtt] = values
+                    fullBlendShapeArr[indicesAtt, indAtt] = values
+        # self.printArrayData (fullBlendShapeArr)
+        if indices:
+            if self.softOn:
+                revertSortedIndices = np.array(indices)[self.opposite_sortedIndices]
+            else:
+                revertSortedIndices = indices
+            self.raw2dArray = fullBlendShapeArr[
+                revertSortedIndices,
+            ]
+        else:
+            self.raw2dArray = fullBlendShapeArr
+        # self.printArrayData (self.raw2dArray)
         # ---- reorder --------------------------------------------
         if self.softOn:  # order with indices
             self.display2dArray = self.raw2dArray[self.sortedIndices]
         else:
             self.display2dArray = self.raw2dArray
 
-    def setBlendShapeValue(self, att):
-        weights = [1.0] * count
+    def setValueInDeformer(self, new2dArray):
+        absValues = np.ma.array(new2dArray, mask=~self.sumMasks, fill_value=0)
+        # self.printArrayData (absValues)
+        editedColumns = np.any(self.sumMasks, axis=0)
 
-        MSel = OpenMaya2.MSelectionList()
-        MSel.add(att)
+        rows = absValues.shape[0]
+        for (colIndex,), isColumnChanged in np.ndenumerate(editedColumns):
+            if isColumnChanged:
+                # print colIndex, self.Mtop
+                # build array to set
+                vertsIndices, weights = [], []
+                for (rowIndex,), val in np.ndenumerate(absValues[:, colIndex]):
+                    if self.sumMasks[rowIndex, colIndex]:
+                        # print rowIndex, val
+                        vertIndex = self.Mtop + rowIndex
+                        vertsIndices.append(vertIndex)
+                        weights.append(val)
+                self.setBlendShapeValue(self.listAttrs[colIndex], vertsIndices, weights)
 
-        plg2 = MSel.getPlug(0)
-        ids = plg2.getExistingArrayAttributeIndices()
-        count = len(ids)
+    def setBlendShapeValue(self, att, vertsIndices, weights):
+        if self.useAPI:
+            MSel = OpenMaya2.MSelectionList()
+            MSel.add(att)
 
-        with GlobalContext():
-            for i in xrange(count):
-                plg2.elementByLogicalIndex(i).setFloat(weights[i])
-        # elementByLogicalIndex  faster than elementByPhysicalIndex
+            plg2 = MSel.getPlug(0)
+            # ids = plg2.getExistingArrayAttributeIndices()
+            # count = len (ids)
+            with GlobalContext():
+                for i, indVtx in enumerate(vertsIndices):
+                    plg2.elementByLogicalIndex(indVtx).setFloat(weights[i])
+            # elementByLogicalIndex  faster than elementByPhysicalIndex
+        else:
+            # need an undo Context
+            res = self.orderMelList(vertsIndices, onlyStr=False)
+            print res
+            return
+            """
+            for compactedVals in res:
+                if len (compactedVals) >1 : 
+                    start, finish = compactedVals
+                    length = finish - start + 1
+                    values = weights[]
+                    cmds.setAttr (att +"[{0}:{1}]".format (start, finish),*values, size=length)
+                #else : 
+            """
+            """
+            nbVertices = cmds.polyEvaluate( msh , vertex = True)
+            values = [1]*nbVertices
+            cmds.setAttr (att +"[*]",*values, size=len(values))
+            """
 
     # -------------------------------------------------------------------------------------------
     # redefine abstract data functions ---------------------------------------------------------
@@ -140,8 +184,6 @@ class DataOfBlendShape(DataAbstract):
         self.shortColumnsNames, self.listAttrs = self.getBlendShapesAttributes(
             self.BSnode, self.deformedShape
         )
-        # get blendShapes weights values
-        self.getBlendShapeValues()
 
         if displayLocator:
             self.connectDisplayLocator()
@@ -156,8 +198,14 @@ class DataOfBlendShape(DataAbstract):
             self.fullShapeIsUsed = True
         else:
             self.fullShapeIsUsed = False
+        # get blendShapes weights values
+        if self.vertices:
+            self.getBlendShapeValues(indices=self.vertices)
+        else:
+            self.getBlendShapeValues()
+
         self.createRowText()
-        self.rowCount = self.nbVertices
+        self.rowCount = len(self.vertices)  # self.nbVertices
         self.columnCount = len(self.listAttrs)
 
         self.getLocksInfo()

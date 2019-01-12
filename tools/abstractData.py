@@ -45,19 +45,23 @@ class DataAbstract(object):
         if cmds.ls("MSkinWeightEditorDisplay*"):
             cmds.delete(cmds.ls("MSkinWeightEditorDisplay*"))
         self.pointsDisplayTrans = cmds.createNode("transform", n="MSkinWeightEditorDisplay")
+
         pointsDisplayNode = cmds.createNode("pointsDisplay", p=self.pointsDisplayTrans)
-        nurbsConnected = cmds.createNode("nurbsSurface", p=self.pointsDisplayTrans)
-        curveConnected = cmds.createNode("nurbsCurve", p=self.pointsDisplayTrans)
-        meshConnected = cmds.createNode("mesh", p=self.pointsDisplayTrans)
-        for nd in [nurbsConnected, meshConnected, curveConnected]:
-            cmds.setAttr(nd + ".v", False)
-            cmds.setAttr(nd + ".ihi", False)
-        # cmds.connectAttr (nurbsConnected+".worldSpace", pointsDisplayNode+".inGeometry", f=True)
-        # cmds.connectAttr (meshConnected+".outMesh", pointsDisplayNode+".inMesh", f=True)
-        # cmds.connectAttr (meshConnected+".outMesh", pointsDisplayNode+".inGeometry", f=True)
+        """
+        nurbsConnected = cmds.createNode ("nurbsSurface", p=self.pointsDisplayTrans)
+        curveConnected = cmds.createNode ("nurbsCurve", p=self.pointsDisplayTrans)
+        meshConnected = cmds.createNode ("mesh", p=self.pointsDisplayTrans)
+        for nd in [nurbsConnected, meshConnected, curveConnected] : 
+            cmds.setAttr (nd+".v", False)
+            cmds.setAttr (nd+".ihi", False)
+        #cmds.connectAttr (nurbsConnected+".worldSpace", pointsDisplayNode+".inGeometry", f=True)
+        #cmds.connectAttr (meshConnected+".outMesh", pointsDisplayNode+".inMesh", f=True)
+        #cmds.connectAttr (meshConnected+".outMesh", pointsDisplayNode+".inGeometry", f=True)
+        """
 
         cmds.setAttr(pointsDisplayNode + ".pointWidth", 5)
         cmds.setAttr(pointsDisplayNode + ".inputColor", 0.0, 1.0, 1.0)
+
         """
         for nd in [self.pointsDisplayTrans,pointsDisplayNode, meshConnected, nurbsConnected, curveConnected] : 
             cmds.setAttr (nd+".hiddenInOutliner", True)
@@ -286,25 +290,27 @@ class DataAbstract(object):
     # -------------------------------------------------------------------------------------------
     # functions for numpy ----------------------------------------------------------------------
     # -------------------------------------------------------------------------------------------
-    def printArrayData(self, theArr, theMask):
+    def printArrayData(self, theArr):  # , theMask) :
         # theArr = self.orig2dArray
         # theMask
         rows = theArr.shape[0]
         cols = theArr.shape[1]
+        print "\n"
         for x in range(0, rows):
             toPrint = ""
             sum = 0.0
             for y in range(0, cols):
-                if theMask[x, y]:
-                    val = theArr[x, y]
-                    if isinstance(val, np.ma.core.MaskedConstant):
-                        toPrint += " --- |"
-                    else:
-                        toPrint += " {0:.1f} |".format(val * 100)
-                        # toPrint += str(round(val*100, 1))
-                        sum += val
+                # if theMask[x,y] :
+                val = theArr[x, y]
+                if isinstance(val, np.ma.core.MaskedConstant):
+                    toPrint += " --- |"
+                else:
+                    toPrint += " {0:.1f} |".format(val * 100)
+                    # toPrint += str(round(val*100, 1))
+                    sum += val
             toPrint += "  -->  {0} ".format(round(sum * 100, 1))
             print toPrint
+        print "\n"
 
     # -------------------------------------------------------------------------------------------
     # get the data ------------------------------------------------
@@ -384,6 +390,27 @@ class DataAbstract(object):
     # -------------------------------------------------------------------------------------------
     # values setting ---------------------------------------------------------------------------
     # -------------------------------------------------------------------------------------------
+    def absoluteVal(self, val):
+        with GlobalContext(message="absoluteVal", doPrint=self.verbose):
+            new2dArray = np.copy(self.orig2dArray)
+            absValues = np.full(self.orig2dArray.shape, val)
+
+            np.copyto(new2dArray, absValues, where=self.sumMasks)
+            if self.softOn:  # mult soft Value
+                new2dArray = (
+                    new2dArray * self.indicesWeights[:, np.newaxis]
+                    + self.orig2dArray * (1.0 - self.indicesWeights)[:, np.newaxis]
+                )
+            self.setValueInDeformer(new2dArray)
+
+            if self.sub2DArrayToSet != None:
+                np.put(self.sub2DArrayToSet, xrange(self.sub2DArrayToSet.size), new2dArray)
+        # set Value ------------------------------------------------
+        # self.actuallySetValue  (new2dArray, self.sub2DArrayToSet, self.userComponents, self.influenceIndices, self.shapePath, self.sknFn)
+
+    def setValueInDeformer(self):
+        pass
+
     def preSettingValuesFn(self, chunks, actualyVisibleColumns):
         # MASK selection array -----------------------------------
         lstTopBottom = []
@@ -414,6 +441,7 @@ class DataAbstract(object):
 
         self.maskColumns = np.full(self.orig2dArray.shape, True, dtype=bool)
         self.maskColumns[:, hiddenColumns] = False
+
         # get the mask of the locks ------------------------------------------
         self.lockedMask = np.tile(self.lockedColumns, (nbRows, 1))
         lockedRows = [

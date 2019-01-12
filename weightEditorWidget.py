@@ -544,7 +544,7 @@ class SkinWeightWin(Window):
 
             self._tm.endResetModel()
             self.setColumnVisSize()
-            if not resultData:
+            if not resultData and self.dataOfDeformer.isSkinData:
                 self.highlightSelectedDeformers()
             self._tv.selEmptied.emit(False)
             self._tv.repaint()
@@ -653,9 +653,12 @@ class SkinWeightWin(Window):
         self._tm.beginResetModel()
 
         if self.valueSetter.addMode and not forceAbsolute:
-            self.dataOfDeformer.setSkinData(
-                val, percent=self.addPercentage, autoPrune=self.autoPrune, average=average
-            )
+            if self.dataOfDeformer.isSkinData:
+                self.dataOfDeformer.setSkinData(
+                    val, percent=self.addPercentage, autoPrune=self.autoPrune, average=average
+                )
+            else:
+                print "to implement Add, use Absolute"
         else:
             self.dataOfDeformer.absoluteVal(val)
 
