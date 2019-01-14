@@ -108,21 +108,20 @@ class DataOfBlendShape(DataAbstract):
         else:
             self.display2dArray = self.raw2dArray
 
-    def setValueInDeformer(self, new2dArray):
-        absValues = np.ma.array(new2dArray, mask=~self.sumMasks, fill_value=0)
-        # self.printArrayData (absValues)
+    def setValueInDeformer(self, arrayForSetting):
+        # self.printArrayData (arrayForSetting)
         editedColumns = np.any(self.sumMasks, axis=0)
-
-        rows = absValues.shape[0]
+        rows = arrayForSetting.shape[0]
         for (colIndex,), isColumnChanged in np.ndenumerate(editedColumns):
             if isColumnChanged:
                 # print colIndex, self.Mtop
                 # build array to set
                 vertsIndices, weights = [], []
-                for (rowIndex,), val in np.ndenumerate(absValues[:, colIndex]):
+                for (rowIndex,), val in np.ndenumerate(arrayForSetting[:, colIndex]):
                     if self.sumMasks[rowIndex, colIndex]:
                         # print rowIndex, val
-                        vertIndex = self.Mtop + rowIndex
+                        vertIndex = self.vertices[self.Mtop + rowIndex]
+
                         vertsIndices.append(vertIndex)
                         weights.append(val)
                 self.setBlendShapeValue(self.listAttrs[colIndex], vertsIndices, weights)

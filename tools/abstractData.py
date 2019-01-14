@@ -405,9 +405,32 @@ class DataAbstract(object):
 
             if self.sub2DArrayToSet != None:
                 np.put(self.sub2DArrayToSet, xrange(self.sub2DArrayToSet.size), new2dArray)
-        # set Value ------------------------------------------------
-        # self.actuallySetValue  (new2dArray, self.sub2DArrayToSet, self.userComponents, self.influenceIndices, self.shapePath, self.sknFn)
 
+    def doAdd(self, val, percent=False, autoPrune=False, average=False, autoPruneValue=0.0001):
+        with GlobalContext(message="absoluteVal", doPrint=self.verbose):
+            new2dArray = np.copy(self.orig2dArray)
+
+            absValues = np.full(self.orig2dArray.shape, val)
+            if self.softOn:  # mult soft Value
+                absValues = absValues * self.indicesWeights[:, np.newaxis]
+            # now sum :
+            sumArray = new2dArray + absValues
+            sumArray = sumArray.clip(min=0.0, max=1.0)
+
+            np.copyto(new2dArray, sumArray, where=self.sumMasks)
+
+            # self.printArrayData (new2dArray)
+            """
+            arrayForSetting = np.ma.array(new2dArray , mask = ~self.sumMasks, fill_value = 0 )
+            if self.softOn :
+                arrayForSetting = np.copy (arrayForSetting[self.opposite_sortedIndices])            
+            """
+            self.setValueInDeformer(new2dArray)
+
+            if self.sub2DArrayToSet != None:
+                np.put(self.sub2DArrayToSet, xrange(self.sub2DArrayToSet.size), new2dArray)
+
+    # set Value ------------------------------------------------
     def setValueInDeformer(self):
         pass
 
@@ -493,6 +516,61 @@ class DataAbstract(object):
             self.rowText = [
                 " {0} ".format(ind) for ind in self.vertices
             ]  # map (str, self.vertices)
+
+    # -------------------------------------------------------------------------------------------
+    # ------ selection  ------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------
+    def getZeroRows(self, selectedColumns):
+        res = self.display2dArray[:, selectedColumns]
+        myAny = np.any(res, axis=1)
+        noneZeroRows = np.where(myAny)[0]
+        zeroRows = np.where(~myAny)[0]
+        return noneZeroRows
+
+    def selectVertsOfColumns(self, selectedColumns, doSelect=True):
+        selectedIndices = self.getZeroRows(selectedColumns)
+
+        # print doSelect,  selectedColumns, selectedIndices
+        if doSelect:
+            self.selectVerts(selectedIndices)
+        else:
+            self.updateDisplayVerts(selectedIndices)
+
+    def selectVerts(self, selectedIndices):
+        selectedVertices = set([self.vertices[ind] for ind in selectedIndices])
+        if not selectedVertices:
+            cmds.select(clear=True)
+            return
+        # print selectedVertices
+
+        if self.isNurbsSurface:
+            toSel = []
+            for indVtx in selectedVertices:
+                indexV = indVtx % self.numCVsInV_
+                indexU = indVtx / self.numCVsInV_
+                toSel += ["{0}.cv[{1}][{2}]".format(self.deformedShape, indexU, indexV)]
+        elif self.isLattice:
+            toSel = []
+            div_s = cmds.getAttr(self.deformedShape + ".sDivisions")
+            div_t = cmds.getAttr(self.deformedShape + ".tDivisions")
+            div_u = cmds.getAttr(self.deformedShape + ".uDivisions")
+            prt = (
+                cmds.listRelatives(self.deformedShape, p=True, path=True)[0]
+                if cmds.nodeType(self.deformedShape) == "lattice"
+                else self.deformedShape
+            )
+            for indVtx in self.vertices:
+                s, t, u = getThreeIndices(div_s, div_t, div_u, indVtx)
+                toSel += ["{0}.pt[{1}][{2}][{3}]".format(prt, s, t, u)]
+        else:
+            toSel = self.orderMelList(selectedVertices, onlyStr=True)
+            if cmds.nodeType(self.deformedShape) == "mesh":
+                toSel = ["{0}.vtx[{1}]".format(self.deformedShape, vtx) for vtx in toSel]
+            else:  # nurbsCurve
+                toSel = ["{0}.cv[{1}]".format(self.deformedShape, vtx) for vtx in toSel]
+        # print toSel
+        # mel.eval ("select -r " + " ".join(toSel))
+        cmds.select(toSel, r=True)
 
     # -------------------------------------------------------------------------------------------
     # locks ------------------------------------------------------------------------------------

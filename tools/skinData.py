@@ -800,7 +800,7 @@ class DataOfSkin(DataAbstract):
         if self.raw2dArray != None:
             self.sumArray = self.raw2dArray.sum(axis=1)
 
-    def getShortNames(self):
+    def getDriversShortNames(self):
         self.shortColumnsNames = []
         for el in self.driverNames:
             shortName = el.split(":")[-1].split("|")[-1]
@@ -864,7 +864,7 @@ class DataOfSkin(DataAbstract):
         self.driverNames, self.skinningMethod, self.normalizeWeights = self.getSkinClusterValues(
             self.theSkinCluster
         )
-        self.getShortNames()
+        self.getDriversShortNames()
         self.nbDrivers = len(self.driverNames)
 
         self.columnsNames = self.driverNames
@@ -1013,15 +1013,6 @@ class DataOfSkin(DataAbstract):
     # -------------------------------------------------------------------------------------------
     # ------ selection  ------------------------------------------------------------------------
     # -------------------------------------------------------------------------------------------
-    def selectDeformers(self, selectedIndices):
-        toSel = [
-            self.driverNames[column]
-            for column in selectedIndices
-            if cmds.objExists(self.driverNames[column])
-        ]
-        cmds.select(toSel)
-        cmds.selectMode(object=True)
-
     def getZeroRows(self, selectedColumns):
         res = self.display2dArray[:, selectedColumns]
         myAny = np.any(res, axis=1)
@@ -1082,7 +1073,7 @@ class DataOfSkin(DataAbstract):
         if oldName in self.driverNames:
             ind = self.driverNames.index(oldName)
             self.driverNames[ind] = newName
-            self.getShortNames()
+            self.getDriversShortNames()
         if oldName == self.theSkinCluster:
             self.theSkinCluster = newName
         if oldName == self.deformedShape:
