@@ -203,6 +203,33 @@ class DataAbstract(object):
             self.sortedIndices = range(len(self.vertices))
             self.opposite_sortedIndices = range(len(self.vertices))
 
+    def orderMelListValues(self, vertsIndicesWeights):
+        it = iter(vertsIndicesWeights)
+        currentIndex, currentWeight = it.next()
+        toReturn = []
+        while True:
+            try:
+                firstIndex = currentIndex
+                indexPlusOne = firstIndex
+                lstWeights = []
+                while currentIndex == indexPlusOne:
+                    lstWeights.append(currentWeight)
+                    currentIndex, currentWeight = it.next()
+                    indexPlusOne += 1
+                if firstIndex != (indexPlusOne - 1):
+                    toAppend = [(firstIndex, (indexPlusOne - 1)), lstWeights]
+                else:
+                    toAppend = [firstIndex, lstWeights[0]]
+                toReturn.append(toAppend)
+            except StopIteration:
+                if firstIndex != (indexPlusOne - 1):
+                    toAppend = [(firstIndex, (indexPlusOne - 1)), lstWeights]
+                else:
+                    toAppend = [firstIndex, lstWeights[0]]
+                toReturn.append(toAppend)
+                break
+        return toReturn
+
     def orderMelList(self, listInd, onlyStr=True):
         # listInd = [49, 60, 61, 62, 80, 81, 82, 83, 100, 101, 102, 103, 113, 119, 120, 121, 138, 139, 140, 158, 159, 178, 179, 198, 230, 231, 250, 251, 252, 270, 271, 272, 273, 274, 291, 292, 293, 319, 320, 321, 360,361,362]
         listInds = []

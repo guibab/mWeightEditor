@@ -26,7 +26,7 @@ cmds.setAttr ("blendShape1.inputTarget[0].baseWeights[0:2]",*values, size=len(va
 
 class DataOfBlendShape(DataAbstract):
     verbose = False
-    useAPI = True  # for setting values use API
+    useAPI = False  # for setting values use API
 
     def __init__(self, useShortestNames=False, hideZeroColumn=True, createDisplayLocator=True):
         self.useShortestNames = useShortestNames
@@ -116,17 +116,17 @@ class DataOfBlendShape(DataAbstract):
             if isColumnChanged:
                 # print colIndex, self.Mtop
                 # build array to set
-                vertsIndices, weights = [], []
+                vertsIndicesWeights = []
                 for (rowIndex,), val in np.ndenumerate(arrayForSetting[:, colIndex]):
                     if self.sumMasks[rowIndex, colIndex]:
                         # print rowIndex, val
                         vertIndex = self.vertices[self.Mtop + rowIndex]
 
-                        vertsIndices.append(vertIndex)
-                        weights.append(val)
-                self.setBlendShapeValue(self.listAttrs[colIndex], vertsIndices, weights)
+                        vertsIndicesWeights.append((vertIndex, val))
+                vertsIndicesWeights.sort()
+                self.setBlendShapeValue(self.listAttrs[colIndex], vertsIndicesWeights)
 
-    def setBlendShapeValue(self, att, vertsIndices, weights):
+    def setBlendShapeValue(self, att, vertsIndicesWeights):
         if self.useAPI:
             MSel = OpenMaya2.MSelectionList()
             MSel.add(att)
@@ -135,28 +135,22 @@ class DataOfBlendShape(DataAbstract):
             # ids = plg2.getExistingArrayAttributeIndices()
             # count = len (ids)
             with GlobalContext():
-                for i, indVtx in enumerate(vertsIndices):
-                    plg2.elementByLogicalIndex(indVtx).setFloat(weights[i])
+                for indVtx, value in vertsIndicesWeights:
+                    plg2.elementByLogicalIndex(indVtx).setFloat(value)
             # elementByLogicalIndex  faster than elementByPhysicalIndex
         else:
             # need an undo Context
-            res = self.orderMelList(vertsIndices, onlyStr=False)
-            print res
-            return
-            """
-            for compactedVals in res:
-                if len (compactedVals) >1 : 
-                    start, finish = compactedVals
-                    length = finish - start + 1
-                    values = weights[]
-                    cmds.setAttr (att +"[{0}:{1}]".format (start, finish),*values, size=length)
-                #else : 
-            """
-            """
-            nbVertices = cmds.polyEvaluate( msh , vertex = True)
-            values = [1]*nbVertices
-            cmds.setAttr (att +"[*]",*values, size=len(values))
-            """
+            listMelValueWeights = self.orderMelListValues(vertsIndicesWeights)
+            # print listMelValueWeights
+
+            for indices, weightArray in listMelValueWeights:
+                if isinstance(weightArray, list):
+                    start, finish = indices
+                    length = len(weightArray)
+                    cmds.setAttr(att + "[{0}:{1}]".format(start, finish), *weightArray, size=length)
+                else:
+                    index, value = indices, weightArray
+                    cmds.setAttr(att + "[{}]".format(index), value)
 
     # -------------------------------------------------------------------------------------------
     # redefine abstract data functions ---------------------------------------------------------
