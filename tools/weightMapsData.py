@@ -34,9 +34,9 @@ class DataOfBlendShape(DataAbstract):
         self.clearData()
         super(DataOfBlendShape, self).__init__(createDisplayLocator=createDisplayLocator)
 
-    # -------------------------------------------------------------------------------------------
-    # blendShape functions ---------------------------------------------------------------------
-    # -------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    # blendShape functions -------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
     def getBlendShapesAttributes(self, BSnode, theNodeShape):
         lsGeomsOrig = cmds.blendShape(BSnode, q=True, geometry=True)
         lsGeomsIndicesOrig = cmds.blendShape(BSnode, q=True, geometryIndices=True)
@@ -152,9 +152,9 @@ class DataOfBlendShape(DataAbstract):
                     index, value = indices, weightArray
                     cmds.setAttr(att + "[{}]".format(index), value)
 
-    # -------------------------------------------------------------------------------------------
-    # redefine abstract data functions ---------------------------------------------------------
-    # -------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    # redefine abstract data functions -------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
     def clearData(self):
         super(DataOfBlendShape, self).clearData()
         self.BSnode = ""

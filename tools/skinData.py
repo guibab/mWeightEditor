@@ -28,9 +28,9 @@ class DataOfSkin(DataAbstract):
         super(DataOfSkin, self).__init__(createDisplayLocator=createDisplayLocator)
         self.isSkinData = True
 
-    # -------------------------------------------------------------------------------------------
-    # MObject base function --------------------------------------------------------------------
-    # -------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    # MObject base function ------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
     def getVerticesOrigShape(self, outPut=False):
         # from ctypes import c_float
         # inMesh,= cmds.listConnections(self.theSkinCluster+".input[0].inputGeometry", s=True, d=False, p=False, c=False, scn=True)
@@ -74,9 +74,9 @@ class DataOfSkin(DataAbstract):
         # self.origVertices [152]
         # cmds.xform (origShape+".vtx [152]", q=True,ws=True, t=True )
 
-    # -------------------------------------------------------------------------------------------
-    # functions --------------------------------------------------------------------------------
-    # -------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    # functions ------------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
     def smoothSkin(self, selectedIndices, repeat=1, percentMvt=1):
         # cmds.blurSkinCmd (command = "smooth", repeat = self.smoothBTN.precision, percentMvt = self.percentBTN.precision)
         rowsSel = []
@@ -608,9 +608,9 @@ class DataOfSkin(DataAbstract):
             else:
                 self.undoMirrorValues.append([UndoValues, userComponents, influenceIndices])
 
-    # -------------------------------------------------------------------------------------------
-    # undo functions ---------------------------------------------------------------------------
-    # -------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    # undo functions -------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
     def undoSymetry(self):
         tmpUndoValues = OpenMaya.MDoubleArray()
         if self.undoMirrorValues:
@@ -645,9 +645,9 @@ class DataOfSkin(DataAbstract):
             if self.verbose:
                 print "No more undo"
 
-    # -------------------------------------------------------------------------------------------
-    # get data ---------------------------------------------------------------------------------
-    # -------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    # get data -------------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
     def exposeSkinData(self, inputSkinCluster, indices=[]):
         self.skinClusterObj = self.getMObject(inputSkinCluster, returnDagPath=False)
         self.sknFn = OpenMayaAnim.MFnSkinCluster(self.skinClusterObj)
@@ -833,9 +833,9 @@ class DataOfSkin(DataAbstract):
                 return self.blurSkinNode
         return ""
 
-    # -------------------------------------------------------------------------------------------
-    # redefine abstract data functions ---------------------------------------------------------
-    # -------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    # redefine abstract data functions -------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
     def clearData(self):
         super(DataOfSkin, self).clearData()
         self.AllWght = []
@@ -974,9 +974,9 @@ class DataOfSkin(DataAbstract):
             print self.theSkinCluster, theVtx, deformerName, value
         # cmds.skinPercent( self.theSkinCluster,theVtx, transformValue=(deformerName, float (value)), normalize = True)
 
-    # -------------------------------------------------------------------------------------------
-    # ------ locks -----------------------------------------------------------------------------
-    # -------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    # ------ locks ---------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
     def getLocksInfo(self):
         super(DataOfSkin, self).getLocksInfo()
 
@@ -1010,9 +1010,9 @@ class DataOfSkin(DataAbstract):
             cmds.setAttr(self.blurSkinNode + ".getLockWeights", True)
             # update
 
-    # -------------------------------------------------------------------------------------------
-    # ------ selection  ------------------------------------------------------------------------
-    # -------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    # ------ selection  ----------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
     def getZeroRows(self, selectedColumns):
         res = self.display2dArray[:, selectedColumns]
         myAny = np.any(res, axis=1)
@@ -1065,11 +1065,13 @@ class DataOfSkin(DataAbstract):
         # mel.eval ("select -r " + " ".join(toSel))
         cmds.select(toSel, r=True)
 
-    # -------------------------------------------------------------------------------------------
-    # callBacks --------------------------------------------------------------------------------
-    # -------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    # callBacks ------------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
     def renameCB(self, oldName, newName):
         # print "weightEditor call back is Invoked : -{}-  to -{}- ".format (oldName, newName)
+        if not cmds.objExists(newName):
+            return
         if oldName in self.driverNames:
             ind = self.driverNames.index(oldName)
             self.driverNames[ind] = newName
@@ -1078,8 +1080,10 @@ class DataOfSkin(DataAbstract):
             self.theSkinCluster = newName
         if oldName == self.deformedShape:
             self.deformedShape = newName
-            shapeShortName = cmds.listRelatives(newName, p=True)[0].split(":")[-1].split("|")[-1]
-            splt = shapeShortName.split("_")
-            if len(splt) > 5:
-                shapeShortName = "_".join(splt[-7:-4])
-            self.shapeShortName = shapeShortName
+            prt = cmds.listRelatives(newName, p=True, path=True)[0]
+            if prt and cmds.objExists(prt):
+                shapeShortName = prt.split(":")[-1].split("|")[-1]
+                splt = shapeShortName.split("_")
+                if len(splt) > 5:
+                    shapeShortName = "_".join(splt[-7:-4])
+                self.shapeShortName = shapeShortName
