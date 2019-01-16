@@ -51,6 +51,15 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                     for _ in xrange(iteration):
                         indicesChanged = []
                         valueChanged = []
+
+                        nbNonZero = np.count_nonzero(self.sumMasks[:, colIndex])
+                        # print "column [{}], nonZero [{}]".format (colIndex, nbNonZero)
+                        # create an array for a faster compute of the mean !!
+                        arrayForMean = np.full((nbNonZero, self.maxNeighboors), 0)
+                        arrayForMeanMask = np.full(
+                            (nbNonZero, self.maxNeighboors), False, dtype=bool
+                        )
+                        i = 0
                         for rowIndex, val in enumerate(settingLst):
                             if self.sumMasks[rowIndex, colIndex]:
                                 # print rowIndex, val
@@ -58,16 +67,31 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                                 if vertIndex not in subArrsDics:
                                     connectedVertices = self.vertNeighboors[vertIndex]
                                     subArr = self.fullAttributesArr[connectedVertices, colIndex]
+                                    arrayForMean[i, 0 : self.nbNeighBoors[vertIndex]] = subArr
+                                    arrayForMeanMask[i, 0 : self.nbNeighBoors[vertIndex]] = True
+                                    # update the mask
                                 else:
                                     subArr = subArrsDics[vertIndex]
-                                meanValue = np.mean(subArr)
-
+                                # fill the mean array
+                                # arrayForMean [i, 0:self.nbNeighBoors[vertIndex]] = np.copy(subArr)
+                                i += 1
+                                # do the mean outside the loop!
                                 indicesChanged.append(vertIndex)
-                                valueChanged.append(meanValue)
+
+                                # meanValue = np.mean (subArr)
+                                # valueChanged.append (meanValue)
+                        meanCopy = np.ma.array(arrayForMean, mask=~arrayForMeanMask, fill_value=0)
+                        meanValues = np.ma.mean(meanCopy, axis=1)
+
                         # update array :
-                        self.fullAttributesArr[indicesChanged, colIndex] = valueChanged
+                        self.fullAttributesArr[indicesChanged, colIndex] = np.copy(
+                            meanValues
+                        )  # valueChanged
+                        # self.fullAttributesArr [indicesChanged, colIndex] = np.copy(meanValues)#.tolist()
+
                         # for indVtx, value in vertsIndicesWeights:
                         #    self.fullAttributesArr [indVtx, colIndex] = value
+                    valueChanged = meanValues.tolist()
                     vertsIndicesWeights = [
                         (indVtx, valueChanged[i]) for i, indVtx in enumerate(indicesChanged)
                     ]
