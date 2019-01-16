@@ -35,6 +35,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
 
     def smoothVertices(self, iteration=10):
         # print "iteration", iteration
+        self.getAttributesValues(onlyfullArr=True)
         with GlobalContext(message="smoothVertices", doPrint=self.verbose):
             new2dArray = np.copy(self.orig2dArray)
 
@@ -135,18 +136,20 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 lstOthers.append(displayName)
         return lstDeformers, lstOthers, lstShapes
 
-    def getAttributesValues(self, indices=[]):
+    def getAttributesValues(self, indices=[], onlyfullArr=False):
         with GlobalContext(message="getAttributesValues", doPrint=self.verbose):
             nbAttrs = len(self.listAttrs)
             # initialize array at 1.0
             self.fullAttributesArr = np.full((self.nbVertices, nbAttrs), 1.0)
-            with GlobalContext():
-                for indAtt, att in enumerate(self.listAttrs):
-                    # print att
-                    indicesAtt = cmds.getAttr(att, mi=True)
-                    if indicesAtt:
-                        values = cmds.getAttr(att)[0]
-                        self.fullAttributesArr[indicesAtt, indAtt] = values
+            for indAtt, att in enumerate(self.listAttrs):
+                # print att
+                indicesAtt = cmds.getAttr(att, mi=True)
+                if indicesAtt:
+                    values = cmds.getAttr(att)[0]
+                    self.fullAttributesArr[indicesAtt, indAtt] = values
+            if onlyfullArr:
+                return
+
             # self.printArrayData (self.fullAttributesArr)
             if indices:
                 if self.softOn:
