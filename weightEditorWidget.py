@@ -628,7 +628,7 @@ class SkinWeightWin(Window):
                 cmds.delete(self.dataOfDeformer.blurSkinNode)
         else:
             self.prepareToSetValue()
-            self.dataOfDeformer.smoothVertices()
+            self.dataOfDeformer.smoothVertices(iteration=self.smoothBTN.precision)
             self.dataOfDeformer.postSkinSet()
 
     def selProbVerts(self):
