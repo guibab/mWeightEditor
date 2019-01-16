@@ -25,7 +25,6 @@ cmds.setAttr ("blendShape1.inputTarget[0].baseWeights[0:2]",*values, size=len(va
 
 
 class DataOfOneDimensionalAttrs(DataAbstract):
-    verbose = False
     useAPI = False  # for setting values use API
 
     def __init__(self, useShortestNames=False, hideZeroColumn=True, createDisplayLocator=True):
@@ -36,7 +35,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
 
     def smoothVertices(self, iteration=10):
         # print "iteration", iteration
-        with GlobalContext(message="smoothVertices", doPrint=True):
+        with GlobalContext(message="smoothVertices", doPrint=self.verbose):
             new2dArray = np.copy(self.orig2dArray)
 
             editedColumns = np.any(self.sumMasks, axis=0).tolist()
@@ -137,33 +136,34 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         return lstDeformers, lstOthers, lstShapes
 
     def getAttributesValues(self, indices=[]):
-        nbAttrs = len(self.listAttrs)
-        # initialize array at 1.0
-        self.fullAttributesArr = np.full((self.nbVertices, nbAttrs), 1.0)
-        with GlobalContext():
-            for indAtt, att in enumerate(self.listAttrs):
-                print att
-                indicesAtt = cmds.getAttr(att, mi=True)
-                if indicesAtt:
-                    values = cmds.getAttr(att)[0]
-                    self.fullAttributesArr[indicesAtt, indAtt] = values
-        # self.printArrayData (self.fullAttributesArr)
-        if indices:
-            if self.softOn:
-                revertSortedIndices = np.array(indices)[self.opposite_sortedIndices]
+        with GlobalContext(message="getAttributesValues", doPrint=self.verbose):
+            nbAttrs = len(self.listAttrs)
+            # initialize array at 1.0
+            self.fullAttributesArr = np.full((self.nbVertices, nbAttrs), 1.0)
+            with GlobalContext():
+                for indAtt, att in enumerate(self.listAttrs):
+                    # print att
+                    indicesAtt = cmds.getAttr(att, mi=True)
+                    if indicesAtt:
+                        values = cmds.getAttr(att)[0]
+                        self.fullAttributesArr[indicesAtt, indAtt] = values
+            # self.printArrayData (self.fullAttributesArr)
+            if indices:
+                if self.softOn:
+                    revertSortedIndices = np.array(indices)[self.opposite_sortedIndices]
+                else:
+                    revertSortedIndices = indices
+                self.raw2dArray = self.fullAttributesArr[
+                    revertSortedIndices,
+                ]
             else:
-                revertSortedIndices = indices
-            self.raw2dArray = self.fullAttributesArr[
-                revertSortedIndices,
-            ]
-        else:
-            self.raw2dArray = self.fullAttributesArr
-        # self.printArrayData (self.raw2dArray)
-        # ---- reorder --------------------------------------------
-        if self.softOn:  # order with indices
-            self.display2dArray = self.raw2dArray[self.sortedIndices]
-        else:
-            self.display2dArray = self.raw2dArray
+                self.raw2dArray = self.fullAttributesArr
+            # self.printArrayData (self.raw2dArray)
+            # ---- reorder --------------------------------------------
+            if self.softOn:  # order with indices
+                self.display2dArray = self.raw2dArray[self.sortedIndices]
+            else:
+                self.display2dArray = self.raw2dArray
 
     def setValueInDeformer(self, arrayForSetting):
         ##### !!!!!!!!!!!!!!!!!!!!!!
@@ -237,86 +237,9 @@ class DataOfOneDimensionalAttrs(DataAbstract):
     # -----------------------------------------------------------------------------------------------------------
     # redefine abstract data functions -------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
-    def clearData(self):
-        super(DataOfOneDimensionalAttrs, self).clearData()
-        self.BSnode = ""
-        self.listAttrShortName, self.listAttrs = [], []
-        self.fullAttributesArr = []
-
-    preSel = ""
-
-
-#########################################################################################################
-######### BlendShape ####################################################################################
-#########################################################################################################
-class DataOfBlendShape(DataOfOneDimensionalAttrs):
-    # -----------------------------------------------------------------------------------------------------------
-    # blendShape functions -------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
-    def getBlendShapesAttributes(self, BSnode, theNodeShape):
-        lsGeomsOrig = cmds.blendShape(BSnode, q=True, geometry=True)
-        lsGeomsIndicesOrig = cmds.blendShape(BSnode, q=True, geometryIndices=True)
-
-        listAttrs = []
-        listAttrShortName = []
-        if theNodeShape in lsGeomsOrig:
-            # get the index of the node in the blendShape
-            inputTarget = lsGeomsIndicesOrig[lsGeomsOrig.index(theNodeShape)]
-
-            listAttrShortName.append("baseWeights")
-            listAttrs.append("{}.inputTarget[{}].baseWeights".format(BSnode, inputTarget))
-
-            # get the alias -------------------------------------------------------
-            listAlias = cmds.aliasAttr(BSnode, q=True)
-            listAliasIndices = cmds.getAttr(
-                BSnode + ".inputTarget[{}].inputTargetGroup".format(inputTarget), mi=True
-            )
-
-            listAliasNme = (
-                zip(listAlias[0::2], listAlias[1::2])
-                if listAlias
-                else [
-                    ("targetWeights_{}".format(i), "weight[{}]".format(i)) for i in listAliasIndices
-                ]
-            )
-            dicIndex = {}
-            for el, wght in listAliasNme:
-                dicIndex[int(re.findall(r"\b\d+\b", wght)[0])] = el
-            # end alias -------------------------------------------------------------
-
-            for channelIndex in listAliasIndices:
-                attrShortName = dicIndex[channelIndex]
-                attr = "{}.inputTarget[{}].inputTargetGroup[{}].targetWeights".format(
-                    BSnode, inputTarget, channelIndex
-                )
-
-                listAttrShortName.append(attrShortName)
-                listAttrs.append(attr)
-            return listAttrShortName, listAttrs
-        else:
-            return [], []
-
-    # -----------------------------------------------------------------------------------------------------------
-    # redefine abstract data functions -------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
-    def getAllData(self, displayLocator=True, force=True, inputVertices=None):
-        prevDeformedShape = self.deformedShape
-
-        success = self.getDataFromSelection(
-            typeOfDeformer="blendShape", force=force, inputVertices=inputVertices
-        )
-        if not success or self.theDeformer == "":
-            return False
-        else:
-            self.BSnode = self.theDeformer
-
-        # print self.BSnode
-        self.getShapeInfo()
-        # get list belndShapes attributes
-        self.shortColumnsNames, self.listAttrs = self.getBlendShapesAttributes(
-            self.BSnode, self.deformedShape
-        )
-
+    def postGetData(
+        self, displayLocator=True, force=True, inputVertices=None, prevDeformedShape=""
+    ):
         if displayLocator:
             self.connectDisplayLocator()
         self.getSoftSelectionVertices(inputVertices=inputVertices)
@@ -345,6 +268,96 @@ class DataOfBlendShape(DataOfOneDimensionalAttrs):
         if force or prevDeformedShape != self.deformedShape:
             self.getConnectVertices()
         return True
+
+    def clearData(self):
+        super(DataOfOneDimensionalAttrs, self).clearData()
+        self.BSnode = ""
+        self.listAttrShortName, self.listAttrs = [], []
+        self.fullAttributesArr = []
+
+    preSel = ""
+
+
+#########################################################################################################
+######### BlendShape ####################################################################################
+#########################################################################################################
+class DataOfBlendShape(DataOfOneDimensionalAttrs):
+    # -----------------------------------------------------------------------------------------------------------
+    # blendShape functions -------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    def getBlendShapesAttributes(self, BSnode, theNodeShape):
+        with GlobalContext(message="getBlendShapesAttributes", doPrint=False):
+            lsGeomsOrig = cmds.blendShape(BSnode, q=True, geometry=True)
+            lsGeomsIndicesOrig = cmds.blendShape(BSnode, q=True, geometryIndices=True)
+
+            listAttrs = []
+            listAttrShortName = []
+            if theNodeShape in lsGeomsOrig:
+                # get the index of the node in the blendShape
+                inputTarget = lsGeomsIndicesOrig[lsGeomsOrig.index(theNodeShape)]
+
+                listAttrShortName.append("baseWeights")
+                listAttrs.append("{}.inputTarget[{}].baseWeights".format(BSnode, inputTarget))
+
+                # get the alias -------------------------------------------------------
+                listAlias = cmds.aliasAttr(BSnode, q=True)
+                listAliasIndices = cmds.getAttr(
+                    BSnode + ".inputTarget[{}].inputTargetGroup".format(inputTarget), mi=True
+                )
+
+                listAliasNme = (
+                    zip(listAlias[0::2], listAlias[1::2])
+                    if listAlias
+                    else [
+                        ("targetWeights_{}".format(i), "weight[{}]".format(i))
+                        for i in listAliasIndices
+                    ]
+                )
+                dicIndex = {}
+                for el, wght in listAliasNme:
+                    dicIndex[int(re.findall(r"\b\d+\b", wght)[0])] = el
+                # end alias -------------------------------------------------------------
+
+                for channelIndex in listAliasIndices:
+                    attrShortName = dicIndex[channelIndex]
+                    attr = "{}.inputTarget[{}].inputTargetGroup[{}].targetWeights".format(
+                        BSnode, inputTarget, channelIndex
+                    )
+
+                    listAttrShortName.append(attrShortName)
+                    listAttrs.append(attr)
+                return listAttrShortName, listAttrs
+            else:
+                return [], []
+
+    # -----------------------------------------------------------------------------------------------------------
+    # redefine abstract data functions -------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    def getAllData(self, displayLocator=True, force=True, inputVertices=None):
+        with GlobalContext(message="getAllData BlendShapes", doPrint=self.verbose):
+            prevDeformedShape = self.deformedShape
+
+            success = self.getDataFromSelection(
+                typeOfDeformer="blendShape", force=force, inputVertices=inputVertices
+            )
+            if not success or self.theDeformer == "":
+                return False
+            else:
+                self.BSnode = self.theDeformer
+
+            # print self.BSnode
+            self.getShapeInfo()
+            # get list belndShapes attributes
+            self.shortColumnsNames, self.listAttrs = self.getBlendShapesAttributes(
+                self.BSnode, self.deformedShape
+            )
+
+            return self.postGetData(
+                displayLocator=displayLocator,
+                force=force,
+                inputVertices=inputVertices,
+                prevDeformedShape=prevDeformedShape,
+            )
 
 
 class DataOfDeformers(DataOfOneDimensionalAttrs):
@@ -387,31 +400,9 @@ class DataOfDeformers(DataOfOneDimensionalAttrs):
         self.shortColumnsNames, self.listAttrs = self.getDeformersAttributes()
         # print self.shortColumnsNames , self.listAttrs
 
-        if displayLocator:
-            self.connectDisplayLocator()
-        self.getSoftSelectionVertices(inputVertices=inputVertices)
-
-        if not self.vertices:
-            self.vertices = range(self.nbVertices)
-            self.verticesWeight = [1.0] * len(self.vertices)
-            self.sortedIndices = range(len(self.vertices))
-            self.opposite_sortedIndices = range(len(self.vertices))
-            self.softOn = 0
-            self.fullShapeIsUsed = True
-        else:
-            self.fullShapeIsUsed = False
-        # get blendShapes weights values
-        if self.vertices:
-            self.getAttributesValues(indices=self.vertices)
-        else:
-            self.getAttributesValues()
-
-        self.createRowText()
-        self.rowCount = len(self.vertices)  # self.nbVertices
-        self.columnCount = len(self.listAttrs)
-
-        self.getLocksInfo()
-
-        if force or prevDeformedShape != self.deformedShape:
-            self.getConnectVertices()
-        return True
+        return self.postGetData(
+            displayLocator=displayLocator,
+            force=force,
+            inputVertices=inputVertices,
+            prevDeformedShape=prevDeformedShape,
+        )
