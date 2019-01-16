@@ -378,7 +378,7 @@ class SkinWeightWin(Window):
         # display the list of paintable attributes
 
         with toggleBlockSignals([self.listInputs_CB]):
-            self.listInputs_CB.addItems(["skinCluster", "blendShape", "deformers", "others"])
+            self.listInputs_CB.addItems(["skinCluster", "blendShape", "deformers"])  # , "others"])
         """
         if self.dataOfDeformer.deformedShape : 
             self.getListPaintableAttributes (self.dataOfDeformer.deformedShape)
