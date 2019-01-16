@@ -709,7 +709,7 @@ class TableView(QtWidgets.QTableView):
 
     def createPixMap(self, rect):
         # Icon = QtGui.QIcon()
-        thePixmap = QtGui.QPixmap(60, 300)
+        thePixmap = QtGui.QPixmap(500, 500)
         painter = QtGui.QPainter()
         painter.begin(thePixmap)
 

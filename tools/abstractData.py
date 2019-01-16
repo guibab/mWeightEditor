@@ -1,4 +1,5 @@
 # https://github.com/chadmv/cmt/blob/master/scripts/cmt/deform/skinio.py
+from Qt.QtWidgets import QApplication
 from maya import OpenMayaUI, OpenMaya, OpenMayaAnim
 from maya import cmds, mel
 from functools import partial
@@ -6,7 +7,7 @@ from functools import partial
 # import shiboken2 as shiboken
 import time, datetime
 
-from ctypes import c_double, c_float
+from ctypes import c_float, c_int
 
 import numpy as np
 import re
@@ -36,7 +37,7 @@ class DataAbstract(object):
         cmds.hilite(hil)
 
     # -----------------------------------------------------------------------------------------------------------
-    # locatorFunctions -----------------------------------------------------------------------------------------
+    # locator Functions ----------------------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
     def createDisplayLocator(self):
         self.pointsDisplayTrans = None
@@ -319,6 +320,113 @@ class DataAbstract(object):
         elif self.shapePath.apiType() == OpenMaya.MFn.kMesh:  # mesh
             self.nbVertices = cmds.polyEvaluate(self.deformedShape, vertex=True)
 
+    def getVerticesShape(self, theMObject):
+        if (
+            self.shapePath.apiType() == OpenMaya.MFn.kMesh
+        ):  # cmds.nodeType(shapeName) == 'nurbsCurve':
+            theMesh = OpenMaya.MFnMesh(theMObject)
+            lent = theMesh.numVertices() * 3
+
+            cta = (c_float * lent).from_address(int(theMesh.getRawPoints()))
+            arr = np.ctypeslib.as_array(cta)
+            theVertices = np.reshape(arr, (-1, 3))
+        else:
+            cvPoints = OpenMaya.MPointArray()
+            if (
+                self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve
+            ):  # cmds.nodeType(shapeName) == 'nurbsCurve':
+                crvFn = OpenMaya.MFnNurbsCurve(theMObject)
+                crvFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
+            elif (
+                self.shapePath.apiType() == OpenMaya.MFn.kNurbsSurface
+            ):  # cmds.nodeType(shapeName) == 'nurbsSurface':
+                surfaceFn = OpenMaya.MFnNurbsSurface(theMObject)
+                surfaceFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
+            pointList = []
+            for i in range(cvPoints.length()):
+                pointList.append([cvPoints[i][0], cvPoints[i][1], cvPoints[i][2]])
+            theVertices = np.array(pointList)
+        verticesPosition = np.take(theVertices, self.vertices, axis=0)
+        return verticesPosition
+        # now subArray of vertices
+        # self.origVertices [152]
+        # cmds.xform (origShape+".vtx [152]", q=True,ws=True, t=True )
+
+    def getConnectVertices(self):
+        """
+        dicConnectedVertices = []
+        if self.shapePath.apiType() == OpenMaya.MFn.kMesh :
+            iterVerts = OpenMaya.MItMeshVertex(self.shapePath)
+            arrConn = OpenMaya.MIntArray()
+            i = 0
+            while not iterVerts.isDone():
+                iterVerts.getConnectedVertices(arrConn )
+                dicConnectedVertices [i].append (set(arrConn ))
+                iterVerts.next ()
+                i+=1
+
+        return
+        """
+        print "\ngetConnectVertices\n"
+        # shapePath = getMObject(None, "restShape")
+        theMeshFn = OpenMaya.MFnMesh(self.shapePath)
+        vertexCount = OpenMaya.MIntArray()
+        vertexList = OpenMaya.MIntArray()
+
+        theMeshFn.getVertices(vertexCount, vertexList)
+        # sum it cumulative -------------------------------------------
+        # vertCount = np.cumsum (  self.getMIntArray ( vertexCount)).tolist()
+        vertCount = self.getMIntArray(vertexCount).tolist()
+        vertexList = self.getMIntArray(vertexList).tolist()
+
+        faceVerts = []
+        npn = []
+        self.vertNeighboors = {}
+        sumVerts = 0
+        for nbVertsInFace in vertCount:
+            QApplication.processEvents()
+            verticesInPolygon = vertexList[sumVerts : sumVerts + nbVertsInFace]
+            for i in range(nbVertsInFace):
+                # self.vertNeighboors.setdefault (verticesInPolygon[i], set( )) .update (verticesInPolygon[0:i],verticesInPolygon[i+1:])
+                self.vertNeighboors.setdefault(verticesInPolygon[i], []).extend(
+                    verticesInPolygon[0:i] + verticesInPolygon[i + 1 :]
+                )
+            sumVerts += nbVertsInFace
+        for vtx, lst in self.vertNeighboors.iteritems():
+            self.vertNeighboors[vtx] = list(set(lst))
+        print "\n end - getConnectVertices\n"
+        """
+        shapePath = getMObject("restShape")
+        theMeshFn = OpenMaya.MFnMesh (shapePath )
+
+        vertexCount = OpenMaya.MIntArray ()
+        vertexList  = OpenMaya.MIntArray ()
+
+        theMeshFn .getVertices(vertexCount, vertexList  )
+
+        vertCount = self.getMIntArray (vertexCount)
+        vertexList  = self.getMIntArray (vertexList)
+
+        nbPoly = theMeshFn .numPolygons ()
+        nbVertices = theMeshFn .numVertices ()
+        # now manipulate the array to get connectedVertices 
+        sumVert = 0
+        faceVerts = []
+        for nbVertices in np.nditer(vertCount):            
+            indices = range (sumVert, sumVert+nbVertices)
+            faceVerts.append 
+            sumVert+=nbVertices [vertexList [indices]]
+        """
+
+    def getMIntArray(self, theArr):
+        res = OpenMaya.MScriptUtil(theArr)
+        util = OpenMaya.MScriptUtil()
+        ptr = res.asIntPtr()
+        ptCount = theArr.length()
+        cta = (c_int * ptCount).from_address(int(ptr))
+        out = np.ctypeslib.as_array(cta)
+        return np.copy(out)
+
     # -----------------------------------------------------------------------------------------------------------
     # functions for numpy --------------------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
@@ -455,22 +563,40 @@ class DataAbstract(object):
     def doAdd(self, val, percent=False, autoPrune=False, average=False, autoPruneValue=0.0001):
         with GlobalContext(message="absoluteVal", doPrint=self.verbose):
             new2dArray = np.copy(self.orig2dArray)
+            selectArr = np.copy(self.orig2dArray)
 
-            absValues = np.full(self.orig2dArray.shape, val)
+            # remaining array -----------------------------------------------------------------------------------------------
+            remainingArr = np.copy(self.orig2dArray)
+            remainingData = np.ma.array(remainingArr, mask=~self.rmMasks, fill_value=0)
+            sum_remainingData = remainingData.sum(axis=1)
+
+            # ---------- first make new mask where remaining values are zero (so no operation can be done ....) -------------
+            zeroRemainingIndices = np.flatnonzero(sum_remainingData == 0)
+            sumMasksUpdate = self.sumMasks.copy()
+            sumMasksUpdate[zeroRemainingIndices, :] = False
+
+            # add the values ------------------------------------------------------------------------------------------------
+            theMask = sumMasksUpdate if val < 0.0 else self.sumMasks
+
+            if percent:
+                addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0)
+                sum_addValues = addValues.sum(axis=1)
+                toMult = (sum_addValues + val) / sum_addValues
+                addValues = addValues * toMult[:, np.newaxis]
+            else:
+                addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0) + val
+            # clip it ---------------------------
+            addValues = addValues.clip(min=0.0, max=1.0)
+
+            if autoPrune:  # prune values
+                self.pruneOnArray(addValues, addValues.mask, addValues.sum(axis=1), autoPruneValue)
+            np.copyto(new2dArray, addValues, where=~addValues.mask)
             if self.softOn:  # mult soft Value
-                absValues = absValues * self.indicesWeights[:, np.newaxis]
-            # now sum :
-            sumArray = new2dArray + absValues
-            sumArray = sumArray.clip(min=0.0, max=1.0)
-
-            np.copyto(new2dArray, sumArray, where=self.sumMasks)
-
+                new2dArray = (
+                    new2dArray * self.indicesWeights[:, np.newaxis]
+                    + self.orig2dArray * (1.0 - self.indicesWeights)[:, np.newaxis]
+                )
             # self.printArrayData (new2dArray)
-            """
-            arrayForSetting = np.ma.array(new2dArray , mask = ~self.sumMasks, fill_value = 0 )
-            if self.softOn :
-                arrayForSetting = np.copy (arrayForSetting[self.opposite_sortedIndices])            
-            """
             self.setValueInDeformer(new2dArray)
 
             if self.sub2DArrayToSet != None:
@@ -666,3 +792,6 @@ class DataAbstract(object):
     def renameCB(self, oldName, newName):
         return
         print "weightEditor call back is Invoked : -{}-  to -{}- ".format(oldName, newName)
+
+    def callUndo(self):
+        pass

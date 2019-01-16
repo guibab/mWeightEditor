@@ -34,6 +34,43 @@ class DataOfBlendShape(DataAbstract):
         self.clearData()
         super(DataOfBlendShape, self).__init__(createDisplayLocator=createDisplayLocator)
 
+    def smoothVertices(self, iteration=10):
+        with GlobalContext(message="smoothVertices", doPrint=True):
+            new2dArray = np.copy(self.orig2dArray)
+
+            editedColumns = np.any(self.sumMasks, axis=0).tolist()
+            rows = new2dArray.shape[0]
+            for colIndex, isColumnChanged in enumerate(editedColumns):
+                if isColumnChanged:
+                    # print colIndex, self.Mtop
+                    # build array to set
+                    vertsIndicesWeights = []
+                    settingLst = new2dArray[:, colIndex].tolist()
+                    subArrsDics = {}
+                    indicesChanged = []
+                    valueChanged = []
+                    for _ in xrange(iteration):
+                        for rowIndex, val in enumerate(settingLst):
+                            if self.sumMasks[rowIndex, colIndex]:
+                                # print rowIndex, val
+                                vertIndex = self.vertices[self.Mtop + rowIndex]
+                                if vertIndex not in subArrsDics:
+                                    connectedVertices = self.vertNeighboors[vertIndex]
+                                    subArr = self.fullBlendShapeArr[connectedVertices, colIndex]
+                                else:
+                                    subArr = subArrsDics[vertIndex]
+                                meanValue = np.mean(subArr)
+                                vertsIndicesWeights.append((vertIndex, meanValue))
+
+                                indicesChanged.append(vertIndex)
+                                valueChanged.append(meanValue)
+                        # update array :
+                        self.fullBlendShapeArr[indicesChanged, colIndex] = valueChanged
+                        # for indVtx, value in vertsIndicesWeights:
+                        #    self.fullBlendShapeArr [indVtx, colIndex] = value
+                    self.setBlendShapeValue(self.listAttrs[colIndex], vertsIndicesWeights)
+                    vertsIndicesWeights.sort()
+
     # -----------------------------------------------------------------------------------------------------------
     # blendShape functions -------------------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
@@ -83,24 +120,24 @@ class DataOfBlendShape(DataAbstract):
     def getBlendShapeValues(self, indices=[]):
         nbAttrs = len(self.listAttrs)
         # initialize array at 1.0
-        fullBlendShapeArr = np.full((self.nbVertices, nbAttrs), 1.0)
+        self.fullBlendShapeArr = np.full((self.nbVertices, nbAttrs), 1.0)
         with GlobalContext():
             for indAtt, att in enumerate(self.listAttrs):
                 indicesAtt = cmds.getAttr(att, mi=True)
                 if indicesAtt:
                     values = cmds.getAttr(att)[0]
-                    fullBlendShapeArr[indicesAtt, indAtt] = values
-        # self.printArrayData (fullBlendShapeArr)
+                    self.fullBlendShapeArr[indicesAtt, indAtt] = values
+        # self.printArrayData (self.fullBlendShapeArr)
         if indices:
             if self.softOn:
                 revertSortedIndices = np.array(indices)[self.opposite_sortedIndices]
             else:
                 revertSortedIndices = indices
-            self.raw2dArray = fullBlendShapeArr[
+            self.raw2dArray = self.fullBlendShapeArr[
                 revertSortedIndices,
             ]
         else:
-            self.raw2dArray = fullBlendShapeArr
+            self.raw2dArray = self.fullBlendShapeArr
         # self.printArrayData (self.raw2dArray)
         # ---- reorder --------------------------------------------
         if self.softOn:  # order with indices
@@ -109,22 +146,48 @@ class DataOfBlendShape(DataAbstract):
             self.display2dArray = self.raw2dArray
 
     def setValueInDeformer(self, arrayForSetting):
+        ##### !!!!!!!!!!!!!!!!!!!!!!
+        ##### !!!!!!!!!!!!!!!!!!!!!!
+
+        # update self.fullBlendShapeArr
+
+        ##### !!!!!!!!!!!!!!!!!!!!!!
+        ##### !!!!!!!!!!!!!!!!!!!!!!
+
         # self.printArrayData (arrayForSetting)
-        editedColumns = np.any(self.sumMasks, axis=0)
+        editedColumns = np.any(self.sumMasks, axis=0).tolist()
         rows = arrayForSetting.shape[0]
-        for (colIndex,), isColumnChanged in np.ndenumerate(editedColumns):
+        for colIndex, isColumnChanged in enumerate(editedColumns):
             if isColumnChanged:
                 # print colIndex, self.Mtop
                 # build array to set
                 vertsIndicesWeights = []
-                for (rowIndex,), val in np.ndenumerate(arrayForSetting[:, colIndex]):
+                settingLst = arrayForSetting[:, colIndex].tolist()
+                for rowIndex, val in enumerate(settingLst):
                     if self.sumMasks[rowIndex, colIndex]:
                         # print rowIndex, val
                         vertIndex = self.vertices[self.Mtop + rowIndex]
-
                         vertsIndicesWeights.append((vertIndex, val))
                 vertsIndicesWeights.sort()
                 self.setBlendShapeValue(self.listAttrs[colIndex], vertsIndicesWeights)
+        """
+        editedColumns = np.any(self.sumMasks, axis=0)
+        rows = arrayForSetting .shape[0]        
+        for (colIndex,), isColumnChanged in np.ndenumerate(editedColumns) : 
+            if isColumnChanged:
+                #print colIndex, self.Mtop
+                #build array to set
+                vertsIndicesWeights = []
+                for (rowIndex,), val in np.ndenumerate(arrayForSetting[:,colIndex]) : 
+                    if self.sumMasks [rowIndex, colIndex]:
+                        #print rowIndex, val
+                        vertIndex = self.vertices [self.Mtop + rowIndex]
+
+                        vertsIndicesWeights.append ((vertIndex,val))
+
+                vertsIndicesWeights.sort()
+                self.setBlendShapeValue (self.listAttrs [colIndex],vertsIndicesWeights)
+        """
 
     def setBlendShapeValue(self, att, vertsIndicesWeights):
         if self.useAPI:
@@ -159,10 +222,13 @@ class DataOfBlendShape(DataAbstract):
         super(DataOfBlendShape, self).clearData()
         self.BSnode = ""
         self.listAttrShortName, self.listAttrs = [], []
+        self.fullBlendShapeArr = []
 
     preSel = ""
 
     def getAllData(self, displayLocator=True, force=True, inputVertices=None):
+        prevDeformedShape = self.deformedShape
+
         success = self.getDataFromSelection(
             typeOfDeformer="blendShape", force=force, inputVertices=inputVertices
         )
@@ -202,4 +268,7 @@ class DataOfBlendShape(DataAbstract):
         self.columnCount = len(self.listAttrs)
 
         self.getLocksInfo()
+
+        if force or prevDeformedShape != self.deformedShape:
+            self.getConnectVertices()
         return True

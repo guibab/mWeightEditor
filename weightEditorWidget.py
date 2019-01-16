@@ -378,7 +378,7 @@ class SkinWeightWin(Window):
         # display the list of paintable attributes
 
         with toggleBlockSignals([self.listInputs_CB]):
-            self.listInputs_CB.addItems(["skinCluster", "blendShape"])
+            self.listInputs_CB.addItems(["skinCluster", "blendShape", "deformers", "others"])
         """
         if self.dataOfDeformer.deformedShape : 
             self.getListPaintableAttributes (self.dataOfDeformer.deformedShape)
@@ -610,17 +610,26 @@ class SkinWeightWin(Window):
         self.dataOfDeformer.postSkinSet()
 
     def smooth(self):
-        chunks = self.getRowColumnsSelected()
-        if not chunks:
-            chunks = [(0, self.dataOfDeformer.rowCount - 1, 0, self.dataOfDeformer.columnCount - 1)]
-        self.dataOfDeformer.getConnectedBlurskinDisplay(disconnectWeightList=True)
-        # convert to vertices or get the vertices
-        self.dataOfDeformer.smoothSkin(
-            chunks, repeat=self.smoothBTN.precision, percentMvt=self.percentBTN.precision
-        )
-        # cmds.blurSkinCmd (command = "smooth", repeat = self.smoothBTN.precision, percentMvt = self.percentBTN.precision)
-        if self.dataOfDeformer.blurSkinNode and cmds.objExists(self.dataOfDeformer.blurSkinNode):
-            cmds.delete(self.dataOfDeformer.blurSkinNode)
+        if self.dataOfDeformer.isSkinData:
+            chunks = self.getRowColumnsSelected()
+            if not chunks:
+                chunks = [
+                    (0, self.dataOfDeformer.rowCount - 1, 0, self.dataOfDeformer.columnCount - 1)
+                ]
+            self.dataOfDeformer.getConnectedBlurskinDisplay(disconnectWeightList=True)
+            # convert to vertices or get the vertices
+            self.dataOfDeformer.smoothSkin(
+                chunks, repeat=self.smoothBTN.precision, percentMvt=self.percentBTN.precision
+            )
+            # cmds.blurSkinCmd (command = "smooth", repeat = self.smoothBTN.precision, percentMvt = self.percentBTN.precision)
+            if self.dataOfDeformer.blurSkinNode and cmds.objExists(
+                self.dataOfDeformer.blurSkinNode
+            ):
+                cmds.delete(self.dataOfDeformer.blurSkinNode)
+        else:
+            self.prepareToSetValue()
+            self.dataOfDeformer.smoothVertices()
+            self.dataOfDeformer.postSkinSet()
 
     def selProbVerts(self):
         vtx = self.dataOfDeformer.fixAroundVertices(tolerance=self.problemVertsBTN.precision)

@@ -5,7 +5,7 @@ from functools import partial
 # import shiboken2 as shiboken
 import time, datetime
 
-from ctypes import c_double, c_float
+from ctypes import c_double
 
 import numpy as np
 import re
@@ -43,36 +43,7 @@ class DataOfSkin(DataAbstract):
             self.sknFn.getInputGeometry(geometries)
         theMObject = geometries[0]
 
-        if (
-            self.shapePath.apiType() == OpenMaya.MFn.kMesh
-        ):  # cmds.nodeType(shapeName) == 'nurbsCurve':
-            theMesh = OpenMaya.MFnMesh(theMObject)
-            lent = theMesh.numVertices() * 3
-
-            cta = (c_float * lent).from_address(int(theMesh.getRawPoints()))
-            arr = np.ctypeslib.as_array(cta)
-            theVertices = np.reshape(arr, (-1, 3))
-        else:
-            cvPoints = OpenMaya.MPointArray()
-            if (
-                self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve
-            ):  # cmds.nodeType(shapeName) == 'nurbsCurve':
-                crvFn = OpenMaya.MFnNurbsCurve(theMObject)
-                crvFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
-            elif (
-                self.shapePath.apiType() == OpenMaya.MFn.kNurbsSurface
-            ):  # cmds.nodeType(shapeName) == 'nurbsSurface':
-                surfaceFn = OpenMaya.MFnNurbsSurface(theMObject)
-                surfaceFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
-            pointList = []
-            for i in range(cvPoints.length()):
-                pointList.append([cvPoints[i][0], cvPoints[i][1], cvPoints[i][2]])
-            theVertices = np.array(pointList)
-        verticesPosition = np.take(theVertices, self.vertices, axis=0)
-        return verticesPosition
-        # now subArray of vertices
-        # self.origVertices [152]
-        # cmds.xform (origShape+".vtx [152]", q=True,ws=True, t=True )
+        return self.getVerticesShape(theMObject)
 
     # -----------------------------------------------------------------------------------------------------------
     # functions ------------------------------------------------------------------------------------------------
@@ -474,7 +445,6 @@ class DataOfSkin(DataAbstract):
         with GlobalContext(message="setSkinData", doPrint=self.verbose):
             new2dArray = np.copy(self.orig2dArray)
             selectArr = np.copy(self.orig2dArray)
-            remainingArr = np.copy(self.orig2dArray)
 
             # remaining array -----------------------------------------------------------------------------------------------
             remainingArr = np.copy(self.orig2dArray)
