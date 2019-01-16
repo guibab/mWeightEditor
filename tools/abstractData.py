@@ -177,7 +177,7 @@ class DataAbstract(object):
     def getDeformerFromSel(self, sel, typeOfDeformer="skinCluster"):
         if sel:
             hist = cmds.listHistory(sel, lv=0, pruneDagObjects=True)
-            if hist:
+            if typeOfDeformer != None and hist:
                 deformers = cmds.ls(hist, type=typeOfDeformer)
                 if deformers:
                     theDeformer = deformers[0]
@@ -185,6 +185,17 @@ class DataAbstract(object):
                         cmds.listHistory(theDeformer, af=True, f=True), type="shape"
                     )
                     return theDeformer, theDeformedShape[0]
+            # get the selected shape only
+            selShape = cmds.ls(sel, objectsOnly=True)[0]
+            if cmds.ls(selShape, tr=True):  # if it's a transform get the shape
+                selShape = (
+                    cmds.listRelatives(selShape, shapes=True, path=True, noIntermediate=True)
+                    or [""]
+                )[0]
+            if not cmds.ls(selShape, shapes=True):
+                return "", ""
+            else:
+                return "", selShape
         return "", ""
 
     def getSoftSelectionVertices(self, inputVertices=None):
@@ -493,9 +504,9 @@ class DataAbstract(object):
         # print inputVertices
         sel = cmds.ls(sl=True)
         theDeformer, deformedShape = self.getDeformerFromSel(sel, typeOfDeformer=typeOfDeformer)
-        if not theDeformer:
+        if not deformedShape or not cmds.objExists(deformedShape):
             return False
-
+        # print "deformedShape -> ",deformedShape
         # check if reloading is necessary
         softOn = cmds.softSelect(q=True, softSelectEnabled=True)
         prevSoftSel = cmds.softSelect(q=True, softSelectDistance=True)
@@ -523,8 +534,6 @@ class DataAbstract(object):
         self.theDeformer = theDeformer
 
         self.raw2dArray = None
-        if not theDeformer:
-            return False
         return True
 
     # -----------------------------------------------------------------------------------------------------------

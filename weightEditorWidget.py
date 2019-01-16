@@ -13,7 +13,7 @@ from blurdev.gui import Window
 
 from studio.gui.resource import Icons
 from tools.skinData import DataOfSkin
-from tools.weightMapsData import DataOfBlendShape
+from tools.weightMapsData import DataOfBlendShape, DataOfDeformers
 
 from tools.tableWidget import TableView, TableModel
 from tools.spinnerSlider import ValueSettingWE, ButtonWithValue
@@ -723,101 +723,6 @@ class SkinWeightWin(Window):
     # -----------------------------------------------------------------------------------------------------------
     # Mesh Paintable -------------------------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
-    def getListPaintableAttributes(self, theNodeShape):
-        listDeformersTypes = cmds.nodeType("geometryFilter", derived=True, isTypeName=True)
-        listShapesTypes = cmds.nodeType("shape", derived=True, isTypeName=True)
-
-        paintableItems = cmds.artBuildPaintMenu(theNodeShape).split(" ")
-
-        lstDeformers = []
-        lstShapes = []
-        lstOthers = []
-
-        blendShapes = set()
-        self.dicDisplayNames = {}
-        toSel = ""
-        for itemToPaint in paintableItems:
-            if not itemToPaint:
-                continue
-            splt = itemToPaint.split(".")
-            nodeType, nodeName, attr = splt[:3]
-            nodeNameShort = nodeName.split("|")[-1]
-            displayName = "-".join([nodeNameShort, attr])
-
-            if nodeType == "skinCluster":
-                toSel = displayName
-            if nodeType == "blendShape":
-                blendShapes.add(nodeName)
-                continue
-            self.dicDisplayNames[displayName] = nodeName + "." + attr
-            if nodeType in listDeformersTypes:
-                lstDeformers.append(displayName)
-            elif nodeType in lstShapes:
-                lstShapes.append(displayName)
-            else:
-                lstOthers.append(displayName)
-        lstBlendShapes = []
-        # deal with blendShaps
-        for BSnode in blendShapes:
-            lsGeomsOrig = cmds.blendShape(BSnode, q=True, geometry=True)
-            lsGeomsIndicesOrig = cmds.blendShape(BSnode, q=True, geometryIndices=True)
-            if theNodeShape in lsGeomsOrig:
-                # get the index of the node in the blendShape
-                ind = lsGeomsIndicesOrig[lsGeomsOrig.index(theNodeShape)]
-
-                displayName = "-".join([BSnode, "baseWeights"])
-                self.dicDisplayNames[displayName] = "{}.inputTarget[{}].baseWeights".format(
-                    BSnode, ind
-                )
-                lstBlendShapes.append(displayName)
-
-                # get the alias
-                listAlias = cmds.aliasAttr(BSnode, q=True)
-                if listAlias == None:
-                    listAliasIndices = cmds.getAttr(
-                        BSnode + ".inputTarget[{}].inputTargetGroup".format(ind), mi=True
-                    )
-                    for channelIndex in listAliasIndices:
-                        displayName = "-".join([BSnode, "targetWeights_{}".format(channelIndex)])
-                        self.dicDisplayNames[
-                            displayName
-                        ] = "{}.inputTarget[{}].inputTargetGroup[{}].targetWeights".format(
-                            BSnode, ind, channelIndex
-                        )
-                        lstBlendShapes.append(displayName)
-                else:
-                    listAlias_names = sorted(
-                        [
-                            (int(listAlias[i * 2 + 1].split("[")[1][:-1]), listAlias[i * 2])
-                            for i in range(len(listAlias) / 2)
-                        ]
-                    )
-                    for channelIndex, nmAlias in listAlias_names:
-                        displayName = "-".join([BSnode, nmAlias])
-                        self.dicDisplayNames[
-                            displayName
-                        ] = "{}.inputTarget[{}].inputTargetGroup[{}].targetWeights".format(
-                            BSnode, ind, channelIndex
-                        )
-                        lstBlendShapes.append(displayName)
-        with toggleBlockSignals([self.listInputs_CB]):
-            self.listInputs_CB.addItems(["skinCluster", "blendShape"])
-            """
-            self.listInputs_CB.clear()
-            met = QtGui.QFontMetrics (self.listInputs_CB.font())
-            longest = 0
-            for displayName in lstBlendShapes+lstDeformers+lstOthers+lstShapes :
-                width = met.width(displayName)
-                if width>longest : longest = width
-
-                newItem = self.listInputs_CB.addItem (displayName)
-                #newItem.setItemData ()
-            self.listInputs_CB.view().setMinimumWidth(longest + 10)
-
-            if toSel : self.listInputs_CB.setCurrentText (toSel)
-            else : self.listInputs_CB.setCurrentIndex(-1)
-            """
-
     def displayInfoPaintAttr(self, displayName):
         if displayName in self.dicDisplayNames:
             print self.dicDisplayNames[displayName]
@@ -833,6 +738,9 @@ class SkinWeightWin(Window):
             self.problemVertsBTN.setEnabled(True)
         elif ind == 1:  # blendShape
             self.dataOfDeformer = DataOfBlendShape()
+            self.problemVertsBTN.setEnabled(False)
+        elif ind == 2:  # deformers
+            self.dataOfDeformer = DataOfDeformers()
             self.problemVertsBTN.setEnabled(False)
         self._tm.update(self.dataOfDeformer)
 

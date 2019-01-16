@@ -825,7 +825,7 @@ class DataOfSkin(DataAbstract):
         success = self.getDataFromSelection(
             typeOfDeformer="skinCluster", force=force, inputVertices=inputVertices
         )
-        if not success:
+        if not success or self.theDeformer == "":
             return False
         else:
             self.theSkinCluster = self.theDeformer
