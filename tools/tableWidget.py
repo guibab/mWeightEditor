@@ -485,56 +485,58 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         selectionIsEmpty = self.selectionModel().selection().isEmpty()
         # columnsSelected = self.selectionModel ().selectedColumns()
 
-        selAction = popMenu.addAction("select deformers")
-        selAction.triggered.connect(self.selectDeformers)
-        selAction.setEnabled(not selectionIsEmpty)
-
+        if self.model().datatable.isSkinData:
+            selAction = popMenu.addAction("select deformers")
+            selAction.triggered.connect(self.selectDeformers)
+            selAction.setEnabled(not selectionIsEmpty)
         selVertices = popMenu.addAction("select vertices")
         selVertices.triggered.connect(partial(self.displayVertices, True))
         selVertices.setEnabled(not selectionIsEmpty)
 
-        popMenu.addSeparator()
+        if self.model().datatable.isSkinData:
 
-        lockAction = popMenu.addAction("lock selected")
-        lockAction.triggered.connect(self.lockSelectedColumns)
-        lockAction.setEnabled(not selectionIsEmpty)
+            popMenu.addSeparator()
 
-        lockAllButSelAction = popMenu.addAction("lock all but selected")
-        lockAllButSelAction.triggered.connect(self.lockAllButSelectedColumns)
-        lockAllButSelAction.setEnabled(not selectionIsEmpty)
+            lockAction = popMenu.addAction("lock selected")
+            lockAction.triggered.connect(self.lockSelectedColumns)
+            lockAction.setEnabled(not selectionIsEmpty)
 
-        unlockAction = popMenu.addAction("unlock selected")
-        unlockAction.triggered.connect(self.unlockSelectedColumns)
-        unlockAction.setEnabled(not selectionIsEmpty)
+            lockAllButSelAction = popMenu.addAction("lock all but selected")
+            lockAllButSelAction.triggered.connect(self.lockAllButSelectedColumns)
+            lockAllButSelAction.setEnabled(not selectionIsEmpty)
 
-        clearLocksAction = popMenu.addAction("clear all Locks")
-        clearLocksAction.triggered.connect(self.clearLocks)
+            unlockAction = popMenu.addAction("unlock selected")
+            unlockAction.triggered.connect(self.unlockSelectedColumns)
+            unlockAction.setEnabled(not selectionIsEmpty)
 
-        # newAction .setCheckable (True)
-        # newAction .setChecked (self.isDockable)
-        model = self.model()
-        hideColumnIndices = model.datatable.hideColumnIndices
-        # if len (hideColumnIndices) >0 :
-        columnNames = model.columnNames()
-        popMenu.addSeparator()
-        hideZeroColumnsAction = popMenu.addAction("hide zero columns")
-        hideZeroColumnsAction.setCheckable(True)
-        hideZeroColumnsAction.setChecked(self.mainWindow.hideZeroColumn)
-        hideZeroColumnsAction.toggled.connect(self.mainWindow.toggleZeroColumn)
+            clearLocksAction = popMenu.addAction("clear all Locks")
+            clearLocksAction.triggered.connect(self.clearLocks)
 
-        subMenuFollow = popMenu.addMenu("show Columns")
-        for ind in hideColumnIndices:
-            # newAction = subMenuFollow .addAction(columnNames [ind])
-            # newAction.setCheckable (True)
-            # newAction.setChecked (False)
-            chbox = QtWidgets.QCheckBox(columnNames[ind], subMenuFollow)
+            # newAction .setCheckable (True)
+            # newAction .setChecked (self.isDockable)
+            model = self.model()
+            hideColumnIndices = model.datatable.hideColumnIndices
+            # if len (hideColumnIndices) >0 :
+            columnNames = model.columnNames()
+            popMenu.addSeparator()
+            hideZeroColumnsAction = popMenu.addAction("hide zero columns")
+            hideZeroColumnsAction.setCheckable(True)
+            hideZeroColumnsAction.setChecked(self.mainWindow.hideZeroColumn)
+            hideZeroColumnsAction.toggled.connect(self.mainWindow.toggleZeroColumn)
 
-            chbox.setChecked(not self.isSectionHidden(ind))
-            chbox.toggled.connect(partial(self.toggledColumn, ind, columnNames[ind]))
+            subMenuFollow = popMenu.addMenu("show Columns")
+            for ind in hideColumnIndices:
+                # newAction = subMenuFollow .addAction(columnNames [ind])
+                # newAction.setCheckable (True)
+                # newAction.setChecked (False)
+                chbox = QtWidgets.QCheckBox(columnNames[ind], subMenuFollow)
 
-            checkableAction = QtWidgets.QWidgetAction(subMenuFollow)
-            checkableAction.setDefaultWidget(chbox)
-            subMenuFollow.addAction(checkableAction)
+                chbox.setChecked(not self.isSectionHidden(ind))
+                chbox.toggled.connect(partial(self.toggledColumn, ind, columnNames[ind]))
+
+                checkableAction = QtWidgets.QWidgetAction(subMenuFollow)
+                checkableAction.setDefaultWidget(chbox)
+                subMenuFollow.addAction(checkableAction)
         popMenu.exec_(self.mapToGlobal(pos))
 
     def toggledColumn(self, ind, ColumnName, checked):
