@@ -406,11 +406,40 @@ class SkinWeightWin(Window):
         colIndices = self._tv.HHeaderView.getSelectedColumns()
         resultImport = self.dataOfDeformer.importColumns(colIndices)
         if resultImport != None:
+            self.associationXml_tbl.lstComboxes = []
+            self.associationXml_tbl.clear()
+            self.associationXml_tbl.setColumnWidth(0, 150)
+
             colNames, filesPath = resultImport
+            shortFilePaths = [pth.split("/")[-1] for pth in filesPath]
+            shortFilePaths.insert(0, "")
             self.importQueryFrame.show()
+            for nm in self.dataOfDeformer.shortColumnsNames:
+                associationItem = QtWidgets.QTreeWidgetItem()
+                associationItem.setText(0, str(nm))
+                associationItem.setFlags(
+                    associationItem.flags()
+                    | QtCore.Qt.ItemIsEditable
+                    | QtCore.Qt.ItemIsUserCheckable
+                )
+                self.associationXml_tbl.addTopLevelItem(associationItem)
+                comboB = QtWidgets.QComboBox()
+                comboB.addItems(shortFilePaths)
+                self.associationXml_tbl.setItemWidget(associationItem, 1, comboB)
+                if nm in colNames:
+                    comboB.setCurrentIndex(1)
+                self.associationXml_tbl.lstComboxes.append(comboB)
+            self.fileImportPths = filesPath
+        else:
+            self.refresh(force=True)
 
     def doImportXmlCouples(self):
-        print "HI"
+        for inCol, comboB in enumerate(self.associationXml_tbl.lstComboxes):
+            currentIndex = comboB.currentIndex()
+            if currentIndex > 0:
+                filePth = self.fileImportPths[currentIndex + 1]  # first one is empty of course
+                self.dataOfDeformer.doImport(filePth, inCol)
+        self.refresh(force=True)
 
     def exportButtonsVis(self, val):
         for btn in [self.exportBTN, self.importBTN]:
@@ -563,8 +592,9 @@ class SkinWeightWin(Window):
     def refresh(self, force=False):
         if self.unLock or force:
             self._tm.beginResetModel()
-            for ind in self.dataOfDeformer.hideColumnIndices:
-                self._tv.showColumn(ind)
+            if self.dataOfDeformer.isSkinData:
+                for ind in self.dataOfDeformer.hideColumnIndices:
+                    self._tv.showColumn(ind)
             with GlobalContext(message="weightEdtior getAllData", doPrint=False):
                 self.dataOfDeformer.updateDisplayVerts([])
                 resultData = self.dataOfDeformer.getAllData(force=force)

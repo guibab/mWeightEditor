@@ -94,9 +94,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         vertsIndicesWeights = zip(indicesDifferents[0].tolist(), values.tolist())
         self.setAttributeValues(self.listAttrs[colIndex], vertsIndicesWeights)
 
-    def queryAssociationWindow(self, colIndices, lstPaths):
-        print "path"
-
     # -----------------------------------------------------------------------------------------------------------
     # Attrs functions -------------------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
@@ -205,6 +202,8 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         """
 
     def setAttributeValues(self, att, vertsIndicesWeights):
+        if not vertsIndicesWeights:
+            return
         if self.useAPI:
             MSel = OpenMaya2.MSelectionList()
             MSel.add(att)
