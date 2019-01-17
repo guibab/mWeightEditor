@@ -108,6 +108,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         blendShapes = set()
 
         self.dicDisplayNames = {}
+        self.attributesToPaint = {}
         toSel = ""
         for itemToPaint in paintableItems:
             if not itemToPaint:
@@ -124,6 +125,8 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 blendShapes.add(nodeName)
                 continue
             self.dicDisplayNames[displayName] = nodeName + "." + attr
+            self.attributesToPaint[displayName] = itemToPaint[:-2]
+
             if nodeType in listDeformersTypes:
                 lstDeformers.append(displayName)
             elif nodeType in listShapesTypes:
@@ -314,6 +317,9 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         self.listAttrShortName, self.listAttrs = [], []
         self.fullAttributesArr = []
 
+        self.dicDisplayNames = {}
+        self.attributesToPaint = {}
+
     preSel = ""
 
 
@@ -365,6 +371,9 @@ class DataOfBlendShape(DataOfOneDimensionalAttrs):
 
                     listAttrShortName.append(attrShortName)
                     listAttrs.append(attr)
+                # for paintable --------------
+                for shortName in listAttrShortName:
+                    self.attributesToPaint[shortName] = "blendShape.{}.baseWeights".format(BSnode)
                 return listAttrShortName, listAttrs
             else:
                 return [], []

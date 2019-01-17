@@ -1,6 +1,6 @@
 from Qt import QtGui, QtCore, QtWidgets
 from functools import partial
-from maya import cmds
+from maya import cmds, mel
 import numpy as np
 
 
@@ -446,9 +446,10 @@ class HorizHeaderView(QtWidgets.QHeaderView):
             chunks = np.union1d(chunks, range(item.left(), item.right() + 1))
 
         selectedIndices = [indCol for indCol in chunks if not self.isSectionHidden(indCol)]
-        lastCol = self.count() - 1
-        if lastCol in selectedIndices:
-            selectedIndices.remove(lastCol)
+        if self.model().datatable.isSkinData:
+            lastCol = self.count() - 1
+            if lastCol in selectedIndices:
+                selectedIndices.remove(lastCol)
         return selectedIndices
 
     def lockSelectedColumns(self):
@@ -479,6 +480,16 @@ class HorizHeaderView(QtWidgets.QHeaderView):
     def clearLocks(self):
         self.model().datatable.unLockColumns(range(self.count() - 1))
         self.mainWindow.refreshPaintEditor()
+
+    def enterPaintAttribute(self):
+        selectedColumns = self.getSelectedColumns()
+        colIndex = selectedColumns.pop()
+        # mel.eval ('artSetToolAndSelectAttr( "artAttrCtx", "softMod.softMod1.weights" );')
+        theAtt = self.model().datatable.attributesToPaint[
+            self.model().datatable.shortColumnsNames[colIndex]
+        ]
+        mel.eval('artSetToolAndSelectAttr( "artAttrCtx", "{}" );'.format(theAtt))
+        # print theIndex
 
     def showMenu(self, pos):
         popMenu = QtWidgets.QMenu(self)
@@ -537,6 +548,10 @@ class HorizHeaderView(QtWidgets.QHeaderView):
                 checkableAction = QtWidgets.QWidgetAction(subMenuFollow)
                 checkableAction.setDefaultWidget(chbox)
                 subMenuFollow.addAction(checkableAction)
+        else:
+            paintAttr = popMenu.addAction("paint attribute")
+            paintAttr.triggered.connect(self.enterPaintAttribute)
+            paintAttr.setEnabled(not selectionIsEmpty)
         popMenu.exec_(self.mapToGlobal(pos))
 
     def toggledColumn(self, ind, ColumnName, checked):
