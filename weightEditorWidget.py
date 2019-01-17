@@ -267,7 +267,7 @@ class SkinWeightWin(Window):
     def createWindow(self):
         theLayout = self.mainLayout
 
-        theLayout.setContentsMargins(10, 10, 10, 10)
+        theLayout.setContentsMargins(10, 10, 10, 2)
         theLayout.setSpacing(3)
         self.addPercentage = False
 
@@ -384,6 +384,12 @@ class SkinWeightWin(Window):
         # display the list of paintable attributes
         with toggleBlockSignals([self.listInputs_CB]):
             self.listInputs_CB.addItems(["skinCluster", "blendShape", "deformers"])  # , "others"])
+        self.cancelImportBTN.clicked.connect(self.importQueryFrame.hide)
+        self.doImportXmlBTN.clicked.connect(self.doImportXmlCouples)
+        self.doImportXmlBTN.clicked.connect(self.importQueryFrame.hide)
+
+        self.importQueryFrame.hide()
+
         """
         if self.dataOfDeformer.deformedShape : 
             self.getListPaintableAttributes (self.dataOfDeformer.deformedShape)
@@ -393,16 +399,24 @@ class SkinWeightWin(Window):
     # export import  -------------------------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
     def exportAction(self):
-        print "export"
+        colIndices = self._tv.HHeaderView.getSelectedColumns()
+        self.dataOfDeformer.exportColumns(colIndices)
 
     def importAction(self):
-        print "import"
+        colIndices = self._tv.HHeaderView.getSelectedColumns()
+        resultImport = self.dataOfDeformer.importColumns(colIndices)
+        if resultImport != None:
+            colNames, filesPath = resultImport
+            self.importQueryFrame.show()
+
+    def doImportXmlCouples(self):
+        print "HI"
 
     def exportButtonsVis(self, val):
         for btn in [self.exportBTN, self.importBTN]:
             btn.setEnabled(
-                not self.dataOfDeformer.isSkinData and self.dataOfDeformer.fullShapeIsUsed and val
-            )
+                not self.dataOfDeformer.isSkinData and val
+            )  # and self.dataOfDeformer.fullShapeIsUsed
 
     # -----------------------------------------------------------------------------------------------------------
     # callBacks ------------------------------------------------------------------------------------------------
