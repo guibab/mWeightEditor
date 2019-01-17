@@ -114,7 +114,7 @@ class ValueSetting(QtWidgets.QWidget):
         newPolicy = QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum
         )
-        self.theSpinner.setMaximumWidth(40)
+        self.theSpinner.setMaximumSize(40, 18)
         newPolicy.setHorizontalStretch(0)
         newPolicy.setVerticalStretch(0)
         self.theSpinner.setSizePolicy(newPolicy)

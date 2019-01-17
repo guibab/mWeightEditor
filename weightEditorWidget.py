@@ -373,16 +373,36 @@ class SkinWeightWin(Window):
             theUI = self.__dict__[uiName]
             theUI.setEnabled(False)
             self._tv.selEmptied.connect(theUI.setEnabled)
+        for btn in [self.exportBTN, self.importBTN]:
+            btn.setEnabled(False)
+        self.exportBTN.clicked.connect(self.exportAction)
+        self.importBTN.clicked.connect(self.importAction)
+
+        self._tv.selEmptied.connect(self.exportButtonsVis)
         cmds.evalDeferred(self.deferredBtns)
 
         # display the list of paintable attributes
-
         with toggleBlockSignals([self.listInputs_CB]):
             self.listInputs_CB.addItems(["skinCluster", "blendShape", "deformers"])  # , "others"])
         """
         if self.dataOfDeformer.deformedShape : 
             self.getListPaintableAttributes (self.dataOfDeformer.deformedShape)
         """
+
+    # -----------------------------------------------------------------------------------------------------------
+    # export import  -------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    def exportAction(self):
+        print "export"
+
+    def importAction(self):
+        print "import"
+
+    def exportButtonsVis(self, val):
+        for btn in [self.exportBTN, self.importBTN]:
+            btn.setEnabled(
+                not self.dataOfDeformer.isSkinData and self.dataOfDeformer.fullShapeIsUsed and val
+            )
 
     # -----------------------------------------------------------------------------------------------------------
     # callBacks ------------------------------------------------------------------------------------------------
