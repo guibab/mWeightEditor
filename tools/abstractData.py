@@ -820,4 +820,5 @@ class DataAbstract(object):
         print "weightEditor call back is Invoked : -{}-  to -{}- ".format(oldName, newName)
 
     def callUndo(self):
+        cmds.Undo()
         pass

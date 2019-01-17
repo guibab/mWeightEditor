@@ -187,6 +187,8 @@ class SkinWeightWin(Window):
             self._tm.endResetModel()
             self.retrieveSelection()
 
+            if not self.dataOfDeformer.isSkinData:
+                self.refresh()
             # super(SkinWeightWin, self).keyPressEvent(event)
             return
         super(SkinWeightWin, self).keyPressEvent(event)
