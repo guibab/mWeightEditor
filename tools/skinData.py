@@ -19,8 +19,6 @@ from .abstractData import DataAbstract, isin
 #
 ###################################################################################
 class DataOfSkin(DataAbstract):
-    verbose = False
-
     def __init__(self, useShortestNames=False, hideZeroColumn=True, createDisplayLocator=True):
         self.useShortestNames = useShortestNames
         self.hideZeroColumn = hideZeroColumn
@@ -1034,6 +1032,15 @@ class DataOfSkin(DataAbstract):
         # print toSel
         # mel.eval ("select -r " + " ".join(toSel))
         cmds.select(toSel, r=True)
+
+    def selectDeformers(self, selectedIndices):
+        toSel = [
+            self.driverNames[column]
+            for column in selectedIndices
+            if cmds.objExists(self.driverNames[column])
+        ]
+        cmds.select(toSel)
+        cmds.selectMode(object=True)
 
     # -----------------------------------------------------------------------------------------------------------
     # callBacks ------------------------------------------------------------------------------------------------
