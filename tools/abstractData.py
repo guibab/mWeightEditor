@@ -615,7 +615,7 @@ class DataAbstract(object):
             addValues = addValues.clip(min=0.0, max=1.0)
 
             if autoPrune:  # prune values
-                self.pruneOnArray(addValues, addValues.mask, addValues.sum(axis=1), autoPruneValue)
+                self.pruneOnArray(addValues, addValues.mask, autoPruneValue)
             np.copyto(new2dArray, addValues, where=~addValues.mask)
             if self.softOn:  # mult soft Value
                 new2dArray = (

@@ -523,7 +523,13 @@ class SkinWeightWin(Window):
                 # print widgetName
                 break
         # print widgetName
-        if widgetName == "topButtonsWidget":
+        if widgetName in [
+            "centralwidget",
+            "topButtonsWidget",
+            "carryWidget",
+            "widgetAdd",
+            "widgetAbs",
+        ]:
             self.popMenu.exec_(self.mapToGlobal(pos))
 
     # -----------------------------------------------------------------------------------------------------------
@@ -565,7 +571,8 @@ class SkinWeightWin(Window):
         cmds.optionVar(intValue=["useShortestNames", checked])
         self.useShortestNames = checked
         self.dataOfDeformer.useShortestNames = checked
-        self.dataOfDeformer.getShortNames()
+        if self.dataOfDeformer.isSkinData:
+            self.dataOfDeformer.getDriversShortNames()
         self.popMenu.close()
 
     # -----------------------------------------------------------------------------------------------------------
