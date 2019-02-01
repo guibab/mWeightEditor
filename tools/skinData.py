@@ -19,11 +19,19 @@ from .abstractData import DataAbstract, isin
 #
 ###################################################################################
 class DataOfSkin(DataAbstract):
-    def __init__(self, useShortestNames=False, hideZeroColumn=True, createDisplayLocator=True):
+    def __init__(
+        self,
+        useShortestNames=False,
+        hideZeroColumn=True,
+        createDisplayLocator=True,
+        mainWindow=None,
+    ):
         self.useShortestNames = useShortestNames
         self.hideZeroColumn = hideZeroColumn
         self.clearData()
-        super(DataOfSkin, self).__init__(createDisplayLocator=createDisplayLocator)
+        super(DataOfSkin, self).__init__(
+            createDisplayLocator=createDisplayLocator, mainWindow=mainWindow
+        )
         self.isSkinData = True
 
     # -----------------------------------------------------------------------------------------------------------
@@ -524,14 +532,14 @@ class DataOfSkin(DataAbstract):
 
     def postSkinSet(self):
         cmds.setAttr(self.theSkinCluster + ".normalizeWeights", self.normalizeWeights)
-        self.storeUndoStack()
-
+        self.undoDic["inListVertices"] = []
         # if connected  ---------------------------------------------------
         if self.blurSkinNode:
             # set the vertices
             if self.indicesVertices.size > 0:
                 selVertices = self.orderMelList(self.indicesVertices)
                 inList = ["vtx[{0}]".format(el) for el in selVertices]
+                self.undoDic["inListVertices"] = inList
                 if cmds.objExists(self.blurSkinNode):
                     cmds.setAttr(
                         self.blurSkinNode + ".inputComponents",
@@ -569,49 +577,17 @@ class DataOfSkin(DataAbstract):
                 shapePath, userComponents, influenceIndices, newArray, normalize, UndoValues
             )
 
+            if self.storeUndo:
+                self.undoValues = UndoValues
+                self.storeUndo = False
+            self.redoValues = newArray
+
             # do the stting in the 2dArray -----
             if sub2DArrayToSet != None:
                 np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), theValues)
                 self.computeSumArray()
-            else:
-                self.undoMirrorValues.append([UndoValues, userComponents, influenceIndices])
-
-    # -----------------------------------------------------------------------------------------------------------
-    # undo functions -------------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
-    def undoSymetry(self):
-        tmpUndoValues = OpenMaya.MDoubleArray()
-        if self.undoMirrorValues:
-            prevValues, userComponents, influenceIndices = self.undoMirrorValues.pop()
-            self.sknFn.setWeights(
-                self.shapePath, userComponents, influenceIndices, prevValues, False, tmpUndoValues
-            )
-        else:
-            print "NO MORE SYM UNDO"
-
-    def storeUndoStack(self):
-        # add to the Undo stack -----------------------------------------
-        undoArray = np.copy(self.orig2dArray)
-        self.UNDOstack.append(
-            (
-                undoArray,
-                self.sub2DArrayToSet,
-                self.userComponents,
-                self.influenceIndices,
-                self.shapePath,
-                self.sknFn,
-            )
-        )
-
-    def callUndo(self):
-        if self.UNDOstack:
-            if self.verbose:
-                print "UNDO"
-            undoArgs = self.UNDOstack.pop()
-            self.actuallySetValue(*undoArgs)
-        else:
-            if self.verbose:
-                print "No more undo"
+            # else :
+            # self.undoMirrorValues.append ( [UndoValues, userComponents, influenceIndices] )
 
     # -----------------------------------------------------------------------------------------------------------
     # get data -------------------------------------------------------------------------------------------------
@@ -816,8 +792,7 @@ class DataOfSkin(DataAbstract):
         self.skinningMethod = ""
         self.normalizeWeights = []
 
-        self.UNDOstack = []
-        self.undoMirrorValues = []
+        self.undoDic = {"isSkin": True, "inListVertices": [], "theSkinCluster": ""}
 
     def getAllData(self, displayLocator=True, getskinWeights=True, force=True, inputVertices=None):
         success = self.getDataFromSelection(
@@ -927,6 +902,15 @@ class DataOfSkin(DataAbstract):
         self.newArray = OpenMaya.MDoubleArray()
         self.newArray.setLength(lengthArray)
 
+        self.undoDic.update(
+            {
+                "theSkinCluster": self.theSkinCluster,
+                "userComponents": self.userComponents,
+                "influenceIndices": self.influenceIndices,
+                "shapePath": self.shapePath,
+                "sknFn": self.sknFn,
+            }
+        )
         # set normalize FALSE --------------------------------------------------------
         cmds.setAttr(self.theSkinCluster + ".normalizeWeights", 0)
 

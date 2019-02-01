@@ -1,6 +1,7 @@
 # https://github.com/chadmv/cmt/blob/master/scripts/cmt/deform/skinio.py
 from Qt.QtWidgets import QApplication
 from maya import OpenMayaUI, OpenMaya, OpenMayaAnim
+import maya.api.OpenMaya as OpenMaya2
 from maya import cmds, mel
 from functools import partial
 
@@ -11,7 +12,7 @@ from ctypes import c_float, c_int
 
 import numpy as np
 import re
-from utils import GlobalContext, getSoftSelectionValuesNEW, getThreeIndices
+from utils import GlobalContext, getSoftSelectionValuesNEW, getThreeIndices, SettingWithRedraw
 
 
 def isin(element, test_elements, assume_unique=False, invert=False):
@@ -29,7 +30,8 @@ def isin(element, test_elements, assume_unique=False, invert=False):
 class DataAbstract(object):
     verbose = False
 
-    def __init__(self, createDisplayLocator=True):
+    def __init__(self, createDisplayLocator=True, mainWindow=None):
+        self.mainWindow = mainWindow
         self.isSkinData = False
         sel = cmds.ls(sl=True)
         hil = cmds.ls(hilite=True)
@@ -138,9 +140,12 @@ class DataAbstract(object):
             and self.shapePath.apiType() == OpenMaya.MFn.kMesh
         )
         if cmds.objExists(self.pointsDisplayTrans):
-            (pointsDisplayNode,) = cmds.listRelatives(
+            pointsDisplayTransChildren = cmds.listRelatives(
                 self.pointsDisplayTrans, path=True, type="pointsDisplay"
             )
+            if not pointsDisplayTransChildren:
+                return
+            pointsDisplayNode = pointsDisplayTransChildren[0]
             if rowsSel != []:
                 if isMesh:
                     selVertices = self.orderMelList([self.vertices[ind] for ind in rowsSel])
@@ -510,6 +515,9 @@ class DataAbstract(object):
         self.sortedIndices = []
         self.opposite_sortedIndices = []
 
+        # undo stack --------------------
+        self.storeUndo = True
+
     preSel = ""
 
     def getDataFromSelection(self, typeOfDeformer="skinCluster", force=True, inputVertices=None):
@@ -562,13 +570,14 @@ class DataAbstract(object):
 
     def pruneWeights(self, pruneValue):
         with GlobalContext(message="pruneWeights", doPrint=self.verbose):
+            print "pruneWeights"
             new2dArray = np.copy(self.orig2dArray)
 
+            self.printArrayData(new2dArray)
             self.pruneOnArray(new2dArray, self.lockedMask, pruneValue)
+            self.printArrayData(new2dArray)
 
-            self.setValueInDeformer(new2dArray)
-            if self.sub2DArrayToSet != None:
-                np.put(self.sub2DArrayToSet, xrange(self.sub2DArrayToSet.size), new2dArray)
+            self.commandForDoIt(new2dArray)
 
     def absoluteVal(self, val):
         with GlobalContext(message="absoluteVal", doPrint=self.verbose):
@@ -581,10 +590,7 @@ class DataAbstract(object):
                     new2dArray * self.indicesWeights[:, np.newaxis]
                     + self.orig2dArray * (1.0 - self.indicesWeights)[:, np.newaxis]
                 )
-            self.setValueInDeformer(new2dArray)
-
-            if self.sub2DArrayToSet != None:
-                np.put(self.sub2DArrayToSet, xrange(self.sub2DArrayToSet.size), new2dArray)
+            self.commandForDoIt(new2dArray)
 
     def doAdd(self, val, percent=False, autoPrune=False, average=False, autoPruneValue=0.0001):
         with GlobalContext(message="absoluteVal", doPrint=self.verbose):
@@ -623,16 +629,12 @@ class DataAbstract(object):
                     + self.orig2dArray * (1.0 - self.indicesWeights)[:, np.newaxis]
                 )
             # self.printArrayData (new2dArray)
-            self.setValueInDeformer(new2dArray)
-
-            if self.sub2DArrayToSet != None:
-                np.put(self.sub2DArrayToSet, xrange(self.sub2DArrayToSet.size), new2dArray)
-
-    # set Value ------------------------------------------------
-    def setValueInDeformer(self):
-        pass
+            self.commandForDoIt(new2dArray)
 
     def preSettingValuesFn(self, chunks, actualyVisibleColumns):
+        self.storeUndo = (
+            True  # it tells us that before the first set we need to store values for the undo
+        )
         # MASK selection array -----------------------------------
         lstTopBottom = []
         for top, bottom, left, right in chunks:
@@ -690,6 +692,20 @@ class DataAbstract(object):
 
     def getValue(self, row, column):
         return self.display2dArray[row][column]
+
+    def commandForDoIt(self, arrayForSetting):
+        """
+        #self.theFnFunction = partial (self.setValueInDeformer, arrayForSetting)
+        theSubArrayToSet = self.sub2DArrayToSet
+        undoArr = np.copy ( self.orig2dArray )
+        redoArr = np.copy ( arrayForSetting )
+        self.undoValues = (undoArr, redoArr, theSubArrayToSet)
+        """
+        # doIt :
+        self.setValueInDeformer(arrayForSetting)
+        # self.orig2dArray is the undo values
+        if self.sub2DArrayToSet != None:
+            np.put(self.sub2DArrayToSet, xrange(self.sub2DArrayToSet.size), arrayForSetting)
 
     # -----------------------------------------------------------------------------------------------------------
     # function to get display  texts ----------------------------------------------------------------------------
@@ -819,6 +835,105 @@ class DataAbstract(object):
         return
         print "weightEditor call back is Invoked : -{}-  to -{}- ".format(oldName, newName)
 
-    def callUndo(self):
-        cmds.Undo()
-        pass
+    # -----------------------------------------------------------------------------------------------------------
+    # do and Undo ----------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    def undoRedoFunction(self, arraySetting, sub2DArrayToSet):
+        print "! undoRedoFunction !"
+        self.setValueInDeformer(arraySetting)
+        if sub2DArrayToSet != None:
+            np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), arraySetting)
+
+
+###################################################################################
+#
+#   UNDO REDO FUNCTIONS
+#
+###################################################################################
+class DataQuickSet(object):
+    def __init__(self, undoArgs, redoArgs, mainWindow=None, isSkin=False, **kwargs):
+        self.undoArgs = undoArgs
+        self.redoArgs = redoArgs
+        self.__dict__.update({"mainWindow": mainWindow, "isSkin": isSkin})
+        self.__dict__.update(**kwargs)
+
+    def doIt(self):
+        print "DataQuickSet - doIt"
+
+    def redoIt(self):
+        # with SettingWithRedraw (self.mainWindow) :
+        if not self.isSkin:
+            self.setValues(*self.redoArgs)
+        else:
+            self.blurSkinNode = self.disConnectBlurskinDisplay(self.theSkinCluster)
+            self.normalizeWeights = cmds.getAttr(self.theSkinCluster + ".normalizeWeights")
+            self.setSkinValue(*self.redoArgs)
+            self.postSkinSet(self.theSkinCluster, self.inListVertices)
+        self.refreshWindow()
+
+    def undoIt(self):
+        # with SettingWithRedraw (self.mainWindow) :
+        if not self.isSkin:
+            self.setValues(*self.undoArgs)
+        else:
+            self.blurSkinNode = self.disConnectBlurskinDisplay(self.theSkinCluster)
+            self.normalizeWeights = cmds.getAttr(self.theSkinCluster + ".normalizeWeights")
+            self.setSkinValue(*self.undoArgs)
+            self.postSkinSet(self.theSkinCluster, self.inListVertices)
+        self.refreshWindow()
+
+    def refreshWindow(self):
+        if self.mainWindow:
+            try:
+                self.mainWindow.refreshBtn()
+            except:
+                return
+
+    def setValues(self, attsValues):
+        if not attsValues:
+            return
+        for att, vertsIndicesWeights in attsValues:
+            MSel = OpenMaya2.MSelectionList()
+            MSel.add(att)
+
+            plg2 = MSel.getPlug(0)
+            for indVtx, value in vertsIndicesWeights:
+                plg2.elementByLogicalIndex(indVtx).setFloat(value)
+
+    def disConnectBlurskinDisplay(self, theSkinCluster):
+        if cmds.objExists(theSkinCluster):
+            inConn = cmds.listConnections(
+                theSkinCluster + ".input[0].inputGeometry", s=True, d=False, type="blurSkinDisplay"
+            )
+            if inConn:
+                blurSkinNode = inConn[0]
+                inConn = cmds.listConnections(
+                    theSkinCluster + ".weightList", s=True, d=False, p=True, type="blurSkinDisplay"
+                )
+                if inConn:
+                    cmds.disconnectAttr(inConn[0], theSkinCluster + ".weightList")
+                return blurSkinNode
+        return ""
+
+    def postSkinSet(self, theSkinCluster, inListVertices):
+        cmds.setAttr(theSkinCluster + ".normalizeWeights", self.normalizeWeights)
+        # if connected  ---------------------------------------------------
+        if inListVertices and self.blurSkinNode and cmds.objExists(self.blurSkinNode):
+            cmds.setAttr(
+                self.blurSkinNode + ".inputComponents",
+                *([len(inListVertices)] + inListVertices),
+                type="componentList"
+            )
+
+    def setSkinValue(self, newArray):
+        ###############################################
+        normalize = False
+        UndoValues = OpenMaya.MDoubleArray()
+        self.sknFn.setWeights(
+            self.shapePath,
+            self.userComponents,
+            self.influenceIndices,
+            newArray,
+            normalize,
+            UndoValues,
+        )

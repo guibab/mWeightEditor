@@ -5,6 +5,20 @@ from maya import OpenMaya
 # -------------------------------------------------------------------------------------------
 # ------------------------ global functions -------------------------------------------------
 # -------------------------------------------------------------------------------------------
+class SettingWithRedraw(object):
+    def __init__(self, theWindow, raise_error=True):
+        self.theWindow = theWindow
+
+    def __enter__(self):
+        self.theWindow.storeSelection()
+        self.theWindow._tm.beginResetModel()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.theWindow._tm.endResetModel()
+        self.theWindow.retrieveSelection()
+        # add a refresh of the locator ?
+
+
 class GlobalContext(object):
     def __init__(
         self,

@@ -74,7 +74,7 @@ class TableModel(QtCore.QAbstractTableModel):
         # now set the value
         self.parent().prepareToSetValue()
         self.parent().doAddValue(value / 100.0, forceAbsolute=True)
-        self.datatable.postSkinSet()
+        self.parent().postSetValue()
         return True
 
     def isLocked(self, index):
