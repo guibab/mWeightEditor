@@ -25,7 +25,7 @@ cmds.setAttr ("blendShape1.inputTarget[0].baseWeights[0:2]",*values, size=len(va
 
 
 class DataOfOneDimensionalAttrs(DataAbstract):
-    useAPI = True  # for setting values use API
+    useAPI = False  # for setting values use API
 
     def __init__(
         self,
