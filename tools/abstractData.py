@@ -611,10 +611,16 @@ class DataAbstract(object):
             theMask = sumMasksUpdate if val < 0.0 else self.sumMasks
 
             if percent:
-                addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0)
+                addValues = (
+                    np.ma.array(selectArr, mask=~theMask, fill_value=0)
+                    + np.ma.array(selectArr, mask=~theMask, fill_value=0) * val
+                )
+                """
+                addValues = np.ma.array(selectArr , mask = ~theMask, fill_value = 0 )
                 sum_addValues = addValues.sum(axis=1)
-                toMult = (sum_addValues + val) / sum_addValues
+                toMult =  (sum_addValues + val) / sum_addValues
                 addValues = addValues * toMult[:, np.newaxis]
+                """
             else:
                 addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0) + val
             # clip it ---------------------------
@@ -927,6 +933,8 @@ class DataQuickSet(object):
 
     def setSkinValue(self, newArray):
         ###############################################
+        cmds.setAttr(self.theSkinCluster + ".normalizeWeights", 0)
+
         normalize = False
         UndoValues = OpenMaya.MDoubleArray()
         self.sknFn.setWeights(

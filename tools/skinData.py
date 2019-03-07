@@ -448,6 +448,7 @@ class DataOfSkin(DataAbstract):
         self, val, percent=False, autoPrune=False, average=False, autoPruneValue=0.0001
     ):
         # if percent : print "percent"
+
         with GlobalContext(message="setSkinData", doPrint=self.verbose):
             new2dArray = np.copy(self.orig2dArray)
             selectArr = np.copy(self.orig2dArray)
@@ -466,10 +467,14 @@ class DataOfSkin(DataAbstract):
             theMask = sumMasksUpdate if val < 0.0 else self.sumMasks
 
             if not average and percent:  # percent Add
-                addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0)
+                """
+                addValues = np.ma.array(selectArr , mask = ~theMask, fill_value = 0 )
                 sum_addValues = addValues.sum(axis=1)
-                toMult = (sum_addValues + val) / sum_addValues
+                toMult =  (sum_addValues + val) / sum_addValues
                 addValues = addValues * toMult[:, np.newaxis]
+                """
+                addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0)
+                addValues = (1 + val) * addValues
             elif not average:  # regular add -------------------
                 valuesToAdd = val / self.nbIndicesSettable[:, np.newaxis]
                 addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0) + valuesToAdd
