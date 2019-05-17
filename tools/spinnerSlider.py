@@ -89,7 +89,7 @@ class ValueSetting(QtWidgets.QWidget):
                        QDoubleSpinBox:disabled {color: grey; background-color:rgb(170,170,170) ; border: 1px solid black;text-align: center;}
                     """
 
-    def __init__(self, parent=None, singleStep=0.1, precision=1):
+    def __init__(self, parent=None, singleStep=0.01, precision=2):
         super(ValueSetting, self).__init__(parent=None)
         self.theProgress = ProgressItem("skinVal", szrad=0, value=50)
         self.setAddMode(True)
@@ -133,7 +133,8 @@ class ValueSetting(QtWidgets.QWidget):
         layout.addWidget(self.theSpinner)
         layout.addWidget(self.theProgress)
 
-        self.theProgress.valueChanged.connect(self.setVal)
+        # self.theProgress.valueChanged.connect (self.setVal)
+        self.theProgress.punched.connect(self.setVal)
 
     def theSpinner_focusInEvent(self, event):
         QtWidgets.QDoubleSpinBox.focusInEvent(self.theSpinner, event)
@@ -161,9 +162,10 @@ class ValueSetting(QtWidgets.QWidget):
         self.postSet()
 
     def setVal(self, val):
+        # print "setVal  [" , val,"]"
         # theVal = val/100.
         if self.addMode:
-            theVal = (val - 50) / 50.0
+            theVal = (val - 50.0) / 50.0
         else:
             theVal = val / 100.0
         # ------- SETTING FUNCTION ---------------------
@@ -223,6 +225,11 @@ class ProgressItem(QtWidgets.QProgressBar):
     border-top-left-radius: {szrad}px;}}
     """
     prt = None
+    shiftKeyValue = 0.0
+    shiftHold = False
+    currentValue = 0.0
+
+    punched = QtCore.Signal(float)
 
     def __init__(self, theName, value=0, **kwargs):
         super(ProgressItem, self).__init__()
@@ -263,11 +270,16 @@ class ProgressItem(QtWidgets.QProgressBar):
             self.setStyleSheet(self.theStyleSheet.format(**self.dicStyleSheet))
 
     def applyVal(self, val):
-        # print "applyVal {0}".format (val)
         val *= self.multiplier
         if self.minimum() == -100:
             val = val * 2 - 1
-        self.setValue(int(val * 100))
+        # self.setValue(int(val*100))
+        self.currentValue = val
+
+        val *= 100.0
+        # print "applyVal {0}".format (val)
+        self.punched.emit(val)
+        self.setValue(val)
 
     """
     def wheelEvent  (self, e):
@@ -286,7 +298,17 @@ class ProgressItem(QtWidgets.QProgressBar):
     startDrag = False
 
     def mousePressEvent(self, event):
-        if event.modifiers() == QtCore.Qt.ControlModifier or event.button() != QtCore.Qt.LeftButton:
+        self.currentValue = self.value() / 100.0
+        shiftControl = event.modifiers() == (
+            QtCore.Qt.KeyboardModifiers(QtCore.Qt.ControlModifier)
+            | QtCore.Qt.KeyboardModifiers(QtCore.Qt.ShiftModifier)
+        )
+        self.shiftHold = shiftControl or (event.modifiers() == QtCore.Qt.ShiftModifier)
+
+        if self.shiftHold:
+            self.shiftKeyValue = self.value() / 100.0
+
+        if event.modifiers() == event.button() != QtCore.Qt.LeftButton:
             super(ProgressItem, self).mousePressEvent(event)
             self.startDrag = False
         else:
@@ -300,7 +322,7 @@ class ProgressItem(QtWidgets.QProgressBar):
 
     def mouseReleaseEvent(self, event):
         self.startDrag = False
-        if event.modifiers() == QtCore.Qt.ControlModifier or event.button() != QtCore.Qt.LeftButton:
+        if event.modifiers() == event.button() != QtCore.Qt.LeftButton:
             super(ProgressItem, self).mouseReleaseEvent(event)
         else:
             # print "releasing"
@@ -309,18 +331,37 @@ class ProgressItem(QtWidgets.QProgressBar):
             super(ProgressItem, self).mouseReleaseEvent(event)
         if self.autoReset:
             self.setValue(self.releasedValue)
+            self.punched.emit(self.releasedValue)
         else:
             self.prt.postSet()
 
     def applyTheEvent(self, e):
-        shitIsHold = e.modifiers() == QtCore.Qt.ShiftModifier
+        shiftControl = e.modifiers() == (
+            QtCore.Qt.KeyboardModifiers(QtCore.Qt.ControlModifier)
+            | QtCore.Qt.KeyboardModifiers(QtCore.Qt.ShiftModifier)
+        )
+
+        shitIsHold = shiftControl or (e.modifiers() == QtCore.Qt.ShiftModifier)
+        ctrlIsHold = shiftControl or (e.modifiers() == QtCore.Qt.ControlModifier)
+
+        if shitIsHold and not self.shiftHold:
+            self.shiftKeyValue = self.currentValue
+        self.shiftHold = shitIsHold
+
         theWdth = self.width()
         # print e.mouseButtons()
         # print "moving {0}".format (e.x())
         val = e.x() / float(theWdth)
-        if shitIsHold:
-            val = round(val * 4.0) / 4.0
+        # if shitIsHold : val = round(val*4.0) / 4.
+        if self.shiftHold:
+            diff = val - self.shiftKeyValue
+            val = self.shiftKeyValue + 0.05 * diff
+            if shiftControl:
+                val = round(val * 1000.0) / 1000.0
+        elif ctrlIsHold:
+            val = round(val * 100.0) / 100.0
         # print (val)
+
         if val > 1.0:
             val = 1.0
         elif val < 0.0:
@@ -329,7 +370,6 @@ class ProgressItem(QtWidgets.QProgressBar):
 
     def mouseMoveEvent(self, event):
         isLeft = event.button() == QtCore.Qt.LeftButton
-        isCtr = event.modifiers() == QtCore.Qt.ControlModifier
         # print "mouseMoveEvent ", isLeft, isCtr
         if self.startDrag:
             self.applyTheEvent(event)
