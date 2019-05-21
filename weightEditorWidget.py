@@ -641,7 +641,6 @@ class SkinWeightWin(Window):
                 for indCol in self.dataOfDeformer.hideColumnIndices
                 if not self._tv.HHeaderView.isSectionHidden(indCol)
             ]
-
             with SettingWithRedraw(self):
                 self.dataOfDeformer.preSettingValuesFn(chunks, actualyVisibleColumns)
                 self.dataOfDeformer.reassignLocally()

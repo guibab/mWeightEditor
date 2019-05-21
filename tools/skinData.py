@@ -276,7 +276,7 @@ class DataOfSkin(DataAbstract):
                 type="componentList"
             )
 
-    def reassignLocally(self):
+    def reassignLocally(self, reassignValue=1.0, nbJointsReassign=2):
         # print "reassignLocally"
         with GlobalContext(message="reassignLocally", doPrint=True):
             # 0 get orig shape ----------------------------------------------------------------
@@ -367,6 +367,9 @@ class DataOfSkin(DataAbstract):
             ZeroVals = np.full(self.orig2dArray.shape, 0.0)
             np.copyto(new2dArray, ZeroVals, where=self.rmMasks)
 
+            # the multiply value ----------
+            if reassignValue != 1.0:
+                new2dArray = new2dArray * reassignValue + self.orig2dArray * (1.0 - reassignValue)
             if self.softOn:  # mult soft Value
                 new2dArray = (
                     new2dArray * self.indicesWeights[:, np.newaxis]
