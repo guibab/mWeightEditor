@@ -409,14 +409,50 @@ def addNameChangedCallback(callback):
     return OpenMaya.MNodeMessage.addNameChangedCallback(listenTo, omcallback)
 
 
+# OpenMaya.MNodeMessage.addNodeAboutToDeleteCallback()
+
+
+def addNameDeletedCallback(callback):
+    def omcallback(mobject, _):  # (1)
+        nodeName = OpenMaya.MFnDependencyNode(mobject).name()
+        callback(nodeName)  #
+
+    listenTo = OpenMaya.MObject()
+    return OpenMaya.MNodeMessage.addNodeAboutToDeleteCallback(listenTo, omcallback)
+
+
+# OpenMaya.MNodeMessage.addNodeAboutToDeleteCallback()
+
+
 def removeNameChangedCallback(callbackId):
     OpenMaya.MNodeMessage.removeCallback(callbackId)
 
 
 """
-def cb(oldname, newname):
-    print "call back is Invoked : -{}-  to -{}- ".format (oldname, newname)
+from maya import OpenMaya, cmds
 
-globaCallBackRename = addNameChangedCallback(cb)
-removeNameChangedCallback (globaCallBackRename )
+def beforeDelete (nm):
+    print "DELETING ", nm
+
+def omcallback(mobject, *args): #(1)
+    nodeName = OpenMaya.MFnDependencyNode(mobject).name()        
+    beforeDelete( nodeName) #
+
+
+dag_iter= OpenMaya.MItDag()
+found= False        
+
+def beforeDelete (nm):
+    print "DELETING ", nm
+
+while not dag_iter.isDone() and found == False:
+    curr= dag_iter.currentItem()        
+    fn= OpenMaya.MFnDependencyNode(curr)
+    if fn.name() == "pCube1":
+        on_node_destroyed_id = OpenMaya.MNodeMessage.addNodeAboutToDeleteCallback(curr, omcallback )
+        found= True
+        print "FOUND"
+    dag_iter.next() 
+
+
 """

@@ -21,6 +21,7 @@ from tools.spinnerSlider import ValueSettingWE, ButtonWithValue
 from tools.utils import (
     GlobalContext,
     addNameChangedCallback,
+    addNameDeletedCallback,
     removeNameChangedCallback,
     toggleBlockSignals,
     SettingWithRedraw,
@@ -462,9 +463,13 @@ class SkinWeightWin(Window):
         if self.dataOfDeformer:
             self.dataOfDeformer.renameCB(oldName, newName)
 
+    def deleteCB(self, nodeName):
+        print "to be Deleted ", nodeName
+
     def addCallBacks(self):
         self.refreshSJ = cmds.scriptJob(event=["SelectionChanged", self.refresh])
         self.renameCallBack = addNameChangedCallback(self.renameCB)
+        # self.deleteCallBack = addNameDeletedCallback (self.deleteCB)
 
         # self.listJobEvents =[refreshSJ]
         sceneUpdateCallback = OpenMaya.MSceneMessage.addCallback(
@@ -475,9 +480,12 @@ class SkinWeightWin(Window):
             OpenMaya.MSceneMessage.addCallback(OpenMaya.MSceneMessage.kBeforeOpen, self.deselectAll)
         )
 
+        # scriptJob        nodeDeleted
+
     def deleteCallBacks(self):
         # for jobNum in self.listJobEvents   : cmds.scriptJob( kill=jobNum, force=True)
         removeNameChangedCallback(self.renameCallBack)
+        # removeNameChangedCallback (self.deleteCallBack)
         self.dataOfDeformer.deleteDisplayLocator()
         cmds.scriptJob(kill=self.refreshSJ, force=True)
         for callBck in self.close_callback:

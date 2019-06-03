@@ -36,33 +36,38 @@ class TableModel(QtCore.QAbstractTableModel):
         return self.datatable.columnsNames
 
     def data(self, index, role=QtCore.Qt.DisplayRole):
-        # print 'Data Call'
-        # print index.column(), index.row()
-        if role == QtCore.Qt.DisplayRole:
-            # return QtCore.QVariant(str(self.datatable.iget_value(i, j)))
-            # return '{0:.2f}'.format(self.realData(index))
-            return round(self.realData(index) * 100, 1)
-        elif role == QtCore.Qt.EditRole:
-            ff = self.realData(index) * 100
-            return "{0:.3f}".format(ff).rstrip("0") + "0"[0 : (ff % 1 == 0)]
-        elif role == QtCore.Qt.TextAlignmentRole:
-            return QtCore.Qt.AlignCenter  # | QtCore.Qt.AlignVCenter)
-        elif role == QtCore.Qt.BackgroundRole:
-            if self.isSumColumn(index):
-                return (
-                    self.sumBrush if round(self.realData(index) * 100, 1) == 100 else self.redBrush
-                )
-            elif self.isLocked(index):
-                return self.greyBrush
-            elif self.realData(index) != 0.0:
-                return self.brownBrush
-        elif role == QtCore.Qt.ForegroundRole:
-            if self.isSumColumn(index):
-                return self.whiteBrush
-            elif self.isLocked(index):
-                return self.greyDarkerBrush
-        else:
-            return None
+        try:
+            # print 'Data Call'
+            # print index.column(), index.row()
+            if role == QtCore.Qt.DisplayRole:
+                # return QtCore.QVariant(str(self.datatable.iget_value(i, j)))
+                # return '{0:.2f}'.format(self.realData(index))
+                return round(self.realData(index) * 100, 1)
+            elif role == QtCore.Qt.EditRole:
+                ff = self.realData(index) * 100
+                return "{0:.3f}".format(ff).rstrip("0") + "0"[0 : (ff % 1 == 0)]
+            elif role == QtCore.Qt.TextAlignmentRole:
+                return QtCore.Qt.AlignCenter  # | QtCore.Qt.AlignVCenter)
+            elif role == QtCore.Qt.BackgroundRole:
+                if self.isSumColumn(index):
+                    return (
+                        self.sumBrush
+                        if round(self.realData(index) * 100, 1) == 100
+                        else self.redBrush
+                    )
+                elif self.isLocked(index):
+                    return self.greyBrush
+                elif self.realData(index) != 0.0:
+                    return self.brownBrush
+            elif role == QtCore.Qt.ForegroundRole:
+                if self.isSumColumn(index):
+                    return self.whiteBrush
+                elif self.isLocked(index):
+                    return self.greyDarkerBrush
+            else:
+                return None
+        except:
+            self.parent().deselectAll()
 
     def setData(self, index, value, role=QtCore.Qt.EditRole):
         # print "SET DATA 3"
@@ -125,18 +130,24 @@ class TableModel(QtCore.QAbstractTableModel):
         return self.datatable.softOn
 
     def flags(self, index):
-        if not index.isValid():
+        try:
+            if not index.isValid():
+                return QtCore.Qt.ItemIsEnabled
+            # sresult = super(TableModel,self).flags(index)
+            # result = sresult | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
+            column = index.column()
+            if self.datatable.isSkinData and column == self.datatable.nbDrivers:  # sum column
+                result = QtCore.Qt.ItemIsEnabled
+            elif self.isLocked(index):
+                result = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+            else:
+                result = (
+                    QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
+                )
+            return QtCore.Qt.ItemFlags(result)
+        except:
+            self.parent().deselectAll()
             return QtCore.Qt.ItemIsEnabled
-        # sresult = super(TableModel,self).flags(index)
-        # result = sresult | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
-        column = index.column()
-        if self.datatable.isSkinData and column == self.datatable.nbDrivers:  # sum column
-            result = QtCore.Qt.ItemIsEnabled
-        elif self.isLocked(index):
-            result = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
-        else:
-            result = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
-        return QtCore.Qt.ItemFlags(result)
 
 
 class HighlightDelegate(QtWidgets.QStyledItemDelegate):
