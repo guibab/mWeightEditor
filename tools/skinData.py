@@ -749,8 +749,8 @@ class DataOfSkin(DataAbstract):
         return (driverNames, skinningMethod, normalizeWeights)
 
     def computeSumArray(self):
-        if self.raw2dArray != None:
-            self.sumArray = self.raw2dArray.sum(axis=1)
+        # if self.raw2dArray != None :
+        self.sumArray = self.raw2dArray.sum(axis=1)
 
     def getDriversShortNames(self):
         self.shortColumnsNames = []
