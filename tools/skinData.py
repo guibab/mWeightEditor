@@ -591,7 +591,8 @@ class DataOfSkin(DataAbstract):
             self.redoValues = newArray
 
             # do the stting in the 2dArray -----
-            if sub2DArrayToSet != None:
+            # if sub2DArrayToSet != None:
+            if sub2DArrayToSet.size != 0:
                 np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), theValues)
                 self.computeSumArray()
             # else :
