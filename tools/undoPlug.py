@@ -1,4 +1,5 @@
 # https://medium.com/@k_serguei/maya-python-api-2-0-and-the-undo-stack-80b84de70551
+import sys
 import _ctypes
 import maya.OpenMaya as OpenMaya
 import maya.OpenMayaMPx as OpenMayaMPx
