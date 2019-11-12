@@ -72,6 +72,10 @@ class DataAbstract(object):
             cmds.setAttr (nd+".hiddenInOutliner", True)
         """
 
+    def removeDisplayLocator(self):
+        self.deleteDisplayLocator()
+        self.pointsDisplayTrans = None
+
     def deleteDisplayLocator(self):
         if cmds.objExists(self.pointsDisplayTrans):
             cmds.delete(self.pointsDisplayTrans)
@@ -517,6 +521,8 @@ class DataAbstract(object):
 
         # undo stack --------------------
         self.storeUndo = True
+        self.undoValues = None
+        self.redoValues = None
 
     preSel = ""
 
@@ -661,16 +667,15 @@ class DataAbstract(object):
         maskSelection = np.full(self.orig2dArray.shape, False, dtype=bool)
         for top, bottom, left, right in chunks:
             maskSelection[top - self.Mtop : bottom - self.Mtop + 1, left : right + 1] = True
-
         maskOppSelection = ~maskSelection
         # remove from mask hiddenColumns indices ------------------------------------------------
         hiddenColumns = np.setdiff1d(self.hideColumnIndices, actualyVisibleColumns)
-        maskSelection[:, hiddenColumns] = False
-        maskOppSelection[:, hiddenColumns] = False
-
+        if hiddenColumns.any():
+            maskSelection[:, hiddenColumns] = False
+            maskOppSelection[:, hiddenColumns] = False
         self.maskColumns = np.full(self.orig2dArray.shape, True, dtype=bool)
-        self.maskColumns[:, hiddenColumns] = False
-
+        if hiddenColumns.any():
+            self.maskColumns[:, hiddenColumns] = False
         # get the mask of the locks ------------------------------------------
         self.lockedMask = np.tile(self.lockedColumns, (nbRows, 1))
         lockedRows = [
@@ -710,7 +715,7 @@ class DataAbstract(object):
         # doIt :
         self.setValueInDeformer(arrayForSetting)
         # self.orig2dArray is the undo values
-        if self.sub2DArrayToSet != None:
+        if self.sub2DArrayToSet.any():
             np.put(self.sub2DArrayToSet, xrange(self.sub2DArrayToSet.size), arrayForSetting)
 
     # -----------------------------------------------------------------------------------------------------------
@@ -847,7 +852,7 @@ class DataAbstract(object):
     def undoRedoFunction(self, arraySetting, sub2DArrayToSet):
         print "! undoRedoFunction !"
         self.setValueInDeformer(arraySetting)
-        if sub2DArrayToSet != None:
+        if sub2DArrayToSet.any():
             np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), arraySetting)
 
 
@@ -864,7 +869,8 @@ class DataQuickSet(object):
         self.__dict__.update(**kwargs)
 
     def doIt(self):
-        print "DataQuickSet - doIt"
+        pass
+        # print "DataQuickSet - doIt"
 
     def redoIt(self):
         # with SettingWithRedraw (self.mainWindow) :
