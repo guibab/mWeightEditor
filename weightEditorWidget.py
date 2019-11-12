@@ -8,6 +8,7 @@ from Qt import QtGui, QtCore, QtWidgets, QtCompat
 from functools import partial
 from maya import cmds, OpenMaya
 import os
+import re
 import blurdev
 from blurdev.gui import Window
 
@@ -404,6 +405,10 @@ class SkinWeightWin(Window):
 
         self.importQueryFrame.hide()
 
+        # ---------------
+        self.searchInfluences_le.textChanged.connect(self.filterInfluences)
+        self.clearWildCardBTN.clicked.connect(lambda: self.searchInfluences_le.setText(""))
+
         """
         if self.dataOfDeformer.deformedShape : 
             self.getListPaintableAttributes (self.dataOfDeformer.deformedShape)
@@ -580,6 +585,32 @@ class SkinWeightWin(Window):
                 self._tv.hideColumn(ind)
             else:
                 self._tv.showColumn(ind)
+
+    def filterInfluences(self, newText):
+        if newText:
+            newTexts = newText.split(" ")
+            while "" in newTexts:
+                newTexts.remove("")
+            newTexts = [txt.replace("*", ".*") for txt in newTexts]
+            for ind, nameInfluence in enumerate(self.dataOfDeformer.columnsNames):
+                foundText = False
+                for txt in newTexts:
+                    foundText = re.search(txt, nameInfluence, re.IGNORECASE) != None
+                    if foundText:
+                        break
+                if foundText:
+                    self._tv.showColumn(ind)
+                else:
+                    self._tv.hideColumn(ind)
+        else:
+            for ind, nameInfluence in enumerate(self.dataOfDeformer.columnsNames):
+                self._tv.showColumn(ind)
+            self.toggleZeroColumn(self.hideZeroColumn)
+        """        
+        else : 
+            for nm , item in self.uiInfluenceTREE.dicWidgName.iteritems ():
+                item.setHidden (not self.showZeroDeformers and item.isZeroDfm )
+        """
 
     def autoPruneChecked(self, checked):
         cmds.optionVar(intValue=["autoPrune", checked])
@@ -766,6 +797,7 @@ class SkinWeightWin(Window):
                         val, percent=self.addPercentage, autoPrune=self.autoPrune, average=average
                     )
                 else:
+
                     self.dataOfDeformer.doAdd(
                         val, percent=self.addPercentage, autoPrune=self.autoPrune, average=average
                     )

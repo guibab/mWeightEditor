@@ -370,7 +370,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QLineEdit" name="wildCardLE"/>
+          <widget class="QLineEdit" name="searchInfluences_le"/>
          </item>
          <item>
           <widget class="QPushButton" name="clearWildCardBTN">
@@ -400,6 +400,9 @@
          </item>
          <item>
           <widget class="QPushButton" name="CopyBTN">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="minimumSize">
             <size>
              <width>80</width>
@@ -419,6 +422,9 @@
          </item>
          <item>
           <widget class="QPushButton" name="PasteBTN">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="minimumSize">
             <size>
              <width>80</width>

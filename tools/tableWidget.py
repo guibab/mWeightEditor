@@ -120,8 +120,9 @@ class TableModel(QtCore.QAbstractTableModel):
         try:
             driverName = self.datatable.columnsNames[col]
             for letter in "LRM":
-                if "_{0}_".format(letter) in driverName:
-                    return letter
+                for sub in ["", "Bk", "Fr", "T", "B"]:
+                    if "_{}{}_".format(letter, sub) in driverName:
+                        return letter
             return "X"
         except:
             return "X"
