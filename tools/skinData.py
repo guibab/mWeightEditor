@@ -750,8 +750,8 @@ class DataOfSkin(DataAbstract):
         return (driverNames, skinningMethod, normalizeWeights)
 
     def computeSumArray(self):
-        # if self.raw2dArray != None :
-        self.sumArray = self.raw2dArray.sum(axis=1)
+        if self.raw2dArray is not None:
+            self.sumArray = self.raw2dArray.sum(axis=1)
 
     def getDriversShortNames(self):
         self.shortColumnsNames = []
@@ -845,7 +845,7 @@ class DataOfSkin(DataAbstract):
             # print "rawSkinValues length : {0}" .format (self.rawSkinValues.length())
             if not getskinWeights:
                 return True
-        # isMesh = "shapePath" in self.__dict__ and self.shapePath !=None and self.shapePath.apiType() == OpenMaya.MFn.kMesh
+        # isMesh = "shapePath" in self.__dict__ and self.shapePath is not None and self.shapePath.apiType() == OpenMaya.MFn.kMesh
         if displayLocator:
             self.connectDisplayLocator()
         self.createRowText()

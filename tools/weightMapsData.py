@@ -420,9 +420,10 @@ class DataOfBlendShape(DataOfOneDimensionalAttrs):
             # print self.BSnode
             self.getShapeInfo()
             # get list belndShapes attributes
-            self.shortColumnsNames, self.listAttrs = self.getBlendShapesAttributes(
+            self.columnsNames, self.listAttrs = self.getBlendShapesAttributes(
                 self.BSnode, self.deformedShape
             )
+            self.shortColumnsNames = self.columnsNames
 
             return self.postGetData(
                 displayLocator=displayLocator,
@@ -469,7 +470,8 @@ class DataOfDeformers(DataOfOneDimensionalAttrs):
         self.getShapeInfo()
 
         # get list deformers attributes
-        self.shortColumnsNames, self.listAttrs = self.getDeformersAttributes()
+        self.columnsNames, self.listAttrs = self.getDeformersAttributes()
+        self.shortColumnsNames = self.columnsNames
         # print self.shortColumnsNames , self.listAttrs
 
         return self.postGetData(
