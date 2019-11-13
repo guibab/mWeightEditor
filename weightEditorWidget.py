@@ -575,7 +575,7 @@ class SkinWeightWin(Window):
         checkableAction.setDefaultWidget(chbox)
         self.popMenu.addAction(checkableAction)
 
-        chbox = QtWidgets.QCheckBox("locator display", self.popMenu)
+        chbox = QtWidgets.QCheckBox("display points", self.popMenu)
         chbox.setChecked(self.useDisplayLocator)
         chbox.toggled.connect(self.useDisplayLocatorChecked)
         checkableAction = QtWidgets.QWidgetAction(self.popMenu)
@@ -668,6 +668,8 @@ class SkinWeightWin(Window):
                 self._tv.showColumn(ind)
             else:
                 self._tv.hideColumn(ind)
+        if self.dataOfDeformer.isSkinData:  # show the sum column, always
+            self._tv.showColumn(self.dataOfDeformer.columnCount + 1)
 
     def toggleDisplayLockColumn(self, checked):
         cmds.optionVar(intValue=["hideLockColumn", checked])
@@ -730,9 +732,9 @@ class SkinWeightWin(Window):
     def refresh(self, force=False):
         if self.unLock or force:
             self._tm.beginResetModel()
-            if self.dataOfDeformer.isSkinData:
-                for ind in self.dataOfDeformer.hideColumnIndices:
-                    self._tv.showColumn(ind)
+            for ind in range(self.dataOfDeformer.columnCount):
+                self._tv.showColumn(ind)
+
             with GlobalContext(message="weightEdtior getAllData", doPrint=False):
                 self.dataOfDeformer.updateDisplayVerts([])
                 resultData = self.dataOfDeformer.getAllData(force=force)
@@ -746,9 +748,9 @@ class SkinWeightWin(Window):
                 self.listInputs_CB.clear()
             """
             self.dataOfDeformer.getLocksInfo()
-
             self._tm.endResetModel()
             self.setColumnVisSize()
+            self.applyDisplayColumnsFilters(None)
             if not resultData and self.dataOfDeformer.isSkinData:
                 self.highlightSelectedDeformers()
             self._tv.selEmptied.emit(False)
