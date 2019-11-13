@@ -35,8 +35,10 @@ class DataAbstract(object):
         self.isSkinData = False
         sel = cmds.ls(sl=True)
         hil = cmds.ls(hilite=True)
+        self.pointsDisplayTrans = None
         if createDisplayLocator:
             self.createDisplayLocator()
+
         cmds.select(sel)
         cmds.hilite(hil)
 
@@ -77,10 +79,14 @@ class DataAbstract(object):
         self.pointsDisplayTrans = None
 
     def deleteDisplayLocator(self):
+        if not self.pointsDisplayTrans:
+            return
         if cmds.objExists(self.pointsDisplayTrans):
             cmds.delete(self.pointsDisplayTrans)
 
     def connectDisplayLocator(self):
+        if not self.pointsDisplayTrans:
+            return
         isMesh = (
             "shapePath" in self.__dict__
             and self.shapePath != None
@@ -131,6 +137,8 @@ class DataAbstract(object):
                     )
 
     def updateDisplayVerts(self, rowsSel):
+        if not self.pointsDisplayTrans:
+            return
         if isinstance(rowsSel, np.ndarray):
             rowsSel = rowsSel.tolist()
         if "deformedShape" not in self.__dict__:
