@@ -19,6 +19,29 @@ class SettingWithRedraw(object):
         # add a refresh of the locator ?
 
 
+class SettingVariable(object):
+    def __init__(self, variableHolder, variableName, valueOn=True, valueOut=False):
+        self.variableHolder = variableHolder
+        self.variableName = variableName
+        self.valueOn = valueOn
+        self.valueOut = valueOut
+
+    def __enter__(self):
+        if isinstance(self.variableHolder, dict):
+            self.variableHolder[self.variableName] = self.valueOn
+        else:
+            self.variableHolder.__dict__[self.variableName] = self.valueOn
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if isinstance(self.variableHolder, dict):
+            self.variableHolder[self.variableName] = self.valueOut
+        else:
+            self.variableHolder.__dict__[self.variableName] = self.valueOut
+
+
+# with SettingVariable (locals(), "") :
+
+
 class GlobalContext(object):
     def __init__(
         self,
