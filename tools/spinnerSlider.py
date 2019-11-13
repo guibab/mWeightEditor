@@ -78,6 +78,40 @@ class ButtonWithValue(QtWidgets.QPushButton):
         else:
             cmds.optionVar(floatValue=[self.optionVarName, self.precision])
 
+    startDrag = False
+    startPos = None
+    startPrecision = 0
+
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.MidButton:
+            self.startDrag = True
+            self.startPos = event.globalPos()
+            self.startPrecision = self.precision
+        else:
+            self.startDrag = False
+            super(ButtonWithValue, self).mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self.startDrag = False
+        super(ButtonWithValue, self).mouseReleaseEvent(event)
+
+    def mouseMoveEvent(self, event):
+        isMid = event.button() == QtCore.Qt.MidButton
+        if self.startDrag:
+            offset = event.globalPos() - self.startPos
+            xVal = offset.x()
+            intVal = int(xVal * 0.04) * self.step
+            if self.precision != self.startPrecision + intVal:
+                self.precision = self.startPrecision + intVal
+                if self.precision < self.minimumValue:
+                    self.precision = self.minimumValue
+                if self.precision > self.maximumValue:
+                    self.precision = self.maximumValue
+
+                self._valueChanged.emit(self.precision)
+                self.updateName()
+        super(ButtonWithValue, self).mouseMoveEvent(event)
+
 
 ###################################################################################
 #
@@ -188,80 +222,6 @@ class ValueSetting(QtWidgets.QWidget):
             self.theProgress.releasedValue = 0.0
         with toggleBlockSignals([self.theProgress]):
             self.theProgress.setValue(self.theProgress.releasedValue)
-
-    startDrag = False
-
-    def mousePressEvent(self, event):
-        if event.button() == QtCore.Qt.MidButton:
-            print "midButton"
-        super(ValueSetting, self).mousePressEvent(event)
-        """
-        self.currentValue = self.value ()/100.
-        shiftControl = event.modifiers () ==  (QtCore.Qt.KeyboardModifiers(QtCore.Qt.ControlModifier) | QtCore.Qt.KeyboardModifiers(QtCore.Qt.ShiftModifier) )
-        self.shiftHold = shiftControl or (event.modifiers () == QtCore.Qt.ShiftModifier)
-
-        if self.shiftHold : self.shiftKeyValue = self.value ()/100.
-
-        if event.modifiers () == event.button() != QtCore.Qt.LeftButton: 
-            
-            self.startDrag = False
-        else : 
-            cmds.undoInfo (stateWithoutFlush = False)
-            # ------------- PREPARE FUNCTION -------------------------------------------------------------------------------------            
-            self.startDrag = self.prt.preSet() #self.mainWindow.prepareToSetValue()#self.prt.preSet()
-            if self.startDrag : self.applyTheEvent (event)        
-        
-    def mouseReleaseEvent (self, event):
-        self.startDrag = False
-        if event.modifiers () == event.button() != QtCore.Qt.LeftButton: 
-            super (ProgressItem, self).mouseReleaseEvent  (event)
-        else : 
-            #print "releasing"
-            self.setMouseTracking(False)
-            cmds.undoInfo (stateWithoutFlush = True)
-            super (ProgressItem, self).mouseReleaseEvent  (event)
-
-        if self.autoReset : 
-            self.setValue (self.releasedValue)
-            self.punched.emit(self.releasedValue)
-
-        else : self.prt.postSet ()
-
-    def applyTheEvent (self,e): 
-        shiftControl = e.modifiers () ==  (QtCore.Qt.KeyboardModifiers(QtCore.Qt.ControlModifier) | QtCore.Qt.KeyboardModifiers(QtCore.Qt.ShiftModifier) )
-
-        shitIsHold = shiftControl or (e.modifiers () == QtCore.Qt.ShiftModifier)
-        ctrlIsHold = shiftControl or (e.modifiers () == QtCore.Qt.ControlModifier)
-
-        if shitIsHold and not self.shiftHold:
-            self.shiftKeyValue = self.currentValue
-        self.shiftHold = shitIsHold
-    
-        theWdth = self.width()
-        #print e.mouseButtons()
-        #print "moving {0}".format (e.x())
-        val = e.x()/float(theWdth)        
-        #if shitIsHold : val = round(val*4.0) / 4.
-        if self.shiftHold : 
-            diff = val - self.shiftKeyValue 
-            val = self.shiftKeyValue + 0.05*diff
-            if shiftControl : 
-                val = round(val*1000.0)/1000.
-        elif ctrlIsHold : 
-            val = round(val*100.0)/100.
-        #print (val)
-
-        if val >1. : val = 1.0
-        elif val <0. : val = 0.
-        self.applyVal (val)
-                 
-    def mouseMoveEvent (self, event):
-        isLeft = event.button() == QtCore.Qt.LeftButton
-        #print "mouseMoveEvent ", isLeft, isCtr
-        if  self.startDrag :  self.applyTheEvent (event)
-        super (ProgressItem, self).mouseMoveEvent  (event)
-
-    """
 
 
 # for the weightEditor
