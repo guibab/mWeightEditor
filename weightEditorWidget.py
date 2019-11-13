@@ -645,7 +645,7 @@ class SkinWeightWin(Window):
             newTexts = newText.split(" ")
             while "" in newTexts:
                 newTexts.remove("")
-            newTexts = [txt.replace("*", ".*") for txt in newTexts]
+            newTexts = [txt.replace("?", ".").replace("*", ".*") for txt in newTexts]
             for ind, nameInfluence in enumerate(self.dataOfDeformer.columnsNames):
                 foundText = False
                 for txt in newTexts:

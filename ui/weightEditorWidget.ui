@@ -390,7 +390,11 @@
           </widget>
          </item>
          <item>
-          <widget class="QLineEdit" name="searchInfluences_le"/>
+          <widget class="QLineEdit" name="searchInfluences_le">
+           <property name="toolTip">
+            <string>use * ? (or .) and any regular expression from re</string>
+           </property>
+          </widget>
          </item>
          <item>
           <widget class="QPushButton" name="clearWildCardBTN">
