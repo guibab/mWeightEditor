@@ -433,7 +433,7 @@
          <item>
           <widget class="QPushButton" name="locked_BTN">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="maximumSize">
             <size>
@@ -471,7 +471,7 @@
          <item>
           <widget class="QPushButton" name="CopyBTN">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="minimumSize">
             <size>
@@ -493,7 +493,7 @@
          <item>
           <widget class="QPushButton" name="PasteBTN">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="minimumSize">
             <size>
