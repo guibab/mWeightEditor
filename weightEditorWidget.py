@@ -711,6 +711,7 @@ class SkinWeightWin(Window):
                 # print "self.unLock ", self.unLock
         else:
             self.dataOfDeformer.removeDisplayLocator()
+        self.popMenu.close()
 
     # -----------------------------------------------------------------------------------------------------------
     # Refresh --------------------------------------------------------------------------------------------------
