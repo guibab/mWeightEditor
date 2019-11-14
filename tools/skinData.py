@@ -276,16 +276,65 @@ class DataOfSkin(DataAbstract):
                 type="componentList"
             )
 
+    def copyArray(self):
+        self.copiedArray = np.copy(self.sub2DArrayToSet)
+        self.copiedVerticesPosition = np.copy(self.getVerticesOrigShape())
+        self.copiedVerticesIndices = self.vertices + []
+        self.copiedVertsPos = np.copy(
+            self.copiedVerticesPosition[
+                self.Mtop : self.Mbottom + 1,
+            ]
+        )
+
+    def pasteArray(self):
+        pasteArray = np.copy(self.sub2DArrayToSet)
+        pasteVerticesPosition = np.copy(self.getVerticesOrigShape())
+        pasteVerticesIndices = self.vertices + []
+        pasteVertsPos = np.copy(
+            pasteVerticesPosition[
+                self.Mtop : self.Mbottom + 1,
+            ]
+        )
+
+        # make an array of distances ----------------------------------------------------------------
+        a_min_b = pasteVertsPos[:, np.newaxis] - self.copiedVertsPos[np.newaxis, :]
+        # compute length of the vectors -------------------------------------------------------------
+        distArray = np.linalg.norm(a_min_b, axis=2)
+        # sort the indices of the closest -----------------------------------------------------------
+        sorted_columns_indices = distArray.argsort(axis=1)
+        # now take the closest vertex ---------------------------------------------------------------
+        closestIndex1 = sorted_columns_indices[:, 0]
+        # get the array to place --------------------------------------------------------------------
+        #            ZeroVals = np.full(self.orig2dArray.shape ,0.0)
+        new2dArray = self.copiedArray[closestIndex1]  # np.copy (self.orig2dArray)
+        self.actuallySetValue(
+            new2dArray,
+            self.sub2DArrayToSet,
+            self.userComponents,
+            self.influenceIndices,
+            self.shapePath,
+            self.sknFn,
+        )
+
+        """
+        selectedVertices =[( pasteVerticesIndices [i], self.copyVerticesIndices [ind]) for i, ind in enumerate (closestIndex1)]
+        cmds.ls (sl=True)
+        i=-1
+        i+=1
+        a,b = selectedVertices [i]
+        cmds.select ("Mesh_X_Shoes_PcSd1_.vtx[{}]".format (a),"Mesh_X_Shoes_PcSd1_.vtx[{}]".format (b))
+        """
+
     def reassignLocally(self, reassignValue=1.0, nbJointsReassign=2):
         # print "reassignLocally"
         with GlobalContext(message="reassignLocally", doPrint=True):
-            # 0 get orig shape ----------------------------------------------------------------
+            # 0 get orig shape ----------------------------------------------------------------------------------
             self.origVerticesPosition = self.getVerticesOrigShape()
             self.origVertsPos = self.origVerticesPosition[
                 self.Mtop : self.Mbottom + 1,
             ]
 
-            # 2 get deformers origin position (bindMatrixInverse) ---------------------------------------------
+            # 2 get deformers origin position (bindMatrixInverse) -----------------------------------------------
             depNode = OpenMaya.MFnDependencyNode(self.skinClusterObj)
             bindPreMatrixArrayPlug = depNode.findPlug("bindPreMatrix", True)
             mObj = OpenMaya.MObject()
@@ -304,19 +353,19 @@ class DataOfSkin(DataAbstract):
             lstDriverPrePosition = np.array(lstDriverPrePosition)
 
             # 3 make an array of distances -----------------------------------------------------------------------
-            # compute the vectors from deformer to the point---------
+            # compute the vectors from deformer to the point-------------------------------------------------------
             a_min_b = self.origVertsPos[:, np.newaxis] - lstDriverPrePosition[np.newaxis, :]
-            # compute length of the vectors ------
+            # compute length of the vectors ----------------------------------------------------------------------
             distArray = np.linalg.norm(a_min_b, axis=2)
             theMask = self.sumMasks
             distArrayMasked = np.ma.array(distArray, mask=~theMask, fill_value=0)
-            # sort the columns --------------------------------------------------------------
+            # sort the columns -----------------------------------------------------------------------------------
             sorted_columns_indices = distArrayMasked.argsort(axis=1)
 
             # now take the 2 closest columns indices (2 first) and do a dot product of the vectors
             closestIndices = sorted_columns_indices[:, :2]
 
-            # make the vector of 2 closest joints ----------------------------
+            # make the vector of 2 closest joints ----------------------------------------------------------------
             closestIndex1 = sorted_columns_indices[:, 0]
             closestIndex2 = sorted_columns_indices[:, 1]
             closestDriversVector = (
@@ -332,7 +381,7 @@ class DataOfSkin(DataAbstract):
             """
             # resDot = np.sum (A * B, axis=1) #-- slower
 
-            # now dot product ----------------------------------------------------
+            # now dot product -----------------------------------------------------------------------------------
             A = closestVectors_1
             B = closestDriversVector
             resDot = np.einsum("ij, ij->i", A, B)  # A.B
@@ -356,18 +405,18 @@ class DataOfSkin(DataAbstract):
             # addValues [np.arange(closestIndices.shape[0])[:,None], closestIndices] = 1.-ClosestDistNormalize
             addValues = np.ma.array(addValues, mask=~theMask, fill_value=0)
 
-            # 4 normalize it  ----------------------------------------------------------------------------------------
+            # 4 normalize it  -----------------------------------------------------------------------------------
             addValuesNormalized = addValues * self.toNormalizeToSum[:, np.newaxis]
 
-            # 5 copy values  ----------------------------------------------------------------------------------------
+            # 5 copy values  ------------------------------------------------------------------------------------
             new2dArray = np.copy(self.orig2dArray)
             np.copyto(new2dArray, addValuesNormalized, where=theMask)
 
-            # 6 zero rest array--------------------------------------------------------------------------------------
+            # 6 zero rest array----------------------------------------------------------------------------------
             ZeroVals = np.full(self.orig2dArray.shape, 0.0)
             np.copyto(new2dArray, ZeroVals, where=self.rmMasks)
 
-            # the multiply value ----------
+            # the multiply value ---------------------------------------------------------------------------------
             if reassignValue != 1.0:
                 new2dArray = new2dArray * reassignValue + self.orig2dArray * (1.0 - reassignValue)
             if self.softOn:  # mult soft Value
@@ -375,7 +424,7 @@ class DataOfSkin(DataAbstract):
                     new2dArray * self.indicesWeights[:, np.newaxis]
                     + self.orig2dArray * (1.0 - self.indicesWeights)[:, np.newaxis]
                 )
-        # set Value ------------------------------------------------
+        # set Value --------------------------------------------------------------------------------------------
         self.actuallySetValue(
             new2dArray,
             self.sub2DArrayToSet,

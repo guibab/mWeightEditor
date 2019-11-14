@@ -382,7 +382,7 @@ class SkinWeightWin(Window):
         self.problemVertsBTN.clicked.connect(self.selProbVerts)
         self.problemVerts_btn.deleteLater()
 
-        for nm in ["copy", "paste", "swap"]:
+        for nm in ["swap"]:
             self.__dict__[nm + "BTN"].setEnabled(False)
             self.__dict__[nm + "BTN"].hide()
         # -----------------------------------------------------------
@@ -453,6 +453,10 @@ class SkinWeightWin(Window):
         self.option_BTN.setIcon(_icons["option"])
         self.option_BTN.setText("")
         self.option_BTN.mousePressEvent = self.showRightClickMenu
+
+        # ------ Copy / Paste -----------------------------------------------
+        self.copyBTN.clicked.connect(self.doCopyArray)
+        self.pasteBTN.clicked.connect(self.doPasteArray)
 
         """
         if self.dataOfDeformer.deformedShape : 
@@ -798,6 +802,17 @@ class SkinWeightWin(Window):
         with SettingWithRedraw(self):
             self.dataOfDeformer.preSettingValuesFn(chunks, actualyVisibleColumns)
             self.dataOfDeformer.normalize()
+            self.postSetValue()
+
+    def doCopyArray(self):
+        self.prepareToSetValue(selectAllIfNothing=True)
+        self.dataOfDeformer.copyArray()
+        self.pasteBTN.setEnabled(True)
+
+    def doPasteArray(self):
+        with SettingWithRedraw(self):
+            self.prepareToSetValue(selectAllIfNothing=True)
+            self.dataOfDeformer.pasteArray()
             self.postSetValue()
 
     def doAverage(self):

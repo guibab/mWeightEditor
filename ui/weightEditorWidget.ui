@@ -210,20 +210,6 @@
           </spacer>
          </item>
          <item>
-          <widget class="QPushButton" name="copyBTN">
-           <property name="text">
-            <string>Copy</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="pasteBTN">
-           <property name="text">
-            <string>Paste</string>
-           </property>
-          </widget>
-         </item>
-         <item>
           <widget class="QPushButton" name="averageBTN">
            <property name="text">
             <string>Average</string>
@@ -473,7 +459,7 @@
           </spacer>
          </item>
          <item>
-          <widget class="QPushButton" name="CopyBTN">
+          <widget class="QPushButton" name="copyBTN">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -495,9 +481,9 @@
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="PasteBTN">
+          <widget class="QPushButton" name="pasteBTN">
            <property name="enabled">
-            <bool>true</bool>
+            <bool>false</bool>
            </property>
            <property name="minimumSize">
             <size>
