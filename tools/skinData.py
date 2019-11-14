@@ -280,6 +280,7 @@ class DataOfSkin(DataAbstract):
         self.copiedArray = np.copy(self.sub2DArrayToSet)
         self.copiedVerticesPosition = np.copy(self.getVerticesOrigShape())
         self.copiedVerticesIndices = self.vertices + []
+        self.copiedColumnCount = self.columnCount
         self.copiedVertsPos = np.copy(
             self.copiedVerticesPosition[
                 self.Mtop : self.Mbottom + 1,
@@ -287,6 +288,9 @@ class DataOfSkin(DataAbstract):
         )
 
     def pasteArray(self):
+        if self.columnCount != self.copiedColumnCount:
+            return False
+
         pasteArray = np.copy(self.sub2DArrayToSet)
         pasteVerticesPosition = np.copy(self.getVerticesOrigShape())
         pasteVerticesIndices = self.vertices + []
@@ -316,6 +320,7 @@ class DataOfSkin(DataAbstract):
             self.sknFn,
         )
 
+        return True
         """
         selectedVertices =[( pasteVerticesIndices [i], self.copyVerticesIndices [ind]) for i, ind in enumerate (closestIndex1)]
         cmds.ls (sl=True)

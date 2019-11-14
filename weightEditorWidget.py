@@ -812,8 +812,11 @@ class SkinWeightWin(Window):
     def doPasteArray(self):
         with SettingWithRedraw(self):
             self.prepareToSetValue(selectAllIfNothing=True)
-            self.dataOfDeformer.pasteArray()
-            self.postSetValue()
+            result = self.dataOfDeformer.pasteArray()
+            if result:
+                self.postSetValue()
+            else:
+                cmds.confirmDialog(m="Not same number of deformers\nFAILED", t="can't paste")
 
     def doAverage(self):
         # with SettingWithRedraw (self) :         --> no need because it's already in doAddValue
