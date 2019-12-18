@@ -123,7 +123,7 @@ class ValueSetting(QtWidgets.QWidget):
                        QDoubleSpinBox:disabled {color: grey; background-color:rgb(170,170,170) ; border: 1px solid black;text-align: center;}
                     """
 
-    def __init__(self, parent=None, singleStep=0.01, precision=2):
+    def __init__(self, parent=None, singleStep=0.01, precision=2, spacing=0, maximumValue=100.0):
         super(ValueSetting, self).__init__(parent=None)
         self.theProgress = ProgressItem("skinVal", szrad=0, value=50)
         self.setAddMode(True)
@@ -134,7 +134,7 @@ class ValueSetting(QtWidgets.QWidget):
 
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setSpacing(spacing)
 
         self.theSpinner = QtWidgets.QDoubleSpinBox(self)
         self.theSpinner.setRange(-16777214, 16777215)
