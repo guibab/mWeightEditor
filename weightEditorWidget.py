@@ -739,6 +739,13 @@ class SkinWeightWin(Window):
         ):
             __main__.paintEditor.refreshColorsAndLocks()
 
+    def refreshSkinDisplay(self):  # call by skinBrush
+        self._tm.beginResetModel()
+        self.dataOfDeformer.rebuildRawSkin()
+        self.dataOfDeformer.convertRawSkinToNumpyArray()
+        self._tm.endResetModel()
+        self._tv.repaint()
+
     def refresh(self, force=False):
         if self.unLock or force:
             self._tm.beginResetModel()
