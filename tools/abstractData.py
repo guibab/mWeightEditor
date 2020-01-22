@@ -827,8 +827,11 @@ class DataAbstract(object):
         # now vertices ------------------
         if self.theDeformer != "":
             self.addLockVerticesAttribute()
-        self.lockedVertices = cmds.getAttr(self.deformedShape + ".lockedVertices") or []
-
+        att = self.deformedShape + ".lockedVertices"
+        if cmds.objExists(att):
+            self.lockedVertices = cmds.getAttr(att) or []
+        else:
+            self.lockedVertices = []
         self.lockedColumns = [False] * self.columnCount
 
     def unLockRows(self, selectedIndices):
