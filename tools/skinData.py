@@ -862,10 +862,15 @@ class DataOfSkin(DataAbstract):
             typeOfDeformer="skinCluster", force=force, inputVertices=inputVertices
         )
         if not success or self.theDeformer == "":
+            """
+            clearData = cmds.objExists(self.deformedShape) and self.theDeformer == ""
+            clearData = clearData and cmds.nodeType(self.deformedShape) in ["mesh", "nurbsSurface"]
+            if clearData:
+                self.clearData()
+            """
             return False
         else:
             self.theSkinCluster = self.theDeformer
-
         # get skin infos vertices -------------------------------
         self.driverNames, self.skinningMethod, self.normalizeWeights = self.getSkinClusterValues(
             self.theSkinCluster

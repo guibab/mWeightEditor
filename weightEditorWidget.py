@@ -755,6 +755,18 @@ class SkinWeightWin(Window):
             with GlobalContext(message="weightEdtior getAllData", doPrint=False):
                 self.dataOfDeformer.updateDisplayVerts([])
                 resultData = self.dataOfDeformer.getAllData(force=force)
+                doForce = not resultData
+                doForce = (
+                    doForce
+                    and cmds.objExists(self.dataOfDeformer.deformedShape)
+                    and self.dataOfDeformer.theDeformer == ""
+                )
+                doForce = doForce and cmds.nodeType(self.dataOfDeformer.deformedShape) in [
+                    "mesh",
+                    "nurbsSurface",
+                ]
+                if doForce:
+                    self.dataOfDeformer.clearData()
             """
             sel = cmds.ls (sl=True, tr=True)
             if sel : 

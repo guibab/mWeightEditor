@@ -549,6 +549,9 @@ class DataAbstract(object):
             # print inputVertices
             sel = cmds.ls(sl=True)
             theDeformer, deformedShape = self.getDeformerFromSel(sel, typeOfDeformer=typeOfDeformer)
+            self.deformedShape = deformedShape
+            self.theDeformer = theDeformer
+
             if not deformedShape or not cmds.objExists(deformedShape):
                 return False
             # print "deformedShape -> ",deformedShape
@@ -576,9 +579,6 @@ class DataAbstract(object):
             if len(splt) > 5:
                 self.shapeShortName = "_".join(splt[-7:-4])
             (self.deformedShape_longName,) = cmds.ls(deformedShape, l=True)
-
-            self.deformedShape = deformedShape
-            self.theDeformer = theDeformer
 
             self.raw2dArray = None
             return True
@@ -825,7 +825,8 @@ class DataAbstract(object):
         self.lockedColumns = []
         self.lockedVertices = []
         # now vertices ------------------
-        self.addLockVerticesAttribute()
+        if self.theDeformer != "":
+            self.addLockVerticesAttribute()
         self.lockedVertices = cmds.getAttr(self.deformedShape + ".lockedVertices") or []
 
         self.lockedColumns = [False] * self.columnCount
