@@ -868,10 +868,17 @@ class DataOfSkin(DataAbstract):
             if clearData:
                 self.clearData()
             """
-            return False
+            if not force:
+                return False
         else:
             self.theSkinCluster = self.theDeformer
         # get skin infos vertices -------------------------------
+        if (
+            not self.theSkinCluster
+            or not cmds.objExists(self.theSkinCluster)
+            or not cmds.nodeType(self.theSkinCluster) == "skinCluster"
+        ):
+            return False
         self.driverNames, self.skinningMethod, self.normalizeWeights = self.getSkinClusterValues(
             self.theSkinCluster
         )
