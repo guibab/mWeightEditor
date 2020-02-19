@@ -938,7 +938,6 @@ class SkinWeightWin(Window):
                         val, percent=self.addPercentage, autoPrune=self.autoPrune, average=average
                     )
                 else:
-
                     self.dataOfDeformer.doAdd(
                         val, percent=self.addPercentage, autoPrune=self.autoPrune, average=average
                     )

@@ -734,6 +734,25 @@ class DataAbstract(object):
         if self.sub2DArrayToSet.any():
             np.put(self.sub2DArrayToSet, xrange(self.sub2DArrayToSet.size), arrayForSetting)
 
+    def getChunksFromVertices(self, listVertices):
+        verts = self.vertices
+        vertsIndices = [verts.index(vertId) for vertId in listVertices if vertId in verts]
+        if not vertsIndices:
+            return None
+        selVertices = self.orderMelList(vertsIndices, onlyStr=False)
+        # print selVertices
+        chunks = []
+        for coupleVtx in selVertices:
+            if len(coupleVtx) == 1:
+                startRow, endRow = coupleVtx[0], coupleVtx[0]
+            else:
+                startRow, endRow = coupleVtx
+            chunks.append((startRow, endRow, 0, self.columnCount))
+        return chunks
+
+    def getFullChunks(self):
+        return [(0, self.rowCount - 1, 0, self.columnCount)]
+
     # -----------------------------------------------------------------------------------------------------------
     # function to get display  texts ----------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
