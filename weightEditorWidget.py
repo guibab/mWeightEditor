@@ -382,6 +382,22 @@ class SkinWeightWin(Window):
         self.problemVertsBTN.clicked.connect(self.selProbVerts)
         self.problemVerts_btn.deleteLater()
 
+        averageBTN = ButtonWithValue(
+            self,
+            usePow=False,
+            name="Average",
+            minimumValue=0,
+            maximumValue=1.0,
+            defaultValue=1.0,
+            step=0.1,
+            clickable=True,
+        )
+        self.botLayout.replaceWidget(self.averageBTN, averageBTN)
+        self.averageBTN.hide()
+        self.averageBTN = averageBTN
+
+        # self.botLayout.insertWidget(3, self.averageBTN)
+
         for nm in ["swap"]:
             self.__dict__[nm + "BTN"].setEnabled(False)
             self.__dict__[nm + "BTN"].hide()
@@ -840,7 +856,7 @@ class SkinWeightWin(Window):
     def doAverage(self):
         # with SettingWithRedraw (self) :         --> no need because it's already in doAddValue
         self.prepareToSetValue(selectAllIfNothing=True)
-        self.doAddValue(0, forceAbsolute=False, average=True)
+        self.doAddValue(self.averageBTN.precision, forceAbsolute=False, average=True)
         self.postSetValue()
 
     def smooth(self):

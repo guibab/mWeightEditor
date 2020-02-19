@@ -523,7 +523,18 @@ class DataOfSkin(DataAbstract):
             # add the values ------------------------------------------------------------------------------------------------
             theMask = sumMasksUpdate if val < 0.0 else self.sumMasks
 
-            if not average and percent:  # percent Add
+            if average:  # ----- average ---------
+                if self.verbose:
+                    print "average"
+                theMask = sumMasksUpdate
+                addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0)
+                sumCols_addValues = addValues.mean(axis=0)
+                theTiling = np.tile(sumCols_addValues, (addValues.shape[0], 1))
+                addValues = np.ma.array(theTiling, mask=~theMask, fill_value=0)
+                addValues = val * addValues + (1.0 - val) * np.ma.array(
+                    selectArr, mask=~theMask, fill_value=0
+                )
+            elif percent:  # percent Add
                 """
                 addValues = np.ma.array(selectArr , mask = ~theMask, fill_value = 0 )
                 sum_addValues = addValues.sum(axis=1)
@@ -532,17 +543,9 @@ class DataOfSkin(DataAbstract):
                 """
                 addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0)
                 addValues = (1 + val) * addValues
-            elif not average:  # regular add -------------------
+            else:  # regular add -------------------
                 valuesToAdd = val / self.nbIndicesSettable[:, np.newaxis]
                 addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0) + valuesToAdd
-            else:  # ----- average ---------
-                if self.verbose:
-                    print "average"
-                theMask = sumMasksUpdate
-                addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0)
-                sumCols_addValues = addValues.mean(axis=0)
-                theTiling = np.tile(sumCols_addValues, (addValues.shape[0], 1))
-                addValues = np.ma.array(theTiling, mask=~theMask, fill_value=0)
             addValues = addValues.clip(min=0, max=1.0)
             # normalize the sum to the max value unLocked -------------------------------------------------------------------
             sum_addValues = addValues.sum(axis=1)
