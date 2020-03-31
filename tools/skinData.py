@@ -260,10 +260,10 @@ class DataOfSkin(DataAbstract):
             new2dArray = new2dArray[:, np.array(driverNames_oppIndices)]
             new2dArray = new2dArray[np.array(indicesSort), :]
             self.softOn = False
-            self.actuallySetValue(
-                new2dArray, None, userComponents, influenceIndices, self.shapePath, self.sknFn
-            )
-
+            if new2dArray is not None:
+                self.actuallySetValue(
+                    new2dArray, None, userComponents, influenceIndices, self.shapePath, self.sknFn
+                )
             # undoArray = np.copy (self.orig2dArray)
             # self.UNDOstack.append ((undoArray, self.sub2DArrayToSet, self.userComponents, self.influenceIndices, self.shapePath, self.sknFn))
         if self.blurSkinNode and cmds.objExists(self.blurSkinNode):
@@ -649,7 +649,7 @@ class DataOfSkin(DataAbstract):
 
             # do the stting in the 2dArray -----
             # if sub2DArrayToSet != None:
-            if sub2DArrayToSet.size != 0:
+            if sub2DArrayToSet is not None and sub2DArrayToSet.size != 0:
                 np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), theValues)
                 self.computeSumArray()
             # else :
