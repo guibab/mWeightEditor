@@ -120,12 +120,30 @@ class DataOfSkin(DataAbstract):
         problemVerts = list(problemVerts)
         return problemVerts
 
+    def swapOneOnOne(self, indicesSources, indicesDest):
+        indicesSources = list(indicesSources)
+        indicesDest = list(indicesDest)
+        print indicesSources, indicesDest
+        with GlobalContext(message="swapOneOnOne", doPrint=True):
+            new2dArray = np.copy(self.orig2dArray)
+            new2dArray[:, indicesDest] = (
+                self.orig2dArray[:, indicesDest] + self.orig2dArray[:, indicesSources]
+            )
+            new2dArray[:, indicesSources] = 0
+        self.actuallySetValue(
+            new2dArray,
+            self.sub2DArrayToSet,
+            self.userComponents,
+            self.influenceIndices,
+            self.shapePath,
+            self.sknFn,
+        )
+
     def normalize(self):
         with GlobalContext(message="normalize", doPrint=True):
             new2dArray = np.copy(self.orig2dArray)
             unLock = np.ma.array(new2dArray.copy(), mask=self.lockedMask, fill_value=0)
             unLock.clip(0, 1)
-
             sum_unLock = unLock.sum(axis=1)
             unLockNormalized = (
                 unLock / sum_unLock[:, np.newaxis] * self.toNormalizeToSum[:, np.newaxis]
