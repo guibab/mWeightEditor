@@ -45,8 +45,8 @@ class SettingVariable(object):
 class GlobalContext(object):
     def __init__(
         self,
-        raise_error=True,
         message="processing",
+        raise_error=True,
         openUndo=True,
         suspendRefresh=False,
         doPrint=True,

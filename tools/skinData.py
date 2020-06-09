@@ -189,7 +189,6 @@ class DataOfSkin(DataAbstract):
             rightSpl.remove("")
         if len(leftSpl) != len(rightSpl):
             return []
-
         oppDriverNames = {}
         # useRealIndices is for when the array is sparse(some defomers have been deleted)
         count = max(self.indicesJoints) + 1 if useRealIndices else len(self.driverNames)
@@ -220,7 +219,6 @@ class DataOfSkin(DataAbstract):
                 oppInfluenceIndex = self.driverNames.index(oppInfluence)
                 if useRealIndices:
                     oppInfluenceIndex = self.indicesJoints[oppInfluenceIndex]
-
                 driverNames_oppIndices[indInfluence] = oppInfluenceIndex
                 driverNames_oppIndices[oppInfluenceIndex] = indInfluence
             else:
@@ -266,7 +264,6 @@ class DataOfSkin(DataAbstract):
             influenceIndices.setLength(self.nbDrivers)
             for i in xrange(self.nbDrivers):
                 influenceIndices.set(i, i)
-
             # now the weights -----------------------
             new2dArray = np.copy(self.display2dArray)
             # permutation = np.argsort(driverNames_oppIndices)
@@ -871,17 +868,13 @@ class DataOfSkin(DataAbstract):
 
         self.undoDic = {"isSkin": True, "inListVertices": [], "theSkinCluster": ""}
 
-    def getAllData(self, displayLocator=True, getskinWeights=True, force=True, inputVertices=None):
+    def getAllData(
+        self, displayLocator=True, getskinWeights=True, force=True, inputVertices=None, **kwargs
+    ):
         success = self.getDataFromSelection(
-            typeOfDeformer="skinCluster", force=force, inputVertices=inputVertices
+            typeOfDeformer="skinCluster", force=force, inputVertices=inputVertices, **kwargs
         )
         if not success or self.theDeformer == "":
-            """
-            clearData = cmds.objExists(self.deformedShape) and self.theDeformer == ""
-            clearData = clearData and cmds.nodeType(self.deformedShape) in["mesh", "nurbsSurface"]
-            if clearData:
-                self.clearData()
-            """
             if not force:
                 return False
         else:
