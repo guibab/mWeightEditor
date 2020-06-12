@@ -940,7 +940,6 @@ class SkinWeightWin(Window):
                     self.dataOfDeformer.doAdd(
                         val, percent=self.addPercentage, autoPrune=self.autoPrune, average=average
                     )
-                    # print "to implement Add, use Absolute"
             else:
                 self.dataOfDeformer.absoluteVal(val)
 

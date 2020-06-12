@@ -718,6 +718,8 @@ class DataAbstract(object):
         self.indicesWeights = np.array(
             [self.verticesWeight[indRow] for indRow in xrange(self.Mtop, self.Mbottom + 1)]
         )
+        self.subOpposite_sortedIndices = np.argsort(self.indicesVertices)
+
         if self.softOn and (self.isNurbsSurface or self.isLattice):  # revert indices
             self.indicesVertices = self.indicesVertices[self.opposite_sortedIndices]
 
