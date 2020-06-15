@@ -632,27 +632,27 @@ class DataOfSkin(DataAbstract):
                 arrayForSetting = np.copy(new2dArray[self.subOpposite_sortedIndices])
             else:
                 arrayForSetting = np.copy(new2dArray)
-            doubles = arrayForSetting.flatten()
-            count = doubles.size
-            tempArrayForSize = OpenMaya.MDoubleArray()
-            tempArrayForSize.setLength(count)
+            with GlobalContext(message="OpenMaya setWeights", doPrint=self.verbose):
+                doubles = arrayForSetting.flatten()
+                count = doubles.size
+                tempArrayForSize = OpenMaya.MDoubleArray()
+                tempArrayForSize.setLength(count)
 
-            res = OpenMaya.MScriptUtil(tempArrayForSize)
-            ptr = res.asDoublePtr()
+                res = OpenMaya.MScriptUtil(tempArrayForSize)
+                ptr = res.asDoublePtr()
 
-            # Cast the swig double pointer to a ctypes array
-            cta = (c_double * count).from_address(int(ptr))
-            out = np.ctypeslib.as_array(cta)
-            np.copyto(out, doubles)
-            newArray = OpenMaya.MDoubleArray(ptr, count)
+                # Cast the swig double pointer to a ctypes array
+                cta = (c_double * count).from_address(int(ptr))
+                out = np.ctypeslib.as_array(cta)
+                np.copyto(out, doubles)
+                newArray = OpenMaya.MDoubleArray(ptr, count)
 
-            # with GlobalContext(message = "sknFn.setWeights"):
-            normalize = False
-            UndoValues = OpenMaya.MDoubleArray()
-            sknFn.setWeights(
-                shapePath, userComponents, influenceIndices, newArray, normalize, UndoValues
-            )
-
+                # with GlobalContext(message = "sknFn.setWeights"):
+                normalize = False
+                UndoValues = OpenMaya.MDoubleArray()
+                sknFn.setWeights(
+                    shapePath, userComponents, influenceIndices, newArray, normalize, UndoValues
+                )
             if self.storeUndo:
                 self.undoValues = UndoValues
                 self.storeUndo = False
