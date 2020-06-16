@@ -16,11 +16,11 @@ from utils import GlobalContext, getSoftSelectionValuesNEW, getThreeIndices
 from .abstractData import DataAbstract, isin
 
 """
-cmds.getAttr ("blendShape1.inputTarget[0].baseWeights") [0]
-cmds.getAttr ("blendShape1.inputTarget[0].baseWeights", mi = True)
+cmds.getAttr("blendShape1.inputTarget[0].baseWeights") [0]
+cmds.getAttr("blendShape1.inputTarget[0].baseWeights", mi = True)
 
 values = [.11,.12,.13]
-cmds.setAttr ("blendShape1.inputTarget[0].baseWeights[0:2]",*values, size=len(values))
+cmds.setAttr("blendShape1.inputTarget[0].baseWeights[0:2]",*values, size=len(values))
 """
 
 
@@ -52,7 +52,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         """
         # 1 re-get the values
         self.getAttributesValues(onlyfullArr=True)
-        # 2 subArray :
+        # 2 subArray:
         sceneName = cmds.file(q=True, sceneName=True)
         splt = sceneName.split("/")
         startDir = "/".join(splt[:-1])
@@ -73,7 +73,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         print [self.listAttrs[i] for i in colIndices]
         print [self.shortColumnsNames[i] for i in colIndices]
         """
-        # 2 subArray :
+        # 2 subArray:
         sceneName = cmds.file(q=True, sceneName=True)
         splt = sceneName.split("/")
         startDir = "/".join(splt[:-1])
@@ -156,8 +156,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                     self.fullAttributesArr[indicesAtt, indAtt] = values
             if onlyfullArr:
                 return
-
-            # self.printArrayData (self.fullAttributesArr)
+            # self.printArrayData(self.fullAttributesArr)
             if indices:
                 if self.softOn:
                     revertSortedIndices = np.array(indices)[self.opposite_sortedIndices]
@@ -168,7 +167,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 ]
             else:
                 self.raw2dArray = self.fullAttributesArr
-            # self.printArrayData (self.raw2dArray)
+            # self.printArrayData(self.raw2dArray)
             # ---- reorder --------------------------------------------
             if self.softOn:  # order with indices
                 self.display2dArray = self.raw2dArray[self.sortedIndices]
@@ -176,7 +175,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 self.display2dArray = self.raw2dArray
 
     def setValueInDeformer(self, arrayForSetting):
-        # self.printArrayData (arrayForSetting)
+        # self.printArrayData(arrayForSetting)
         arrIndicesVerts = np.array(self.vertices)
         editedColumns = np.any(self.sumMasks, axis=0).tolist()
         rows = arrayForSetting.shape[0]
@@ -191,7 +190,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 verts = arrIndicesVerts[indices + self.Mtop]
                 vertsIndicesWeights = zip(verts.tolist(), values.tolist())
 
-                # self.setAttributeValues (self.listAttrs [colIndex],vertsIndicesWeights)
+                # self.setAttributeValues(self.listAttrs [colIndex],vertsIndicesWeights)
                 attsValues.append((self.listAttrs[colIndex], vertsIndicesWeights))
                 # now the undo values ------------------------------
                 if self.storeUndo:
@@ -218,7 +217,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
 
             plg2 = MSel.getPlug(0)
             # ids = plg2.getExistingArrayAttributeIndices()
-            # count = len (ids)
+            # count = len(ids)
             with GlobalContext():
                 for indVtx, value in vertsIndicesWeights:
                     plg2.elementByLogicalIndex(indVtx).setFloat(value)
@@ -283,14 +282,14 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                                 arrayForMeanMask[i, 0 : self.nbNeighBoors[vertIndex]] = True
                             else:
                                 connectedVerticesExtended = dicOfVertsSubArray[vertIndex]
-                            # subArr = self.fullAttributesArr [connectedVertices, colIndex]
-                            # arrayForMean [i, 0:self.nbNeighBoors[vertIndex]] = subArr
+                            # subArr = self.fullAttributesArr[connectedVertices, colIndex]
+                            # arrayForMean[i, 0:self.nbNeighBoors[vertIndex]] = subArr
                             arrayForMean[i] = self.fullAttributesArr[
                                 connectedVerticesExtended, colIndex
                             ]
                         meanCopy = np.ma.array(arrayForMean, mask=~arrayForMeanMask, fill_value=0)
                         meanValues = np.ma.mean(meanCopy, axis=1)
-                        # update array :
+                        # update array:
                         self.fullAttributesArr[verts, colIndex] = meanValues
                     vertsIndicesWeights = zip(verts.tolist(), meanValues.tolist())
                     attsValues.append((self.listAttrs[colIndex], vertsIndicesWeights))
@@ -330,7 +329,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         self.columnCount = len(self.listAttrs)
 
         self.getLocksInfo()
-
         if force or prevDeformedShape != self.deformedShape:
             self.getConnectVertices()
         return True
@@ -452,21 +450,20 @@ class DataOfDeformers(DataOfOneDimensionalAttrs):
                 listAttrs.append("{}.weightList[{}].weights".format(dfm, inputTarget))
             else:
                 listAttrs.append(self.dicDisplayNames[dfmNm])
-        # listAttrs = [self.dicDisplayNames [el].replace (".weights",".weightList[0].weights" ) for el in lstDeformers]
+        # listAttrs = [self.dicDisplayNames [el].replace(".weights",".weightList[0].weights" ) for el in lstDeformers]
         return lstDeformers, listAttrs
 
     # -----------------------------------------------------------------------------------------------------------
     # redefine abstract data functions -------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
-    def getAllData(self, displayLocator=True, force=True, inputVertices=None):
+    def getAllData(self, displayLocator=True, force=True, inputVertices=None, **kwargs):
         prevDeformedShape = self.deformedShape
 
         success = self.getDataFromSelection(
-            typeOfDeformer=None, force=force, inputVertices=inputVertices
+            typeOfDeformer=None, force=force, inputVertices=inputVertices, **kwargs
         )
         if not success:
             return False
-
         self.getShapeInfo()
 
         # get list deformers attributes
