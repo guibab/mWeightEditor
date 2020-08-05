@@ -12,7 +12,6 @@ import re
 import blurdev
 from blurdev.gui import Window
 
-from studio.gui.resource import Icons
 from tools.skinData import DataOfSkin
 from tools.abstractData import DataQuickSet
 from tools.weightMapsData import DataOfBlendShape, DataOfDeformers
@@ -50,7 +49,7 @@ def loadUndoPlugin():
 _icons = {
     "lock": getIcon("lock-48"),
     "unlock": getIcon("unlock-48"),
-    "refresh": Icons.getIcon("refresh"),
+    "refresh": getIcon("arrow-circle-045-left"),
     "clearText": getIcon("clearText"),
     "unlockJnts": getIcon("unlockJnts"),
     "lockJnts": getIcon("lockJnts"),
