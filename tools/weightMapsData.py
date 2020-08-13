@@ -439,7 +439,9 @@ class DataOfDeformers(DataOfOneDimensionalAttrs):
 
         for dfmNm in lstDeformers:
             dfm, attName = dfmNm.split("-")
-            if attName == "weights":
+            isMulti = cmds.attributeQuery(attName, node=dfm, multi=True)
+            # if attName == "weights":
+            if isMulti:
                 # print dfm, attName
                 lsGeomsOrig = cmds.deformer(dfm, q=True, geometry=True)
                 lsGeomsIndicesOrig = cmds.deformer(dfm, q=True, geometryIndices=True)
@@ -447,7 +449,10 @@ class DataOfDeformers(DataOfOneDimensionalAttrs):
                     inputTarget = lsGeomsIndicesOrig[lsGeomsOrig.index(self.deformedShape)]
                 else:
                     inputTarget = 0
-                listAttrs.append("{}.weightList[{}].weights".format(dfm, inputTarget))
+                prtAtt = cmds.attributeQuery(attName, node=dfm, listParent=True)
+                prtAtt = ".".join(prtAtt)
+                theAtt = "{}.{}[{}].{}".format(dfm, prtAtt, inputTarget, attName)
+                listAttrs.append(theAtt)
             else:
                 listAttrs.append(self.dicDisplayNames[dfmNm])
         # listAttrs = [self.dicDisplayNames [el].replace(".weights",".weightList[0].weights" ) for el in lstDeformers]
