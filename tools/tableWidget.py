@@ -218,6 +218,9 @@ class VertHeaderView(QtWidgets.QHeaderView):
         self.whiteBG = QtGui.QBrush(QtGui.QColor(200, 200, 200))
         self.greyBG = QtGui.QBrush(QtGui.QColor(100, 100, 100))
 
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+
     def showMenu(self, pos):
         popMenu = QtWidgets.QMenu(self)
         selectionIsEmpty = self.selectionModel().selection().isEmpty()
