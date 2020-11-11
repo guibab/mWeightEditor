@@ -218,8 +218,8 @@ class VertHeaderView(QtWidgets.QHeaderView):
         self.whiteBG = QtGui.QBrush(QtGui.QColor(200, 200, 200))
         self.greyBG = QtGui.QBrush(QtGui.QColor(100, 100, 100))
 
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
-        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        # self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        # self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
 
     def showMenu(self, pos):
         popMenu = QtWidgets.QMenu(self)
@@ -396,8 +396,9 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         for ind in range(self.count()):
             if not self.isSectionHidden(ind):
                 nbShown += 1
-        outClick = event.pos().x() > self.colWidth * nbShown
+        outClick = event.pos().x() > self.colWidth * (nbShown + 2)
         if outClick:
+            print "outClick"
             if event.button() == QtCore.Qt.MidButton:
                 self.mainWindow.resizeToMinimum()
             elif event.button() == QtCore.Qt.LeftButton:
