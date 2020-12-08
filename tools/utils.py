@@ -39,6 +39,17 @@ class SettingVariable(object):
             self.variableHolder.__dict__[self.variableName] = self.valueOut
 
 
+class ToggleHeaderVisibility(object):
+    def __init__(self, HH, raise_error=True):
+        self.HH = HH
+
+    def __enter__(self):
+        self.HH.hide()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.HH.show()
+
+
 # with SettingVariable(locals(), ""):
 
 

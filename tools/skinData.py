@@ -818,6 +818,11 @@ class DataOfSkin(DataAbstract):
         if self.raw2dArray is not None:
             self.sumArray = self.raw2dArray.sum(axis=1)
 
+    def getNamesHighestColumns(self):
+        columnSum = -self.display2dArray.sum(axis=0)
+        sorted_columns_indices = columnSum.argsort()
+        return np.array(self.driverNames)[sorted_columns_indices].tolist()
+
     def getDriversShortNames(self):
         self.shortColumnsNames = []
         for el in self.driverNames:

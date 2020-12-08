@@ -26,7 +26,9 @@ from tools.utils import (
     toggleBlockSignals,
     SettingWithRedraw,
     SettingVariable,
+    ToggleHeaderVisibility,
 )
+import numpy as np
 
 # -------------------------------------------------------------------------------------------
 # styleSheet and icons ---------------------------------------------------------------------
@@ -176,6 +178,7 @@ class SkinWeightWin(Window):
         self.addCallBacks()
         self.setWindowDisplay()
         self.applyDisplayColumnsFilters(None)
+        self.refreshCurrentSelectionOrder()
 
     # -----------------------------------------------------------------------------------------------------------
     # window events --------------------------------------------------------------------------------------------
@@ -417,6 +420,8 @@ class SkinWeightWin(Window):
 
         # self.listInputs_CB.currentTextChanged.connect(self.displayInfoPaintAttr)
         self.listInputs_CB.currentIndexChanged.connect(self.changeTypeOfData)
+        self.orderType_CB.currentTextChanged.connect(self.changeOrder)
+        self.nbColumns_CB.currentTextChanged.connect(self.maxColumnsDisplay)
 
         for uiName in [
             "reassignLocallyBTN",
@@ -655,6 +660,54 @@ class SkinWeightWin(Window):
             else True
         )
 
+    def maxColumnsDisplay(self, nb):
+        self.applyDisplayColumnsFilters(None)
+
+    def changeOrder(self, orderType):
+        # defaultState = HH.saveState()
+        # HH.restoreState(defaultState )
+        # self._tv.hide()
+        HH = self._tv.HHeaderView
+
+        with ToggleHeaderVisibility(HH):
+            if orderType == "Default":
+                self.produceOrder(HH, self.dataOfDeformer.driverNames)
+            if orderType == "Alphabetical":
+                newOrderDriverNames = sorted(self.dataOfDeformer.driverNames)
+                self.produceOrder(HH, newOrderDriverNames)
+            elif orderType == "Side Alphabetical":
+                allNewNames = []
+                for el in self.dataOfDeformer.driverNames:
+                    spl = el.split("_")
+                    if len(spl) > 2:
+                        spl.append(spl.pop(1))
+                    newName = "_".join(spl)
+                    allNewNames.append((newName, el))
+                newOrderDriverNames = [el for newel, el in sorted(allNewNames)]
+                self.produceOrder(HH, newOrderDriverNames)
+            elif orderType == "Value":
+                self.produceOrder(HH, self.dataOfDeformer.getNamesHighestColumns())
+        self.applyDisplayColumnsFilters(None)
+
+    def produceOrder(self, HH, newOrderDriverNames):
+        sortOrder = dict(
+            [
+                (el, self.dataOfDeformer.driverNames.index(el))
+                for ind, el in enumerate(newOrderDriverNames)
+            ]
+        )
+
+        for destInd, element in enumerate(newOrderDriverNames):
+            currentInd = self.currentSectionsOrder[element]
+            elementAtDestInd = self.currentSectionsOrderReverse[destInd]
+            if ind != currentInd:
+                HH.swapSections(destInd, currentInd)
+                # HH.moveSections(destInd,currentInd )
+                self.currentSectionsOrderReverse[destInd] = element
+                self.currentSectionsOrderReverse[currentInd] = elementAtDestInd
+                self.currentSectionsOrder[elementAtDestInd] = currentInd
+                self.currentSectionsOrder[element] = destInd
+
     def applyDisplayColumnsFilters(self, newText):
         displayColumns = [True] * self.dataOfDeformer.columnCount
         # first apply the Text ---------------------
@@ -681,14 +734,28 @@ class SkinWeightWin(Window):
             for ind, isLocked in enumerate(self.dataOfDeformer.lockedColumns):
                 if isLocked:
                     displayColumns[ind] = False
-        # now do the hidding --------------------------------------------
-        for ind, isVisible in enumerate(displayColumns):
-            if isVisible:
-                self._tv.showColumn(ind)
-            else:
-                self._tv.hideColumn(ind)
-        if self.dataOfDeformer.isSkinData:  # show the sum column, always
-            self._tv.showColumn(self.dataOfDeformer.columnCount + 1)
+        # now apply how many to show: -----------------------------
+        if self.dataOfDeformer.isSkinData:
+            nbToShow = self.nbColumns_CB.currentText()
+            if nbToShow != "All":
+                nbToShow = int(nbToShow)
+                for i in range(self.dataOfDeformer.nbDrivers):  # that's just a while true
+                    driverName = self.currentSectionsOrderReverse[i]
+                    columnIndex = self.dataOfDeformer.driverNames.index(driverName)
+                    if displayColumns[columnIndex]:
+                        if nbToShow > 0:
+                            nbToShow -= 1
+                        else:
+                            displayColumns[columnIndex] = False
+        with ToggleHeaderVisibility(self._tv.HHeaderView):
+            # now do the hidding --------------------------------------------
+            for ind, isVisible in enumerate(displayColumns):
+                if isVisible:
+                    self._tv.showColumn(ind)
+                else:
+                    self._tv.hideColumn(ind)
+            if self.dataOfDeformer.isSkinData:  # show the sum column, always
+                self._tv.showColumn(self.dataOfDeformer.columnCount + 1)
 
     def toggleDisplayLockColumn(self, checked):
         cmds.optionVar(intValue=["hideLockColumn", checked])
@@ -798,6 +865,20 @@ class SkinWeightWin(Window):
                 self.highlightSelectedDeformers()
             self._tv.selEmptied.emit(False)
             self._tv.repaint()
+
+            if self.dataOfDeformer.isSkinData:
+                self.changeOrder(self.orderType_CB.currentText())
+
+    def refreshCurrentSelectionOrder(self):
+        if self.dataOfDeformer.isSkinData:
+            self.currentSectionsOrder = dict(
+                [(el, ind) for ind, el in enumerate(self.dataOfDeformer.driverNames)]
+            )
+            self.currentSectionsOrderReverse = dict(
+                [(ind, el) for ind, el in enumerate(self.dataOfDeformer.driverNames)]
+            )
+        else:
+            self.currentSectionsOrder, self.currentSectionsOrderReverse = {}, {}
 
     # -----------------------------------------------------------------------------------------------------------
     # Functions ------------------------------------------------------------------------------------------------
