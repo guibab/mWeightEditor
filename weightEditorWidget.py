@@ -233,11 +233,7 @@ class SkinWeightWin(Window):
         self.show()
 
     def resizeToMinimum(self):
-        nbShown = 0
-        for ind in range(self._tv.HHeaderView.count()):
-            if not self._tv.HHeaderView.isSectionHidden(ind):
-                nbShown += 1
-        wdth = self._tv.VHeaderView.width() + nbShown * self.colWidth + 50
+        wdth = self._tv.VHeaderView.width() + self._tv.viewportSizeHint().width()
         self.resize(wdth, self.height())
 
     def addButtonsDirectSet(self, lstBtns):
@@ -663,6 +659,12 @@ class SkinWeightWin(Window):
     def maxColumnsDisplay(self, nb):
         self.applyDisplayColumnsFilters(None)
 
+    def sort_human(self, l):
+        convert = lambda text: float(text) if text.isdigit() else text
+        alphanum = lambda key: [convert(c) for c in re.split("([-+]?[0-9]*\.?[0-9]*)", key)]
+        l.sort(key=alphanum)
+        return l
+
     def changeOrder(self, orderType):
         # defaultState = HH.saveState()
         # HH.restoreState(defaultState )
@@ -829,6 +831,8 @@ class SkinWeightWin(Window):
 
     def refresh(self, force=False):
         if self.unLock or force:
+            if self.dataOfDeformer.isSkinData:
+                self.changeOrder("Default")
             self._tm.beginResetModel()
             for ind in range(self.dataOfDeformer.columnCount):
                 self._tv.showColumn(ind)
@@ -867,6 +871,7 @@ class SkinWeightWin(Window):
             self._tv.repaint()
 
             if self.dataOfDeformer.isSkinData:
+                self.refreshCurrentSelectionOrder()
                 self.changeOrder(self.orderType_CB.currentText())
 
     def refreshCurrentSelectionOrder(self):

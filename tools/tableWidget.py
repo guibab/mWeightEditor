@@ -392,13 +392,9 @@ class HorizHeaderView(QtWidgets.QHeaderView):
             super(HorizHeaderView, self).mouseDoubleClickEvent(event)
 
     def mousePressEvent(self, event):
-        nbShown = 0
-        for ind in range(self.count()):
-            if not self.isSectionHidden(ind):
-                nbShown += 1
-        outClick = event.pos().x() > self.colWidth * (nbShown + 2)
+        index = self.visualIndexAt(event.pos().x())
+        outClick = index == -1
         if outClick:
-            print "outClick"
             if event.button() == QtCore.Qt.MidButton:
                 self.mainWindow.resizeToMinimum()
             elif event.button() == QtCore.Qt.LeftButton:
@@ -406,23 +402,6 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         else:
             self.letVerticesDraw = False
             super(HorizHeaderView, self).mousePressEvent(event)
-        """ # for the color if using objectColor
-        elif self.height() - event.pos().y() < 20 :
-            index = self.visualIndexAt (event.pos().x())            
-            if event.button() == QtCore.Qt.LeftButton  :
-                self.setColor (event.pos(), index)
-            else : 
-                pos = event.globalPos() - QtCore.QPoint (355,100)
-                theColor = [el/255. for el in self.color (index)]
-                cmds.colorEditor(mini=True, position=[pos.x(), pos.y()], rgbValue = theColor)
-                if cmds.colorEditor(query=True, result=True):
-                    theUserDefinedIndex = cmds.getAttr(self.model().fullColumnNames()[index]+'.objectColor') + 1
-                    values = cmds.colorEditor(query=True, rgb=True)
-                    #print theUserDefinedIndex, values
-                    cmds.displayRGBColor ("userDefined{0}".format (theUserDefinedIndex),*values)
-                    self.getColors ()
-                    self.repaint ()
-        """
 
     def mouseReleaseEvent(self, event):
         self.letVerticesDraw = True
