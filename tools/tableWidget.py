@@ -37,11 +37,7 @@ class TableModel(QtCore.QAbstractTableModel):
 
     def data(self, index, role=QtCore.Qt.DisplayRole):
         try:
-            # print 'Data Call'
-            # print index.column(), index.row()
             if role == QtCore.Qt.DisplayRole:
-                # return QtCore.QVariant(str(self.datatable.iget_value(i, j)))
-                # return '{0:.2f}'.format(self.realData(index))
                 return round(self.realData(index) * 100, 1)
             elif role == QtCore.Qt.EditRole:
                 ff = self.realData(index) * 100
