@@ -9,6 +9,7 @@ from functools import partial
 from maya import cmds, OpenMaya
 import os
 import re
+import difflib
 import blurdev
 from blurdev.gui import Window
 
@@ -495,6 +496,8 @@ class SkinWeightWin(Window):
 
             colNames, filesPath = resultImport
             shortFilePaths = [pth.split("/")[-1] for pth in filesPath]
+            self.dicNmFilePath = dict(zip(shortFilePaths, filesPath))
+
             shortFilePaths.insert(0, "")
             self.importQueryFrame.show()
             for nm in self.dataOfDeformer.shortColumnsNames:
@@ -509,8 +512,15 @@ class SkinWeightWin(Window):
                 comboB = QtWidgets.QComboBox()
                 comboB.addItems(shortFilePaths)
                 self.associationXml_tbl.setItemWidget(associationItem, 1, comboB)
-                if nm in colNames:
-                    comboB.setCurrentIndex(1)
+                """
+                if nm in colNames: comboB.setCurrentIndex(1)
+                """
+                matchNames = difflib.get_close_matches(nm, shortFilePaths, 1, 0.2) or []
+                if matchNames:
+                    ind = shortFilePaths.index(matchNames[0])
+                    comboB.setCurrentIndex(ind)
+                else:
+                    comboB.setCurrentIndex(0)
                 self.associationXml_tbl.lstComboxes.append(comboB)
             self.fileImportPths = filesPath
         else:
@@ -518,10 +528,9 @@ class SkinWeightWin(Window):
 
     def doImportXmlCouples(self):
         for inCol, comboB in enumerate(self.associationXml_tbl.lstComboxes):
-            currentIndex = comboB.currentIndex()
-            if currentIndex > 0:
-                filePth = self.fileImportPths[currentIndex + 1]  # first one is empty of course
-                self.dataOfDeformer.doImport(filePth, inCol)
+            currentText = comboB.currentText()
+            if currentText in self.dicNmFilePath:
+                self.dataOfDeformer.doImport(self.dicNmFilePath[currentText], inCol)
         self.refresh(force=True)
 
     def exportButtonsVis(self, val):
