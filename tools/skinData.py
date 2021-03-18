@@ -679,8 +679,12 @@ class DataOfSkin(DataAbstract):
         for i in range(jointPaths.length()):
             ind = self.sknFn.indexForInfluenceObject(jointPaths[i])
             self.indicesJoints.append(ind)
-        self.shapePath = OpenMaya.MDagPath()
-        self.sknFn.getPathAtIndex(0, self.shapePath)
+        # self.shapePath = OpenMaya.MDagPath()
+        # self.sknFn.getPathAtIndex(0, self.shapePath)
+        geometries = OpenMaya.MObjectArray()
+        self.sknFn.getOutputGeometry(geometries)
+        self.shapePath = OpenMaya.MDagPath().getAPathTo(geometries[0])
+
         shapeName = self.shapePath.fullPathName()
         vertexCount = 0
 
