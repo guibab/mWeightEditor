@@ -224,7 +224,7 @@ class DataOfSkin(DataAbstract):
             else:
                 oppDriverNames[influence] = influence
                 driverNames_oppIndices[indInfluence] = indInfluence
-        # print oppDriverNames
+        print oppDriverNames
         # print driverNames_oppIndices
         return driverNames_oppIndices
 
