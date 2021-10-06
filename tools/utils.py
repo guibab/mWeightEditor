@@ -94,7 +94,7 @@ class GlobalContext(object):
                 import traceback
 
                 traceback.print_tb(exc_tb)
-                raise exc_type, exc_val
+                raise exc_type(exc_val)
             else:
                 sys.stderr.write("%s" % exc_val)
 
