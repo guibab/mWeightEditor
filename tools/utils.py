@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from maya import cmds
 import time, datetime
 from maya import OpenMaya
+import six
 
 # -------------------------------------------------------------------------------------------
 # ------------------------ global functions -------------------------------------------------
@@ -322,7 +323,7 @@ def getComponentIndexList(componentList=[]):
     componentIndexList = {}
 
     # Check string input
-    if type(componentList) == str or type(componentList) == unicode:
+    if type(componentList) == str or type(componentList) == six.text_type:
         componentList = [componentList]
     # Get selection if componentList is empty
     if not componentList:
