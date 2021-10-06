@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from Qt import QtGui, QtCore, QtWidgets
 from functools import partial
 from maya import cmds, mel

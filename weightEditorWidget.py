@@ -3,6 +3,7 @@ import __main__
 self = __main__.weightEditor
 """
 from __future__ import print_function
+from __future__ import absolute_import
 from Qt import QtGui, QtCore, QtWidgets, QtCompat
 
 # import shiboken2 as shiboken
@@ -14,13 +15,13 @@ import difflib
 import blurdev
 from blurdev.gui import Window
 
-from tools.skinData import DataOfSkin
-from tools.abstractData import DataQuickSet
-from tools.weightMapsData import DataOfBlendShape, DataOfDeformers
+from .tools.skinData import DataOfSkin
+from .tools.abstractData import DataQuickSet
+from .tools.weightMapsData import DataOfBlendShape, DataOfDeformers
 
-from tools.tableWidget import TableView, TableModel
-from tools.spinnerSlider import ValueSettingWE, ButtonWithValue
-from tools.utils import (
+from .tools.tableWidget import TableView, TableModel
+from .tools.spinnerSlider import ValueSettingWE, ButtonWithValue
+from .tools.utils import (
     GlobalContext,
     addNameChangedCallback,
     addNameDeletedCallback,

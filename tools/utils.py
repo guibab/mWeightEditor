@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import absolute_import
 from maya import cmds
 import time, datetime
 from maya import OpenMaya

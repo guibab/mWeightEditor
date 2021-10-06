@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import absolute_import
 from maya import OpenMayaUI, OpenMaya, OpenMayaAnim
 from maya import cmds, mel
 from functools import partial
@@ -10,7 +11,7 @@ from ctypes import c_double
 
 import numpy as np
 import re
-from utils import GlobalContext, getSoftSelectionValuesNEW, getThreeIndices
+from .utils import GlobalContext, getSoftSelectionValuesNEW, getThreeIndices
 
 from .abstractData import DataAbstract, isin
 
