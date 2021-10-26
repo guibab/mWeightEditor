@@ -16,6 +16,7 @@ import numpy as np
 import re
 from .utils import GlobalContext, getSoftSelectionValuesNEW, getThreeIndices, SettingWithRedraw
 import six
+from six.moves import range
 
 
 def isin(element, test_elements, assume_unique=False, invert=False):
@@ -244,8 +245,8 @@ class DataAbstract(object):
         else:
             self.vertices = res
             self.verticesWeight = [1.0] * len(self.vertices)
-            self.sortedIndices = range(len(self.vertices))
-            self.opposite_sortedIndices = range(len(self.vertices))
+            self.sortedIndices = list(range(len(self.vertices)))
+            self.opposite_sortedIndices = list(range(len(self.vertices)))
 
     def orderMelListValues(self, vertsIndicesWeights):
         vertsIndicesWeights.sort(key=lambda x: x[0])
@@ -718,10 +719,10 @@ class DataAbstract(object):
 
         # get selected vertices ------------------------------------------------------------------------------
         self.indicesVertices = np.array(
-            [self.vertices[indRow] for indRow in xrange(self.Mtop, self.Mbottom + 1)]
+            [self.vertices[indRow] for indRow in range(self.Mtop, self.Mbottom + 1)]
         )
         self.indicesWeights = np.array(
-            [self.verticesWeight[indRow] for indRow in xrange(self.Mtop, self.Mbottom + 1)]
+            [self.verticesWeight[indRow] for indRow in range(self.Mtop, self.Mbottom + 1)]
         )
         self.subOpposite_sortedIndices = np.argsort(self.indicesVertices)
 
@@ -746,7 +747,7 @@ class DataAbstract(object):
         self.setValueInDeformer(arrayForSetting)
         # self.orig2dArray is the undo values
         if self.sub2DArrayToSet.any():
-            np.put(self.sub2DArrayToSet, xrange(self.sub2DArrayToSet.size), arrayForSetting)
+            np.put(self.sub2DArrayToSet, range(self.sub2DArrayToSet.size), arrayForSetting)
 
     def getChunksFromVertices(self, listVertices):
         verts = self.vertices
@@ -904,7 +905,7 @@ class DataAbstract(object):
         print("! undoRedoFunction !")
         self.setValueInDeformer(arraySetting)
         if sub2DArrayToSet.any():
-            np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), arraySetting)
+            np.put(sub2DArrayToSet, range(sub2DArrayToSet.size), arraySetting)
 
 
 ###################################################################################

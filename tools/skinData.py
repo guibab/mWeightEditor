@@ -14,6 +14,7 @@ import re
 from .utils import GlobalContext, getSoftSelectionValuesNEW, getThreeIndices
 
 from .abstractData import DataAbstract, isin
+from six.moves import range
 
 ###################################################################################
 #
@@ -56,7 +57,7 @@ class DataOfSkin(DataAbstract):
         # cmds.blurSkinCmd(command = "smooth", repeat = self.smoothBTN.precision, percentMvt = self.percentBTN.precision)
         rowsSel = []
         for item in selectedIndices:
-            rowsSel += range(item[0], item[1] + 1)
+            rowsSel += list(range(item[0], item[1] + 1))
         selectedVertices = sorted([self.vertices[ind] for ind in rowsSel])
 
         if self.isNurbsSurface:
@@ -264,7 +265,7 @@ class DataOfSkin(DataAbstract):
             # joints ----------------
             influenceIndices = OpenMaya.MIntArray()
             influenceIndices.setLength(self.nbDrivers)
-            for i in xrange(self.nbDrivers):
+            for i in range(self.nbDrivers):
                 influenceIndices.set(i, i)
             # now the weights -----------------------
             new2dArray = np.copy(self.display2dArray)
@@ -365,7 +366,7 @@ class DataOfSkin(DataAbstract):
                 matFn = OpenMaya.MFnMatrixData(preMatrixPlug.asMObject())
                 mat = matFn.matrix().inverse()
                 # position = OpenMaya.MPoint(0,0,0)*mat
-                position = [OpenMaya.MScriptUtil.getDoubleArrayItem(mat[3], c) for c in xrange(3)]
+                position = [OpenMaya.MScriptUtil.getDoubleArrayItem(mat[3], c) for c in range(3)]
                 lstDriverPrePosition.append(position)
                 # [res.x, res.y, res.z]
             lstDriverPrePosition = np.array(lstDriverPrePosition)
@@ -663,7 +664,7 @@ class DataOfSkin(DataAbstract):
             # do the stting in the 2dArray -----
             # if sub2DArrayToSet != None:
             if sub2DArrayToSet is not None and sub2DArrayToSet.size != 0:
-                np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), new2dArray)
+                np.put(sub2DArrayToSet, range(sub2DArrayToSet.size), new2dArray)
                 self.computeSumArray()
             # else :
             # self.undoMirrorValues.append([UndoValues, userComponents, influenceIndices] )
@@ -914,8 +915,8 @@ class DataOfSkin(DataAbstract):
                     "{0}.weightList".format(self.theSkinCluster), multiIndices=True
                 )
                 self.verticesWeight = [1.0] * len(self.vertices)
-                self.sortedIndices = range(len(self.vertices))
-                self.opposite_sortedIndices = range(len(self.vertices))
+                self.sortedIndices = list(range(len(self.vertices)))
+                self.opposite_sortedIndices = list(range(len(self.vertices)))
                 self.softOn = 0
                 self.fullShapeIsUsed = True
                 self.rawSkinValues = self.exposeSkinData(
@@ -933,7 +934,7 @@ class DataOfSkin(DataAbstract):
         if getskinWeights:
             self.createRowText()
         self.hideColumnIndices = []
-        self.usedDeformersIndices = range(self.nbDrivers)
+        self.usedDeformersIndices = list(range(self.nbDrivers))
 
         self.rowCount = len(self.vertices)
         self.columnCount = self.nbDrivers
@@ -958,7 +959,7 @@ class DataOfSkin(DataAbstract):
         # ---------------------------------------------------------------------------------------------
         self.influenceIndices = OpenMaya.MIntArray()
         self.influenceIndices.setLength(self.nbDrivers)
-        for i in xrange(self.nbDrivers):
+        for i in range(self.nbDrivers):
             self.influenceIndices.set(i, i)
         if self.isNurbsSurface:
             componentType = OpenMaya.MFn.kSurfaceCVComponent

@@ -3,6 +3,7 @@ from Qt import QtGui, QtCore, QtWidgets
 from functools import partial
 from maya import cmds, mel
 import numpy as np
+from six.moves import range
 
 
 class TableModel(QtCore.QAbstractTableModel):
@@ -295,7 +296,7 @@ class VertHeaderView(QtWidgets.QHeaderView):
         sel = self.selectionModel().selection()
         chunks = np.array([], dtype=int)
         for item in sel:
-            chunks = np.union1d(chunks, range(item.top(), item.bottom() + 1))
+            chunks = np.union1d(chunks, list(range(item.top(), item.bottom() + 1)))
 
         # selectedIndices = [indRow for indRow in chunks if not self.isSectionHidden(indRow) ]
         return chunks
@@ -329,7 +330,7 @@ class VertHeaderView(QtWidgets.QHeaderView):
         self.model().datatable.unLockRows(selectedIndices)
 
     def clearLocks(self):
-        self.model().datatable.unLockRows(range(self.count()))
+        self.model().datatable.unLockRows(list(range(self.count())))
 
 
 class HorizHeaderView(QtWidgets.QHeaderView):
@@ -340,7 +341,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
 
     def getColors(self):
         self._colors = []
-        for i in xrange(1, 9):
+        for i in range(1, 9):
             col = cmds.displayRGBColor("userDefined{0}".format(i), q=True)
             self._colors.append([int(el * 255) for el in col])
 
@@ -435,7 +436,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         sel = self.selectionModel().selection()
         chunks = np.array([], dtype=int)
         for item in sel:
-            chunks = np.union1d(chunks, range(item.left(), item.right() + 1))
+            chunks = np.union1d(chunks, list(range(item.left(), item.right() + 1)))
 
         selectedIndices = [indCol for indCol in chunks if not self.isSectionHidden(indCol)]
         if self.model().datatable.isSkinData:
@@ -471,7 +472,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         self.model().datatable.selectVertsOfColumns(selectedColumns, doSelect=doSelect)
 
     def clearLocks(self):
-        self.model().datatable.unLockColumns(range(self.count() - 1))
+        self.model().datatable.unLockColumns(list(range(self.count() - 1)))
         self.mainWindow.refreshPaintEditor()
 
     def enterPaintAttribute(self):
@@ -710,7 +711,7 @@ class TableView(QtWidgets.QTableView):
             if self.HHeaderView.letVerticesDraw:
                 rowsSel = []
                 for item in sel:
-                    rowsSel += range(item.top(), item.bottom() + 1)
+                    rowsSel += list(range(item.top(), item.bottom() + 1))
                 self.model().datatable.updateDisplayVerts(rowsSel)
             else:
                 self.HHeaderView.displayVertices(doSelect=False)
@@ -797,7 +798,7 @@ class ColorMenu(QtWidgets.QMenu):
 
     def getColors(self):
         self._colors = []
-        for i in xrange(1, 9):
+        for i in range(1, 9):
             col = cmds.displayRGBColor("userDefined{0}".format(i), q=True)
             self._colors.append([int(el * 255) for el in col])
         # cmds.displayRGBColor( "userDefined1", 0, 1, 1, create=True)

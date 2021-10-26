@@ -21,6 +21,7 @@ from .utils import (
 )
 
 from .abstractData import DataAbstract, isin
+from six.moves import range
 
 """
 cmds.getAttr("blendShape1.inputTarget[0].baseWeights") [0]
@@ -251,7 +252,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         arrIndicesVerts = np.array(self.vertices)
 
         # for the extended neighBoors
-        padder = range(self.maxNeighboors)
+        padder = list(range(self.maxNeighboors))
         dicOfVertsSubArray = {}
         attsValues = []
         if self.storeUndo:
@@ -277,7 +278,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                         valuesOrig = self.fullAttributesArr[verts.tolist(), colIndex]
                         undoVertsIndicesWeights = zip(verts.tolist(), valuesOrig.tolist())
                         undoValues.append((self.listAttrs[colIndex], undoVertsIndicesWeights))
-                    for _ in xrange(iteration):
+                    for _ in range(iteration):
                         for i, vertIndex in enumerate(verts):
                             if vertIndex not in dicOfVertsSubArray:
                                 # print vertIndex
@@ -343,10 +344,10 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         self.getSoftSelectionVertices(inputVertices=inputVertices)
 
         if not self.vertices:
-            self.vertices = range(self.nbVertices)
+            self.vertices = list(range(self.nbVertices))
             self.verticesWeight = [1.0] * len(self.vertices)
-            self.sortedIndices = range(len(self.vertices))
-            self.opposite_sortedIndices = range(len(self.vertices))
+            self.sortedIndices = list(range(len(self.vertices)))
+            self.opposite_sortedIndices = list(range(len(self.vertices)))
             self.softOn = 0
             self.fullShapeIsUsed = True
         else:

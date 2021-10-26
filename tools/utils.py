@@ -4,6 +4,7 @@ from maya import cmds
 import time, datetime
 from maya import OpenMaya
 import six
+from six.moves import range
 
 # -------------------------------------------------------------------------------------------
 # ------------------------ global functions -------------------------------------------------
