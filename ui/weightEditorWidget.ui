@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>635</width>
+    <width>588</width>
     <height>617</height>
    </rect>
   </property>
@@ -273,32 +273,6 @@
            <property name="verticalSpacing">
             <number>2</number>
            </property>
-           <item row="1" column="0">
-            <widget class="QPushButton" name="exportBTN">
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>18</height>
-              </size>
-             </property>
-             <property name="text">
-              <string>export ...</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="1">
-            <widget class="QPushButton" name="importBTN">
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>18</height>
-              </size>
-             </property>
-             <property name="text">
-              <string>import ...</string>
-             </property>
-            </widget>
-           </item>
            <item row="0" column="0" colspan="2">
             <layout class="QHBoxLayout" name="horizontalLayout_4">
              <item>
@@ -335,6 +309,32 @@
              </item>
             </layout>
            </item>
+           <item row="1" column="0">
+            <widget class="QPushButton" name="exportBTN">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>18</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>export ...</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QPushButton" name="importBTN">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>18</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>import ...</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
          <item>
@@ -356,15 +356,135 @@
            </property>
            <layout class="QVBoxLayout" name="carryWidgetLAY">
             <property name="spacing">
+             <number>5</number>
+            </property>
+            <property name="leftMargin">
              <number>0</number>
             </property>
-            <property name="margin">
+            <property name="topMargin">
              <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>7</number>
             </property>
            </layout>
           </widget>
          </item>
         </layout>
+       </item>
+       <item>
+        <widget class="QWidget" name="uiUVsSettingWDG" native="true">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_5">
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <property name="margin">
+           <number>2</number>
+          </property>
+          <item>
+           <widget class="QRadioButton" name="uiURBTN">
+            <property name="maximumSize">
+             <size>
+              <width>32</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>U</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="uiVRBTN">
+            <property name="maximumSize">
+             <size>
+              <width>32</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>V</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="uiNormalizeUVsCBOX">
+            <property name="maximumSize">
+             <size>
+              <width>70</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Normalize</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="uiOppositeUVsCBOX">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>70</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Opposite</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="uiSetFromUVsBTN">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>150</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>18</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Set using UVs</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_4">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_3">

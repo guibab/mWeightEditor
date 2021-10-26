@@ -11,7 +11,12 @@ from ctypes import c_double, c_float
 
 import numpy as np
 import re
-from utils import GlobalContext, getSoftSelectionValuesNEW, getThreeIndices
+from utils import (
+    GlobalContext,
+    getSoftSelectionValuesNEW,
+    getThreeIndices,
+    getMapForSelectedVertices,
+)
 
 from .abstractData import DataAbstract, isin
 
@@ -299,6 +304,31 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 self.storeUndo = False
             self.redoValues = attsValues
             self.setAttsValues(attsValues)
+
+    # -----------------------------------------------------------------------------------------------------------
+    # redefine abstract data functions -------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------
+    def setUsingUVs(self, using_U, normalize, opposite):
+        print ("using_U {}, normalize {}, opposite {}".format(using_U, normalize, opposite))
+        axis = "u" if using_U else "v"
+        if self.shapePath.apiType() != OpenMaya.MFn.kMesh:
+            print "FAIL not vertices"
+            return
+        fnComponent = OpenMaya.MFnSingleIndexedComponent()
+        userComponents = fnComponent.create(OpenMaya.MFn.kMeshVertComponent)
+        for ind in self.indicesVertices:
+            fnComponent.addElement(int(ind))
+        vertIter = OpenMaya.MItMeshVertex(self.shapePath, userComponents)
+        # let's check if it worked :
+        vertsIndicesWeights = getMapForSelectedVertices(
+            vertIter, normalize=normalize, opp=opposite, axis=axis
+        )
+
+        editedColumns = np.any(self.sumMasks, axis=0).tolist()
+        attrs = [self.listAttrs[ind] for ind, el in enumerate(editedColumns) if el]
+        for attr in attrs:
+            self.setAttributeValues(attr, vertsIndicesWeights)
+        self.getAttributesValues()
 
     # -----------------------------------------------------------------------------------------------------------
     # redefine abstract data functions -------------------------------------------------------------------------

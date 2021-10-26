@@ -422,6 +422,98 @@ def getComponentIndexList(componentList=[]):
 
 
 # -------------------------------------------------------------------------------------------
+# get UV Map
+def getMapForSelectedVerticesFromSelection(normalize=True, opp=False, axis="uv"):
+    # Get MSelectionList
+    startSel = cmds.ls(sl=True)
+    selList = OpenMaya.MSelectionList()
+    OpenMaya.MGlobal.getActiveSelectionList(selList)
+
+    iterSel = OpenMaya.MItSelectionList(selList)
+
+    util = OpenMaya.MScriptUtil()
+    util.createFromList([0.0, 0.0], 2)
+    uvPoint = util.asFloat2Ptr()
+    indicesValues = []
+    while not iterSel.isDone():
+        component = OpenMaya.MObject()
+        dagPath = OpenMaya.MDagPath()
+        iterSel.getDagPath(dagPath, component)
+        if not component.isNull():
+            componentFn = OpenMaya.MFnComponent(component)
+            if componentFn.componentType() == OpenMaya.MFn.kMeshVertComponent:  # vertex
+                transform = dagPath.transform()
+                node = dagPath.node()
+                depNode = OpenMaya.MFnDependencyNode(node)
+                depNode_name = dagPath.fullPathName()
+
+                vertIter = OpenMaya.MItMeshVertex(dagPath, component)
+                while not vertIter.isDone():
+                    theVert = vertIter.index()
+                    vertIter.getUV(uvPoint)
+                    u = OpenMaya.MScriptUtil.getFloat2ArrayItem(uvPoint, 0, 0)
+                    v = OpenMaya.MScriptUtil.getFloat2ArrayItem(uvPoint, 0, 1)
+                    # print theVert, u, v
+                    indicesValues.append((theVert, u, v))
+                    vertIter.next()
+        iterSel.next()
+    if normalize:
+        maxV = max(indicesValues, key=lambda x: x[2])[2]
+        minV = min(indicesValues, key=lambda x: x[2])[2]
+        diffV = maxV - minV
+
+        maxU = max(indicesValues, key=lambda x: x[1])[1]
+        minU = min(indicesValues, key=lambda x: x[1])[1]
+        diffU = maxU - minU
+
+        indicesValues = [
+            (theVert, (u - minU) / diffU, (v - minU) / diffV) for (theVert, u, v) in indicesValues
+        ]
+    if opp:
+        indicesValues = [(theVert, -1.0 * u, -1.0 * v) for (theVert, u, v) in indicesValues]
+    if axis != "uv":
+        indReturn = "uv".index(axis) + 1
+        indicesValues = [(el[0], el[indReturn]) for el in indicesValues]
+    return indicesValues
+
+
+def getMapForSelectedVertices(vertIter, normalize=True, opp=False, axis="uv"):
+    # Get MSelectionList
+    util = OpenMaya.MScriptUtil()
+    util.createFromList([0.0, 0.0], 2)
+    uvPoint = util.asFloat2Ptr()
+    indicesValues = []
+
+    # vertIter = OpenMaya.MItMeshVertex(dagPath, component)
+    while not vertIter.isDone():
+        theVert = vertIter.index()
+        vertIter.getUV(uvPoint)
+        u = OpenMaya.MScriptUtil.getFloat2ArrayItem(uvPoint, 0, 0)
+        v = OpenMaya.MScriptUtil.getFloat2ArrayItem(uvPoint, 0, 1)
+        # print theVert, u, v
+        indicesValues.append((theVert, u, v))
+        vertIter.next()
+    if normalize:
+        maxV = max(indicesValues, key=lambda x: x[2])[2]
+        minV = min(indicesValues, key=lambda x: x[2])[2]
+        diffV = maxV - minV
+
+        maxU = max(indicesValues, key=lambda x: x[1])[1]
+        minU = min(indicesValues, key=lambda x: x[1])[1]
+        diffU = maxU - minU
+
+        indicesValues = [
+            (theVert, (u - minU) / diffU, (v - minU) / diffV) for (theVert, u, v) in indicesValues
+        ]
+    if opp:
+        indicesValues = [(theVert, 1.0 - u, 1.0 - v) for (theVert, u, v) in indicesValues]
+    if axis != "uv":
+        indReturn = "uv".index(axis) + 1
+        indicesValues = [(el[0], el[indReturn]) for el in indicesValues]
+    return indicesValues
+
+
+# -------------------------------------------------------------------------------------------
 # ------------------------ callBacks --------------------------------------------------------
 # -------------------------------------------------------------------------------------------
 def deleteTheJobs(toSearch="BrushFunctions.callAfterPaint"):

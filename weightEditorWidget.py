@@ -105,6 +105,14 @@ styleSheet = """
         font:italic;
         color:grey;
         }
+    QRadioButton:disabled {
+        font:italic;
+        color:grey;
+        }
+    QCheckBox:disabled {
+        font:italic;
+        color:grey;
+        }
     TableView {
          selection-background-color: #a0a0ff;
          background: #aba8a6;
@@ -343,6 +351,7 @@ class SkinWeightWin(Window):
 
         self.carryWidgetLAY.addLayout(Hlayout2)
         self.carryWidgetLAY.addLayout(Hlayout)
+        # self.carryWidgetLAY.addStretch()
         self.widgetAbs.hide()
 
         theLayout.addWidget(self._tv)
@@ -379,6 +388,10 @@ class SkinWeightWin(Window):
 
         self.problemVertsBTN.clicked.connect(self.selProbVerts)
         self.problemVerts_btn.deleteLater()
+
+        self.uiSetFromUVsBTN.clicked.connect(self.setUsingUvs)
+        for el in self.uiUVsSettingWDG.children():
+            el.setEnabled(True)
 
         averageBTN = ButtonWithValue(
             self,
@@ -989,6 +1002,17 @@ class SkinWeightWin(Window):
         ]
         cmds.select(inList)
 
+    def setUsingUvs(self):
+        using_U = self.uiURBTN.isChecked()
+        normalize = self.uiNormalizeUVsCBOX.isChecked()
+        opposite = self.uiOppositeUVsCBOX.isChecked()
+        with SettingWithRedraw(self):
+            success = self.prepareToSetValue(selectAllIfNothing=True)
+            if success:
+                self.dataOfDeformer.setUsingUVs(using_U, normalize, opposite)
+                self.postSetValue()
+        # self.refresh(force=True)
+
     # -----------------------------------------------------------------------------------------------------------
     # Basic set Values -----------------------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
@@ -1092,6 +1116,7 @@ class SkinWeightWin(Window):
     # Misc -----------------------------------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
     def changeTypeOfData(self, ind):
+        UvsEnabled = False
         if ind == 0:  # skinCluster
             self.dataOfDeformer = DataOfSkin(
                 useShortestNames=self.useShortestNames,
@@ -1110,7 +1135,9 @@ class SkinWeightWin(Window):
                 mainWindow=self, createDisplayLocator=self.useDisplayLocator
             )
             self.problemVertsBTN.setEnabled(False)
+            UvsEnabled = True
         self._tm.update(self.dataOfDeformer)
+        self.uiUVsSettingWDG.setEnabled(UvsEnabled)
 
     def get_data_frame(self):
         with GlobalContext(message="get_data_frame"):
