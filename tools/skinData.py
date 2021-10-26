@@ -1,3 +1,4 @@
+from __future__ import print_function
 from maya import OpenMayaUI, OpenMaya, OpenMayaAnim
 from maya import cmds, mel
 from functools import partial
@@ -119,7 +120,7 @@ class DataOfSkin(DataAbstract):
     def swapOneOnOne(self, indicesSources, indicesDest):
         indicesSources = list(indicesSources)
         indicesDest = list(indicesDest)
-        print indicesSources, indicesDest
+        print(indicesSources, indicesDest)
         with GlobalContext(message="swapOneOnOne", doPrint=True):
             new2dArray = np.copy(self.orig2dArray)
             new2dArray[:, indicesDest] = (
@@ -224,7 +225,7 @@ class DataOfSkin(DataAbstract):
             else:
                 oppDriverNames[influence] = influence
                 driverNames_oppIndices[indInfluence] = indInfluence
-        print oppDriverNames
+        print(oppDriverNames)
         # print driverNames_oppIndices
         return driverNames_oppIndices
 
@@ -536,7 +537,7 @@ class DataOfSkin(DataAbstract):
 
             if average:  # ----- average ---------
                 if self.verbose:
-                    print "average"
+                    print("average")
                 theMask = sumMasksUpdate
                 addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0)
                 sumCols_addValues = addValues.mean(axis=0)
@@ -1012,7 +1013,7 @@ class DataOfSkin(DataAbstract):
         deformerName = self.driverNames[column]
         theVtx = "{0}.vtx[{1}]".format(self.deformedShape, vertexIndex)
         if self.verbose:
-            print self.theSkinCluster, theVtx, deformerName, value
+            print(self.theSkinCluster, theVtx, deformerName, value)
         # cmds.skinPercent( self.theSkinCluster,theVtx, transformValue=(deformerName, float(value)), normalize = True)
 
     # -----------------------------------------------------------------------------------------------------------

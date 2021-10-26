@@ -2,6 +2,7 @@
 import __main__
 self = __main__.weightEditor
 """
+from __future__ import print_function
 from Qt import QtGui, QtCore, QtWidgets, QtCompat
 
 # import shiboken2 as shiboken
@@ -560,7 +561,7 @@ class SkinWeightWin(Window):
             self.dataOfDeformer.renameCB(oldName, newName)
 
     def deleteCB(self, nodeName):
-        print "to be Deleted ", nodeName
+        print("to be Deleted ", nodeName)
 
     def addCallBacks(self):
         self.refreshSJ = cmds.scriptJob(event=["SelectionChanged", self.refresh])
@@ -1110,7 +1111,7 @@ class SkinWeightWin(Window):
     # -----------------------------------------------------------------------------------------------------------
     def displayInfoPaintAttr(self, displayName):
         if displayName in self.dicDisplayNames:
-            print self.dicDisplayNames[displayName]
+            print(self.dicDisplayNames[displayName])
 
     # -----------------------------------------------------------------------------------------------------------
     # Misc -----------------------------------------------------------------------------------------------------

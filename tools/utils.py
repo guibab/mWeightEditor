@@ -1,3 +1,4 @@
+from __future__ import print_function
 from maya import cmds
 import time, datetime
 from maya import OpenMaya

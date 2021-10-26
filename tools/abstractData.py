@@ -1,4 +1,5 @@
 # https://github.com/chadmv/cmt/blob/master/scripts/cmt/deform/skinio.py
+from __future__ import print_function
 from Qt.QtWidgets import QApplication
 from maya import OpenMayaUI, OpenMaya, OpenMayaAnim
 import maya.api.OpenMaya as OpenMaya2
@@ -406,7 +407,7 @@ class DataAbstract(object):
         if self.shapePath.apiType() != OpenMaya.MFn.kMesh:
             return
         if self.verbose:
-            print "getConnectVertices"
+            print("getConnectVertices")
         # shapePath = getMObject(None, "restShape")
         theMeshFn = OpenMaya.MFnMesh(self.shapePath)
         vertexCount = OpenMaya.MIntArray()
@@ -443,7 +444,7 @@ class DataAbstract(object):
         # print "theMax ", theMax
         self.maxNeighboors = theMax
         if self.verbose:
-            print "end - getConnectVertices"
+            print("end - getConnectVertices")
 
         """
         shapePath = getMObject("restShape")
@@ -485,7 +486,7 @@ class DataAbstract(object):
         # theMask
         rows = theArr.shape[0]
         cols = theArr.shape[1]
-        print "\n"
+        print("\n")
         for x in range(0, rows):
             toPrint = ""
             sum = 0.0
@@ -499,8 +500,8 @@ class DataAbstract(object):
                     # toPrint += str(round(val*100, 1))
                     sum += val
             toPrint += "  -->  {0} ".format(round(sum * 100, 1))
-            print toPrint
-        print "\n"
+            print(toPrint)
+        print("\n")
 
     # -----------------------------------------------------------------------------------------------------------
     # get the data --------------------------------------------------------------------------------------------
@@ -601,7 +602,7 @@ class DataAbstract(object):
 
     def pruneWeights(self, pruneValue):
         with GlobalContext(message="pruneWeights", doPrint=self.verbose):
-            print "pruneWeights"
+            print("pruneWeights")
             new2dArray = np.copy(self.orig2dArray)
 
             self.printArrayData(new2dArray)
@@ -892,13 +893,13 @@ class DataAbstract(object):
     # -----------------------------------------------------------------------------------------------------------
     def renameCB(self, oldName, newName):
         return
-        print "weightEditor call back is Invoked: -{}-  to -{}- ".format(oldName, newName)
+        print("weightEditor call back is Invoked: -{}-  to -{}- ".format(oldName, newName))
 
     # -----------------------------------------------------------------------------------------------------------
     # do and Undo ----------------------------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
     def undoRedoFunction(self, arraySetting, sub2DArrayToSet):
-        print "! undoRedoFunction !"
+        print("! undoRedoFunction !")
         self.setValueInDeformer(arraySetting)
         if sub2DArrayToSet.any():
             np.put(sub2DArrayToSet, xrange(sub2DArrayToSet.size), arraySetting)

@@ -1,3 +1,4 @@
+from __future__ import print_function
 from maya import OpenMayaUI, OpenMaya, OpenMayaAnim
 import maya.api.OpenMaya as OpenMaya2
 
@@ -68,7 +69,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
             destinationFolder = res.pop()
             for ind in colIndices:
                 filePth = "{}/{}.gz".format(destinationFolder, self.shortColumnsNames[ind])
-                print filePth
+                print(filePth)
                 arrToExport = np.copy(self.fullAttributesArr[:, ind])
                 np.savetxt(filePth, arrToExport)
 
@@ -96,7 +97,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         return None
 
     def doImport(self, filePth, colIndex):
-        print filePth
+        print(filePth)
         fileArr = np.loadtxt(str(filePth))
         difference = fileArr - self.fullAttributesArr[:, colIndex]
 
@@ -309,10 +310,10 @@ class DataOfOneDimensionalAttrs(DataAbstract):
     # redefine abstract data functions -------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
     def setUsingUVs(self, using_U, normalize, opposite):
-        print ("using_U {}, normalize {}, opposite {}".format(using_U, normalize, opposite))
+        print("using_U {}, normalize {}, opposite {}".format(using_U, normalize, opposite))
         axis = "u" if using_U else "v"
         if self.shapePath.apiType() != OpenMaya.MFn.kMesh:
-            print "FAIL not vertices"
+            print("FAIL not vertices")
             return
         fnComponent = OpenMaya.MFnSingleIndexedComponent()
         userComponents = fnComponent.create(OpenMaya.MFn.kMeshVertComponent)

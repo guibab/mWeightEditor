@@ -1,3 +1,4 @@
+from __future__ import print_function
 from Qt import QtGui, QtCore, QtWidgets
 from maya import cmds
 from utils import toggleBlockSignals
@@ -293,7 +294,7 @@ class ProgressItem(QtWidgets.QProgressBar):
 
     def setEnabled(self, val):
         super(ProgressItem, self).setEnabled(val)
-        print "set Enalbeld {0}".format(val)
+        print("set Enalbeld {0}".format(val))
         if not val:
             tmpDic = dict(
                 self.dicStyleSheet,
