@@ -1,12 +1,7 @@
-"""
-import __main__
-self = __main__.weightEditor
-"""
 from __future__ import print_function
 from __future__ import absolute_import
-from Qt import QtGui, QtCore, QtWidgets, QtCompat
+from Qt import QtGui, QtCore, QtWidgets
 
-# import shiboken2 as shiboken
 from functools import partial
 from maya import cmds, OpenMaya
 import os
@@ -24,14 +19,12 @@ from .tools.spinnerSlider import ValueSettingWE, ButtonWithValue
 from .tools.utils import (
     GlobalContext,
     addNameChangedCallback,
-    addNameDeletedCallback,
     removeNameChangedCallback,
     toggleBlockSignals,
     SettingWithRedraw,
     SettingVariable,
     ToggleHeaderVisibility,
 )
-import numpy as np
 from six.moves import range
 
 # -------------------------------------------------------------------------------------------
@@ -73,14 +66,14 @@ styleSheet = """
     }
     QCheckBox:hover
     {
-      background:rgb(120, 120, 120); 
+      background:rgb(120, 120, 120);
     }
     QMenu::item:disabled {
         color:grey;
         font: italic;
     }
     QMenu::item:selected  {
-        background-color:rgb(120, 120, 120);  
+        background-color:rgb(120, 120, 120);
     }
     QPushButton {
         color:  black;
@@ -157,11 +150,6 @@ class SkinWeightWin(Window):
 
     def __init__(self, parent=None):
         super(SkinWeightWin, self).__init__(parent)
-        """
-        self.setFloating(True)
-        self.setAllowedAreas( QtCore.Qt.DockWidgetAreas())
-        self.isDockable = False
-        """
         import __main__
 
         __main__.__dict__["weightEditor"] = self
@@ -210,18 +198,6 @@ class SkinWeightWin(Window):
         self._tv.deleteLater()
         # self.headerView.deleteLater()
         super(SkinWeightWin, self).closeEvent(event)
-
-    """
-    def keyPressEvent(self,event):
-        theKeyPressed = event.key()        
-        ctrlPressed = event.modifiers() == QtCore.Qt.ControlModifier
-        
-        if ctrlPressed and event.key() == QtCore.Qt.Key_Z: 
-            self.undoFn()
-            #super(SkinWeightWin, self).keyPressEvent(event)
-            return
-        super(SkinWeightWin, self).keyPressEvent(event)
-    """
 
     def mousePressEvent(self, event):
         # print "click"
@@ -315,8 +291,6 @@ class SkinWeightWin(Window):
         theLayout.setSpacing(3)
         self.addPercentage = False
 
-        topButtonsLay = self.topButtonsWidget.layout()
-
         self._tm = TableModel(self)
         self._tm.update(self.dataOfDeformer)
 
@@ -354,7 +328,6 @@ class SkinWeightWin(Window):
 
         self.carryWidgetLAY.addLayout(Hlayout2)
         self.carryWidgetLAY.addLayout(Hlayout)
-        # self.carryWidgetLAY.addStretch()
         self.widgetAbs.hide()
 
         theLayout.addWidget(self._tv)
@@ -410,8 +383,6 @@ class SkinWeightWin(Window):
         self.averageBTN.hide()
         self.averageBTN = averageBTN
 
-        # self.botLayout.insertWidget(3, self.averageBTN)
-
         for nm in ["swap"]:
             self.__dict__[nm + "BTN"].setEnabled(False)
             self.__dict__[nm + "BTN"].hide()
@@ -431,7 +402,6 @@ class SkinWeightWin(Window):
         self.averageBTN.clicked.connect(self.doAverage)
         self.reassignLocallyBTN.clicked.connect(self.reassignLocally)
 
-        # self.listInputs_CB.currentTextChanged.connect(self.displayInfoPaintAttr)
         self.listInputs_CB.currentIndexChanged.connect(self.changeTypeOfData)
         self.orderType_CB.currentTextChanged.connect(self.changeOrder)
         self.nbColumns_CB.currentTextChanged.connect(self.maxColumnsDisplay)
@@ -470,14 +440,12 @@ class SkinWeightWin(Window):
 
         self.zeroCol_BTN.setIcon(_icons["zeroOff"])
         self.zeroCol_BTN.setText("")
-        # self.zeroCol_BTN.setMaximumSize(24,24)
         self.zeroCol_BTN.setCheckable(True)
         self.zeroCol_BTN.setChecked(self.hideZeroColumn)
         self.zeroCol_BTN.toggled.connect(self.changeDisplayZero)
 
         self.locked_BTN.setIcon(_icons["unlockJnts"])
         self.locked_BTN.setText("")
-        # self.locked_BTN.setMaximumSize(24,24)
         self.locked_BTN.setCheckable(True)
         self.locked_BTN.setChecked(self.hideLockColumn)
         self.locked_BTN.toggled.connect(self.changeDisplayLock)
@@ -490,11 +458,6 @@ class SkinWeightWin(Window):
         self.copyBTN.clicked.connect(self.doCopyArray)
         self.pasteBTN.clicked.connect(self.doPasteArray)
 
-        """
-        if self.dataOfDeformer.deformedShape: 
-            self.getListPaintableAttributes(self.dataOfDeformer.deformedShape)
-        """
-
     # -----------------------------------------------------------------------------------------------------------
     # export import  -------------------------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
@@ -505,7 +468,7 @@ class SkinWeightWin(Window):
     def importAction(self):
         colIndices = self._tv.HHeaderView.getSelectedColumns()
         resultImport = self.dataOfDeformer.importColumns(colIndices)
-        if resultImport != None:
+        if resultImport is not None:
             self.associationXml_tbl.lstComboxes = []
             self.associationXml_tbl.clear()
             self.associationXml_tbl.setColumnWidth(0, 150)
@@ -528,9 +491,6 @@ class SkinWeightWin(Window):
                 comboB = QtWidgets.QComboBox()
                 comboB.addItems(shortFilePaths)
                 self.associationXml_tbl.setItemWidget(associationItem, 1, comboB)
-                """
-                if nm in colNames: comboB.setCurrentIndex(1)
-                """
                 matchNames = difflib.get_close_matches(nm, shortFilePaths, 1, 0.2) or []
                 if matchNames:
                     ind = shortFilePaths.index(matchNames[0])
@@ -568,9 +528,7 @@ class SkinWeightWin(Window):
     def addCallBacks(self):
         self.refreshSJ = cmds.scriptJob(event=["SelectionChanged", self.refresh])
         self.renameCallBack = addNameChangedCallback(self.renameCB)
-        # self.deleteCallBack = addNameDeletedCallback(self.deleteCB)
 
-        # self.listJobEvents =[refreshSJ]
         sceneUpdateCallback = OpenMaya.MSceneMessage.addCallback(
             OpenMaya.MSceneMessage.kBeforeNew, self.deselectAll
         )  # kSceneUpdate
@@ -579,19 +537,14 @@ class SkinWeightWin(Window):
             OpenMaya.MSceneMessage.addCallback(OpenMaya.MSceneMessage.kBeforeOpen, self.deselectAll)
         )
 
-        # scriptJob        nodeDeleted
-
     def deleteCallBacks(self):
-        # for jobNum in self.listJobEvents  : cmds.scriptJob( kill=jobNum, force=True)
         removeNameChangedCallback(self.renameCallBack)
-        # removeNameChangedCallback(self.deleteCallBack)
         self.dataOfDeformer.deleteDisplayLocator()
         cmds.scriptJob(kill=self.refreshSJ, force=True)
         for callBck in self.close_callback:
             OpenMaya.MSceneMessage.removeCallback(callBck)
 
     def deselectAll(self, *args):
-        # print "DESELECTALL"
         self._tm.beginResetModel()
         self.dataOfDeformer.clearData()
         self._tm.endResetModel()
@@ -600,7 +553,6 @@ class SkinWeightWin(Window):
     # right click menu -----------------------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
     def buildRCMenu(self):
-        # -------------------
         self.popMenu = QtWidgets.QMenu(self)
 
         resizeAction = self.popMenu.addAction("resize to minimum(MiddleClick)")
@@ -640,9 +592,7 @@ class SkinWeightWin(Window):
             widg,
         ) in self.__dict__.iteritems():  # for name, age in list.items(): (for Python 3.x)
             if widg == chd:
-                # print widgetName
                 break
-        # print widgetName
         if widgetName in [
             "centralwidget",
             "topButtonsWidget",
@@ -684,16 +634,13 @@ class SkinWeightWin(Window):
     def maxColumnsDisplay(self, nb):
         self.applyDisplayColumnsFilters(None)
 
-    def sort_human(self, l):
+    def sort_human(self, lst):
         convert = lambda text: float(text) if text.isdigit() else text
         alphanum = lambda key: [convert(c) for c in re.split("([-+]?[0-9]*\.?[0-9]*)", key)]
-        l.sort(key=alphanum)
-        return l
+        lst.sort(key=alphanum)
+        return lst
 
     def changeOrder(self, orderType):
-        # defaultState = HH.saveState()
-        # HH.restoreState(defaultState )
-        # self._tv.hide()
         HH = self._tv.HHeaderView
 
         with ToggleHeaderVisibility(HH):
@@ -717,19 +664,12 @@ class SkinWeightWin(Window):
         self.applyDisplayColumnsFilters(None)
 
     def produceOrder(self, HH, newOrderDriverNames):
-        sortOrder = dict(
-            [
-                (el, self.dataOfDeformer.driverNames.index(el))
-                for ind, el in enumerate(newOrderDriverNames)
-            ]
-        )
-
+        ind = len(newOrderDriverNames)
         for destInd, element in enumerate(newOrderDriverNames):
             currentInd = self.currentSectionsOrder[element]
             elementAtDestInd = self.currentSectionsOrderReverse[destInd]
             if ind != currentInd:
                 HH.swapSections(destInd, currentInd)
-                # HH.moveSections(destInd,currentInd )
                 self.currentSectionsOrderReverse[destInd] = element
                 self.currentSectionsOrderReverse[currentInd] = elementAtDestInd
                 self.currentSectionsOrder[elementAtDestInd] = currentInd
@@ -738,7 +678,7 @@ class SkinWeightWin(Window):
     def applyDisplayColumnsFilters(self, newText):
         displayColumns = [True] * self.dataOfDeformer.columnCount
         # first apply the Text ---------------------
-        if newText == None:
+        if newText is None:
             newText = self.searchInfluences_le.text()
         if newText:
             newTexts = newText.split(" ")
@@ -748,7 +688,7 @@ class SkinWeightWin(Window):
             for ind, nameInfluence in enumerate(self.dataOfDeformer.columnsNames):
                 foundText = False
                 for txt in newTexts:
-                    foundText = re.search(txt, nameInfluence, re.IGNORECASE) != None
+                    foundText = re.search(txt, nameInfluence, re.IGNORECASE) is not None
                     if foundText:
                         break
                 displayColumns[ind] = foundText
@@ -816,11 +756,7 @@ class SkinWeightWin(Window):
         self.useDisplayLocator = checked
         if checked:
             with SettingVariable(self, "unLock", valueOn=False, valueOut=True):
-                # print "self.unLock ", self.unLock
-                # cmds.scriptJob( kill=self.refreshSJ, force=True)
                 self.dataOfDeformer.createDisplayLocator(forceSelection=True)
-                # self.refreshSJ = cmds.scriptJob( event= ["SelectionChanged",self.refresh])
-                # print "self.unLock ", self.unLock
         else:
             self.dataOfDeformer.removeDisplayLocator()
         self.popMenu.close()
@@ -877,15 +813,7 @@ class SkinWeightWin(Window):
                 ]
                 if doForce:
                     self.dataOfDeformer.clearData()
-            """
-            sel = cmds.ls(sl=True, tr=True)
-            if sel: 
-                theSel = sel [0]
-                theShape = cmds.listRelatives( theSel, noIntermediate=True, shapes = True) [0]
-                self.getListPaintableAttributes(theShape)f
-            else: 
-                self.listInputs_CB.clear()
-            """
+
             self.dataOfDeformer.getLocksInfo()
             self._tm.endResetModel()
             self.setColumnVisSize()
@@ -986,7 +914,6 @@ class SkinWeightWin(Window):
                 self.dataOfDeformer.smoothSkin(
                     chunks, repeat=self.smoothBTN.precision, percentMvt=self.percentBTN.precision
                 )
-                # cmds.blurSkinCmd(command = "smooth", repeat = self.smoothBTN.precision, percentMvt = self.percentBTN.precision)
                 if self.dataOfDeformer.blurSkinNode and cmds.objExists(
                     self.dataOfDeformer.blurSkinNode
                 ):
@@ -1014,13 +941,11 @@ class SkinWeightWin(Window):
             if success:
                 self.dataOfDeformer.setUsingUVs(using_U, normalize, opposite)
                 self.postSetValue()
-        # self.refresh(force=True)
 
     # -----------------------------------------------------------------------------------------------------------
     # Basic set Values -----------------------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
     def prepareToSetValue(self, selectAllIfNothing=False):
-        # with GlobalContext(message = "preSettingValuesFn"):
         chunks = self.getRowColumnsSelected()
         actualyVisibleColumns = [
             indCol
@@ -1158,8 +1083,6 @@ class SkinWeightWin(Window):
         self.hideColumns()
 
     def hideColumns(self):
-        # self.dataOfDeformer.getZeroColumns()
         if self.hideZeroColumn:
             for ind in self.dataOfDeformer.hideColumnIndices:
                 self._tv.hideColumn(ind)
-        # self._tv.headerView.setMaximumWidth(self.colWidth*len(self.dataOfDeformer.usedDeformersIndices))

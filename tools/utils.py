@@ -1,7 +1,9 @@
 from __future__ import print_function
 from __future__ import absolute_import
+import sys
 from maya import cmds
-import time, datetime
+import time
+import datetime
 from maya import OpenMaya
 import six
 from six.moves import range
@@ -52,9 +54,6 @@ class ToggleHeaderVisibility(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.HH.show()
-
-
-# with SettingVariable(locals(), ""):
 
 
 class GlobalContext(object):
@@ -134,10 +133,9 @@ def getSoftSelectionValues():
 
     try:
         componentFn = OpenMaya.MFnSingleIndexedComponent(component)
-    except:
+    except Exception:
         return []
     count = componentFn.elementCount()
-    # elementIndicesWeights = [(componentFn.element(i), componentFn.weight(i).influence() ) for i in range(count)]
     elementIndices = [componentFn.element(i) for i in range(count)]
     elementWeights = [componentFn.weight(i).influence() for i in range(count)]
     return elementIndices, elementWeights
@@ -176,23 +174,15 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
             dagPath = OpenMaya.MDagPath()
             try:
                 iterSel.getDagPath(dagPath, component)
-            except:
+            except Exception:
                 iterSel.next()
                 continue
-            transform = dagPath.transform()
-            node = dagPath.node()
-            depNode = OpenMaya.MFnDependencyNode(node)
             depNode_name = dagPath.fullPathName()
-            # depNode.absoluteName()
 
-            # print depNode_name,
-
-            # print depNode.name()
             elementIndices = []
             elementWeights = []
             if not component.isNull():
                 componentFn = OpenMaya.MFnComponent(component)
-                # if componentFn.hasWeights():
                 count = componentFn.elementCount()
                 if componentFn.componentType() in [
                     OpenMaya.MFn.kCurveCVComponent,
@@ -236,8 +226,6 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
                             weight = componentFn.weight(i).influence() if softOn else 1
                             elementIndices.append(singleFn.element(i))
                             elementWeights.append(weight)
-                            # returnValues.append((singleFn.element( i),weight ))
-                            # print  "      Component[" , singleFn.element( i) , "] has influence weight " , weight.influence() , " and seam weight " , weight.seam()
                 elif componentFn.componentType() == OpenMaya.MFn.kSurfaceCVComponent:
                     numCVsInV_ = cmds.getAttr(depNode_name + ".spansV") + cmds.getAttr(
                         depNode_name + ".degreeV"
@@ -254,16 +242,7 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
                         else:
                             elementIndices.append((u, v))
                         elementWeights.append(weight)
-                        # returnValues.append(((u,v),weight ))
-                        # print  "      Component[" , u , "," , v , "] has influence weight " , weight.influence() , " and seam weight " , weight.seam()
                 elif componentFn.componentType() == OpenMaya.MFn.kLatticeComponent:
-                    """
-                    outLattFn = OpenMayaUI.MFnLattice(node)
-                    lattFn.getDivisions( ptru, ptrv, ptrw)
-                    div_s = uVal.getInt(ptru)
-                    div_t = vVal.getInt(ptrv)
-                    div_u = wVal.getInt(ptrw)
-                    """
                     div_s = cmds.getAttr(depNode_name + ".sDivisions")
                     div_t = cmds.getAttr(depNode_name + ".tDivisions")
                     div_u = cmds.getAttr(depNode_name + ".uDivisions")
@@ -274,15 +253,9 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
                         s = uVal.getInt(ptru)
                         t = vVal.getInt(ptrv)
                         u = wVal.getInt(ptrw)
-                        # simpleIndex = u*div_s + v*div_t + w
                         simpleIndex = getThreeIndices(
                             div_s, div_t, div_u, s, t, u
-                        )  # u*div_s*div_t + t*div_s + s
-                        """
-                        s = full %div_s 
-                        t =(full -s)/div_s % div_t 
-                        u =(full -s - t*div_s)/(div_s*div_t) 
-                        """
+                        )
                         weight = componentFn.weight(i).influence() if softOn else 1
 
                         if returnSimpleIndices:
@@ -290,8 +263,6 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
                         else:
                             elementIndices.append((s, t, u))
                         elementWeights.append(weight)
-                        # returnValues.append(((u,v, w),weight ))
-                        # print  "      Component[" , u , "," , v , "," , w , "] has influence weight " , weight.influence() , " and seam weight " , weight.seam()
             if forceReturnWeight or softOn:
                 toReturn[depNode_name] = (elementIndices, elementWeights)
             else:
@@ -328,7 +299,7 @@ def getComponentIndexList(componentList=[]):
         componentList = [componentList]
     # Get selection if componentList is empty
     if not componentList:
-        componentList = mc.ls(sl=True, fl=True) or []
+        componentList = cmds.ls(sl=True, fl=True) or []
     if not componentList:
         return []
     # Get MSelectionList
@@ -378,9 +349,9 @@ def getComponentIndexList(componentList=[]):
                 )
             # Lattice
             elif selPath.apiType() == OpenMaya.MFn.kLattice:
-                sDiv = mc.getAttr(objName + ".sDivisions")
-                tDiv = mc.getAttr(objName + ".tDivisions")
-                uDiv = mc.getAttr(objName + ".uDivisions")
+                sDiv = cmds.getAttr(objName + ".sDivisions")
+                tDiv = cmds.getAttr(objName + ".tDivisions")
+                uDiv = cmds.getAttr(objName + ".uDivisions")
                 componentSelList.add(
                     objName
                     + ".pt[0:"
@@ -429,7 +400,6 @@ def getComponentIndexList(componentList=[]):
 # get UV Map
 def getMapForSelectedVerticesFromSelection(normalize=True, opp=False, axis="uv"):
     # Get MSelectionList
-    startSel = cmds.ls(sl=True)
     selList = OpenMaya.MSelectionList()
     OpenMaya.MGlobal.getActiveSelectionList(selList)
 
@@ -446,19 +416,13 @@ def getMapForSelectedVerticesFromSelection(normalize=True, opp=False, axis="uv")
         if not component.isNull():
             componentFn = OpenMaya.MFnComponent(component)
             if componentFn.componentType() == OpenMaya.MFn.kMeshVertComponent:  # vertex
-                transform = dagPath.transform()
-                node = dagPath.node()
-                depNode = OpenMaya.MFnDependencyNode(node)
-                depNode_name = dagPath.fullPathName()
-
                 vertIter = OpenMaya.MItMeshVertex(dagPath, component)
                 while not vertIter.isDone():
                     theVert = vertIter.index()
                     vertIter.getUV(uvPoint)
-                    u = OpenMaya.MScriptUtil.getFloat2ArrayItem(uvPoint, 0, 0)
-                    v = OpenMaya.MScriptUtil.getFloat2ArrayItem(uvPoint, 0, 1)
-                    # print theVert, u, v
-                    indicesValues.append((theVert, u, v))
+                    uPt = OpenMaya.MScriptUtil.getFloat2ArrayItem(uvPoint, 0, 0)
+                    vPt = OpenMaya.MScriptUtil.getFloat2ArrayItem(uvPoint, 0, 1)
+                    indicesValues.append((theVert, uPt, vPt))
                     vertIter.next()
         iterSel.next()
     if normalize:
@@ -471,10 +435,10 @@ def getMapForSelectedVerticesFromSelection(normalize=True, opp=False, axis="uv")
         diffU = maxU - minU
 
         indicesValues = [
-            (theVert, (u - minU) / diffU, (v - minU) / diffV) for (theVert, u, v) in indicesValues
+            (vert, (u - minU) / diffU, (v - minU) / diffV) for (vert, u, v) in indicesValues
         ]
     if opp:
-        indicesValues = [(theVert, -1.0 * u, -1.0 * v) for (theVert, u, v) in indicesValues]
+        indicesValues = [(vert, -1.0 * u, -1.0 * v) for (vert, u, v) in indicesValues]
     if axis != "uv":
         indReturn = "uv".index(axis) + 1
         indicesValues = [(el[0], el[indReturn]) for el in indicesValues]
@@ -488,14 +452,12 @@ def getMapForSelectedVertices(vertIter, normalize=True, opp=False, axis="uv"):
     uvPoint = util.asFloat2Ptr()
     indicesValues = []
 
-    # vertIter = OpenMaya.MItMeshVertex(dagPath, component)
     while not vertIter.isDone():
         theVert = vertIter.index()
         vertIter.getUV(uvPoint)
-        u = OpenMaya.MScriptUtil.getFloat2ArrayItem(uvPoint, 0, 0)
-        v = OpenMaya.MScriptUtil.getFloat2ArrayItem(uvPoint, 0, 1)
-        # print theVert, u, v
-        indicesValues.append((theVert, u, v))
+        uPt = OpenMaya.MScriptUtil.getFloat2ArrayItem(uvPoint, 0, 0)
+        vPt = OpenMaya.MScriptUtil.getFloat2ArrayItem(uvPoint, 0, 1)
+        indicesValues.append((theVert, uPt, vPt))
         vertIter.next()
     if normalize:
         maxV = max(indicesValues, key=lambda x: x[2])[2]
@@ -507,10 +469,10 @@ def getMapForSelectedVertices(vertIter, normalize=True, opp=False, axis="uv"):
         diffU = maxU - minU
 
         indicesValues = [
-            (theVert, (u - minU) / diffU, (v - minU) / diffV) for (theVert, u, v) in indicesValues
+            (vert, (u - minU) / diffU, (v - minU) / diffV) for (vert, u, v) in indicesValues
         ]
     if opp:
-        indicesValues = [(theVert, 1.0 - u, 1.0 - v) for (theVert, u, v) in indicesValues]
+        indicesValues = [(vert, 1.0 - u, 1.0 - v) for (vert, u, v) in indicesValues]
     if axis != "uv":
         indReturn = "uv".index(axis) + 1
         indicesValues = [(el[0], el[indReturn]) for el in indicesValues]
@@ -537,9 +499,6 @@ def addNameChangedCallback(callback):
     return OpenMaya.MNodeMessage.addNameChangedCallback(listenTo, omcallback)
 
 
-# OpenMaya.MNodeMessage.addNodeAboutToDeleteCallback()
-
-
 def addNameDeletedCallback(callback):
     def omcallback(mobject, _):  # (1)
         nodeName = OpenMaya.MFnDependencyNode(mobject).name()
@@ -549,38 +508,5 @@ def addNameDeletedCallback(callback):
     return OpenMaya.MNodeMessage.addNodeAboutToDeleteCallback(listenTo, omcallback)
 
 
-# OpenMaya.MNodeMessage.addNodeAboutToDeleteCallback()
-
-
 def removeNameChangedCallback(callbackId):
     OpenMaya.MNodeMessage.removeCallback(callbackId)
-
-
-"""
-from maya import OpenMaya, cmds
-
-def beforeDelete(nm):
-    print "DELETING ", nm
-
-def omcallback(mobject, *args): #(1)
-    nodeName = OpenMaya.MFnDependencyNode(mobject).name()
-    beforeDelete( nodeName) #
-
-
-dag_iter= OpenMaya.MItDag()
-found= False
-
-def beforeDelete(nm):
-    print "DELETING ", nm
-
-while not dag_iter.isDone() and found == False:
-    curr= dag_iter.currentItem()
-    fn= OpenMaya.MFnDependencyNode(curr)
-    if fn.name() == "pCube1":
-        on_node_destroyed_id = OpenMaya.MNodeMessage.addNodeAboutToDeleteCallback(curr, omcallback )
-        found= True
-        print "FOUND"
-    dag_iter.next()
-
-
-"""

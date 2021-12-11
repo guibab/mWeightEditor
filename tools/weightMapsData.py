@@ -1,35 +1,19 @@
 from __future__ import print_function
 from __future__ import absolute_import
-from maya import OpenMayaUI, OpenMaya, OpenMayaAnim
+from maya import OpenMaya
 import maya.api.OpenMaya as OpenMaya2
 
-from maya import cmds, mel
-from functools import partial
-
-# import shiboken2 as shiboken
-import time, datetime
-
-from ctypes import c_double, c_float
+from maya import cmds
 
 import numpy as np
 import re
 from .utils import (
     GlobalContext,
-    getSoftSelectionValuesNEW,
-    getThreeIndices,
     getMapForSelectedVertices,
 )
 
-from .abstractData import DataAbstract, isin
+from .abstractData import DataAbstract
 from six.moves import range
-
-"""
-cmds.getAttr("blendShape1.inputTarget[0].baseWeights") [0]
-cmds.getAttr("blendShape1.inputTarget[0].baseWeights", mi = True)
-
-values = [.11,.12,.13]
-cmds.setAttr("blendShape1.inputTarget[0].baseWeights[0:2]",*values, size=len(values))
-"""
 
 
 class DataOfOneDimensionalAttrs(DataAbstract):
@@ -53,11 +37,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
     # export import  -------------------------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------------------------------
     def exportColumns(self, colIndices):
-        """
-        print colIndices
-        print [self.listAttrs[i] for i in colIndices]
-        print [self.shortColumnsNames[i] for i in colIndices]
-        """
         # 1 re-get the values
         self.getAttributesValues(onlyfullArr=True)
         # 2 subArray:
@@ -76,11 +55,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 np.savetxt(filePth, arrToExport)
 
     def importColumns(self, colIndices):
-        """
-        print colIndices
-        print [self.listAttrs[i] for i in colIndices]
-        print [self.shortColumnsNames[i] for i in colIndices]
-        """
         # 2 subArray:
         sceneName = cmds.file(q=True, sceneName=True)
         splt = sceneName.split("/")
@@ -136,7 +110,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
             if not cmds.attributeQuery(attr, node=nodeName, ex=True):
                 continue
             if nodeType == "skinCluster":
-                toSel = displayName
                 continue
             if nodeType == "blendShape":
                 blendShapes.add(nodeName)
@@ -165,7 +138,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                     self.fullAttributesArr[indicesAtt, indAtt] = values
             if onlyfullArr:
                 return
-            # self.printArrayData(self.fullAttributesArr)
             if indices:
                 if self.softOn:
                     revertSortedIndices = np.array(indices)[self.opposite_sortedIndices]
@@ -176,7 +148,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 ]
             else:
                 self.raw2dArray = self.fullAttributesArr
-            # self.printArrayData(self.raw2dArray)
             # ---- reorder --------------------------------------------
             if self.softOn:  # order with indices
                 self.display2dArray = self.raw2dArray[self.sortedIndices]
@@ -184,7 +155,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 self.display2dArray = self.raw2dArray
 
     def setValueInDeformer(self, arrayForSetting):
-        # self.printArrayData(arrayForSetting)
         arrIndicesVerts = np.array(self.vertices)
         editedColumns = np.any(self.sumMasks, axis=0).tolist()
         rows = arrayForSetting.shape[0]
@@ -199,7 +169,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 verts = arrIndicesVerts[indices + self.Mtop]
                 vertsIndicesWeights = zip(verts.tolist(), values.tolist())
 
-                # self.setAttributeValues(self.listAttrs [colIndex],vertsIndicesWeights)
                 attsValues.append((self.listAttrs[colIndex], vertsIndicesWeights))
                 # now the undo values ------------------------------
                 if self.storeUndo:
@@ -225,8 +194,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
             MSel.add(att)
 
             plg2 = MSel.getPlug(0)
-            # ids = plg2.getExistingArrayAttributeIndices()
-            # count = len(ids)
             with GlobalContext():
                 for indVtx, value in vertsIndicesWeights:
                     plg2.elementByLogicalIndex(indVtx).setFloat(value)
@@ -266,7 +233,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 if isColumnChanged:
                     # get indices to set ---------------------------------------
                     indices = np.nonzero(self.sumMasks[:, colIndex])[0]
-                    # values  = new2dArray [ indices, colIndex]
                     # get vertices to set ------------------------------------
                     verts = arrIndicesVerts[indices + self.Mtop]
 
@@ -291,8 +257,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                                 arrayForMeanMask[i, 0 : self.nbNeighBoors[vertIndex]] = True
                             else:
                                 connectedVerticesExtended = dicOfVertsSubArray[vertIndex]
-                            # subArr = self.fullAttributesArr[connectedVertices, colIndex]
-                            # arrayForMean[i, 0:self.nbNeighBoors[vertIndex]] = subArr
                             arrayForMean[i] = self.fullAttributesArr[
                                 connectedVerticesExtended, colIndex
                             ]
@@ -322,7 +286,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         for ind in self.indicesVertices:
             fnComponent.addElement(int(ind))
         vertIter = OpenMaya.MItMeshVertex(self.shapePath, userComponents)
-        # let's check if it worked :
+        # let's check if it worked
         vertsIndicesWeights = getMapForSelectedVertices(
             vertIter, normalize=normalize, opp=opposite, axis=axis
         )
@@ -359,7 +323,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
             self.getAttributesValues()
 
         self.createRowText()
-        self.rowCount = len(self.vertices)  # self.nbVertices
+        self.rowCount = len(self.vertices)
         self.columnCount = len(self.listAttrs)
 
         self.getLocksInfo()
@@ -379,9 +343,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
     preSel = ""
 
 
-#########################################################################################################
-######### BlendShape ####################################################################################
-#########################################################################################################
 class DataOfBlendShape(DataOfOneDimensionalAttrs):
     # -----------------------------------------------------------------------------------------------------------
     # blendShape functions -------------------------------------------------------------------------------------
@@ -468,7 +429,7 @@ class DataOfBlendShape(DataOfOneDimensionalAttrs):
 class DataOfDeformers(DataOfOneDimensionalAttrs):
     def getDeformersAttributes(self):
         lstDeformers, lstOthers, lstShapes = self.getListPaintableAttributes(self.deformedShape)
-        # get the index of the shape in the deformer !
+        # get the index of the shape in the deformer
         listAttrs = []
         lstDeformersRtn = []
         for dfmNm in lstDeformers:
@@ -476,9 +437,7 @@ class DataOfDeformers(DataOfOneDimensionalAttrs):
             if cmds.attributeQuery(attName, node=dfm, ex=True):
                 lstDeformersRtn.append(dfmNm)
                 isMulti = cmds.attributeQuery(attName, node=dfm, multi=True)
-                # if attName == "weights":
                 if isMulti:
-                    # print dfm, attName
                     lsGeomsOrig = cmds.deformer(dfm, q=True, geometry=True)
                     lsGeomsIndicesOrig = cmds.deformer(dfm, q=True, geometryIndices=True)
                     if self.deformedShape in lsGeomsOrig:
@@ -491,7 +450,6 @@ class DataOfDeformers(DataOfOneDimensionalAttrs):
                     listAttrs.append(theAtt)
                 else:
                     listAttrs.append(self.dicDisplayNames[dfmNm])
-        # listAttrs = [self.dicDisplayNames [el].replace(".weights",".weightList[0].weights" ) for el in lstDeformers]
         return lstDeformersRtn, listAttrs
 
     # -----------------------------------------------------------------------------------------------------------
@@ -510,7 +468,6 @@ class DataOfDeformers(DataOfOneDimensionalAttrs):
         # get list deformers attributes
         self.columnsNames, self.listAttrs = self.getDeformersAttributes()
         self.shortColumnsNames = self.columnsNames
-        # print self.shortColumnsNames , self.listAttrs
 
         return self.postGetData(
             displayLocator=displayLocator,

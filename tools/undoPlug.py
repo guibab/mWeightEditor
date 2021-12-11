@@ -2,25 +2,7 @@
 from __future__ import absolute_import
 import sys
 import _ctypes
-import maya.OpenMaya as OpenMaya
 import maya.OpenMayaMPx as OpenMayaMPx
-from maya import cmds
-
-
-# maya.cmds.pythonCommand(hex(id(mod)))
-
-"""
-from maya import OpenMaya, cmds
-mod = OpenMaya.MDagModifier()
-mod.createNode('transform')
-
-#mod.doIt()
-#mod.undoIt()
-
-strExa = hex(id(mod))
-cmds.pythonCommand(strExa)
-
-"""
 
 
 class PythonCommand(OpenMayaMPx.MPxCommand):
@@ -34,8 +16,6 @@ class PythonCommand(OpenMayaMPx.MPxCommand):
         return OpenMayaMPx.asMPxPtr(PythonCommand())
 
     def doIt(self, args):
-        strArg = args.asString(0)
-        # print "strArg -  {} - ".format (strArg)
         ptr = long(args.asString(0), 0)
         self._imp = _ctypes.PyObj_FromPtr(ptr)
 
@@ -54,16 +34,16 @@ class PythonCommand(OpenMayaMPx.MPxCommand):
 
 
 ##############################################################################
-##
-## The following routines are used to register/unregister
-## the command we are creating within Maya
-##
+#
+# The following routines are used to register/unregister
+# the command we are creating within Maya
+#
 ##############################################################################
 def initializePlugin(plugin):
     pluginFn = OpenMayaMPx.MFnPlugin(plugin)
     try:
         pluginFn.registerCommand(PythonCommand.s_name, PythonCommand.creator)
-    except:
+    except Exception:
         sys.stderr.write("Failed to register command: %s\n" % PythonCommand.s_name)
         raise
 
@@ -73,6 +53,6 @@ def uninitializePlugin(plugin):
     pluginFn = OpenMayaMPx.MFnPlugin(plugin)
     try:
         pluginFn.deregisterCommand(PythonCommand.s_name)
-    except:
+    except Exception:
         sys.stderr.write("Failed to unregister command: %s\n" % PythonCommand.s_name)
         raise
