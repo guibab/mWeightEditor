@@ -10,13 +10,13 @@ import difflib
 import blurdev
 from blurdev.gui import Window
 
-from .tools.skinData import DataOfSkin
-from .tools.abstractData import DataQuickSet
-from .tools.weightMapsData import DataOfBlendShape, DataOfDeformers
+from .weightTools.skinData import DataOfSkin
+from .weightTools.abstractData import DataQuickSet
+from .weightTools.weightMapsData import DataOfBlendShape, DataOfDeformers
 
-from .tools.tableWidget import TableView, TableModel
-from .tools.spinnerSlider import ValueSettingWE, ButtonWithValue
-from .tools.utils import (
+from .weightTools.tableWidget import TableView, TableModel
+from .weightTools.spinnerSlider import ValueSettingWE, ButtonWithValue
+from .weightTools.utils import (
     GlobalContext,
     addNameChangedCallback,
     removeNameChangedCallback,
@@ -41,7 +41,6 @@ def loadUndoPlugin():
     fileVar = os.path.realpath(__file__)
     uiFolder, filename = os.path.split(fileVar)
     plugPth = os.path.join(uiFolder, "tools", "undoPlug.py")
-    # print plugPth
     cmds.loadPlugin(plugPth)
 
 
