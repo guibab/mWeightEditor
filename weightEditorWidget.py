@@ -7,6 +7,7 @@ from maya import cmds, OpenMaya
 import os
 import re
 import difflib
+import weakref
 
 try:
     from blurdev.gui import Window
@@ -164,10 +165,6 @@ class SkinWeightWin(Window):
         uiPath = getUiFile(__file__)
         QtCompat.loadUi(uiPath, self)
 
-        # Get the names of all the child objects recursively
-        allobjs = self.findChildren(QtCore.QRegExp(".*"))
-        self._allobjs = {c.objectName(): c for c in allobjs}
-
         if not cmds.pluginInfo("undoPlug", query=True, loaded=True):
             loadUndoPlugin()
         self.getOptionVars()
@@ -282,7 +279,10 @@ class SkinWeightWin(Window):
 
     def deferredBtns(self):
         for nm in ["abs", "add", "addPerc"]:
-            self._allobjs[nm + "BTN"].setAutoExclusive(True)
+            theBtn = self.findChild(QtWidgets.QPushButton, nm + "BTN")
+            if theBtn:
+                theBtn.setAutoExclusive(True)
+
         self.addBTN.setChecked(True)
         self.reassignLocallyBTN.setMinimumHeight(24)
         self.averageBTN.setMinimumHeight(24)
@@ -386,8 +386,10 @@ class SkinWeightWin(Window):
         self.averageBTN = averageBTN
 
         for nm in ["swap"]:
-            self._allobjs[nm + "BTN"].setEnabled(False)
-            self._allobjs[nm + "BTN"].hide()
+            theBtn = self.findChild(QtWidgets.QPushButton, nm + "BTN")
+            if theBtn:
+                theBtn.setEnabled(False)
+                theBtn.hide()
 
         self.refreshBTN.clicked.connect(self.refreshBtn)
         self.refreshBTN.setIcon(_icons["refresh"])
@@ -414,9 +416,11 @@ class SkinWeightWin(Window):
             "widgetAdd",
             "valueSetter",
         ]:  # "averageBTN",
-            theUI = self._allobjs[uiName]
-            theUI.setEnabled(False)
-            self._tv.selEmptied.connect(theUI.setEnabled)
+
+            theUI = self.findChild(QtWidgets.QWidget, uiName)
+            if theUI:
+                theUI.setEnabled(False)
+                self._tv.selEmptied.connect(theUI.setEnabled)
         for btn in [self.exportBTN, self.importBTN]:
             btn.setEnabled(False)
         self.exportBTN.clicked.connect(self.exportAction)
