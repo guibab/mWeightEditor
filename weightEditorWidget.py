@@ -772,14 +772,15 @@ class SkinWeightWin(Window):
         with SettingWithRedraw(self):
             self.refresh(force=True)
 
+    @staticmethod
     def refreshPaintEditor(self):
-        import __main__
+        try:
+            import mPaintEditor
+        except ImportError:
+            return
 
-        if (
-            hasattr(__main__, "paintEditor")
-            and __main__.paintEditor in QtWidgets.QApplication.instance().topLevelWidgets()
-        ):
-            __main__.paintEditor.refreshColorsAndLocks()
+        if mPaintEditor.PAINT_EDITOR in QtWidgets.QApplication.instance().topLevelWidgets():
+            mPaintEditor.PAINT_EDITOR.refreshColorsAndLocks()
 
     def refreshSkinDisplay(self):  # call by skinBrush
         self._tm.beginResetModel()
