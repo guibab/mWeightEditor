@@ -1,6 +1,6 @@
 from __future__ import print_function
 from __future__ import absolute_import
-from Qt import QtGui, QtCore, QtWidgets, QtCompat
+from .Qt import QtGui, QtCore, QtWidgets, QtCompat
 
 from functools import partial
 from maya import cmds, OpenMaya
@@ -12,7 +12,7 @@ import weakref
 try:
     from blurdev.gui import Window
 except ImportError:
-    from QtWidgets import QMainWindow as Window
+    from .Qt.QtWidgets import QMainWindow as Window
 
 from .weightTools.skinData import DataOfSkin
 from .weightTools.abstractData import DataQuickSet
@@ -772,14 +772,15 @@ class SkinWeightWin(Window):
         with SettingWithRedraw(self):
             self.refresh(force=True)
 
+    @staticmethod
     def refreshPaintEditor(self):
-        import __main__
+        try:
+            import mPaintEditor
+        except ImportError:
+            return
 
-        if (
-            hasattr(__main__, "paintEditor")
-            and __main__.paintEditor in QtWidgets.QApplication.instance().topLevelWidgets()
-        ):
-            __main__.paintEditor.refreshColorsAndLocks()
+        if mPaintEditor.PAINT_EDITOR in QtWidgets.QApplication.instance().topLevelWidgets():
+            mPaintEditor.PAINT_EDITOR.refreshColorsAndLocks()
 
     def refreshSkinDisplay(self):  # call by skinBrush
         self._tm.beginResetModel()

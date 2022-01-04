@@ -1,7 +1,7 @@
 # https://github.com/chadmv/cmt/blob/master/scripts/cmt/deform/skinio.py
 from __future__ import print_function
 from __future__ import absolute_import
-from Qt.QtWidgets import QApplication
+from ..Qt.QtWidgets import QApplication
 from maya import OpenMaya
 import maya.api.OpenMaya as OpenMaya2
 from maya import cmds
