@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import sys
 import _ctypes
 import maya.OpenMayaMPx as OpenMayaMPx
+import six
 
 
 class PythonCommand(OpenMayaMPx.MPxCommand):
@@ -16,7 +17,7 @@ class PythonCommand(OpenMayaMPx.MPxCommand):
         return OpenMayaMPx.asMPxPtr(PythonCommand())
 
     def doIt(self, args):
-        ptr = long(args.asString(0), 0)
+        ptr = six.integer_types[-1](args.asString(0), 0)
         self._imp = _ctypes.PyObj_FromPtr(ptr)
 
         # we could pass a *args and a **kwargs to have direct access to values

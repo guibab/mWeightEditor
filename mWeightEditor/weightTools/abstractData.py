@@ -12,6 +12,7 @@ import numpy as np
 from .utils import GlobalContext, getSoftSelectionValuesNEW, getThreeIndices
 import six
 from six.moves import range
+from six.moves import map
 
 
 def isin(element, test_elements, assume_unique=False, invert=False):
@@ -239,7 +240,7 @@ class DataAbstract(object):
         vertsIndicesWeights.sort(key=lambda x: x[0])
         # print vertsIndicesWeights
         it = iter(vertsIndicesWeights)
-        currentIndex, currentWeight = it.next()
+        currentIndex, currentWeight = next(it)
         toReturn = []
         while True:
             try:
@@ -248,7 +249,7 @@ class DataAbstract(object):
                 while currentIndex == indexPlusOne:
                     lstWeights.append(currentWeight)
                     indexPlusOne += 1
-                    currentIndex, currentWeight = it.next()
+                    currentIndex, currentWeight = next(it)
                 if firstIndex != (indexPlusOne - 1):
                     toAppend = [(firstIndex, (indexPlusOne - 1)), lstWeights]
                 else:
@@ -268,13 +269,13 @@ class DataAbstract(object):
         listIndString = []
 
         it = iter(listInd)
-        currentValue = it.next()
+        currentValue = next(it)
         while True:
             try:
                 firstVal = currentValue
                 theVal = firstVal
                 while currentValue == theVal:
-                    currentValue = it.next()
+                    currentValue = next(it)
                     theVal += 1
                 theVal -= 1
                 if firstVal != theVal:
@@ -398,7 +399,7 @@ class DataAbstract(object):
             sumVerts += nbVertsInFace
         theMax = 0
         self.nbNeighBoors = {}
-        for vtx, lst in self.vertNeighboors.iteritems():
+        for vtx, lst in six.iteritems(self.vertNeighboors):
             QApplication.processEvents()
             self.vertNeighboors[vtx] = list(set(lst))
             newMax = len(self.vertNeighboors[vtx])
@@ -490,7 +491,7 @@ class DataAbstract(object):
     ):
         with GlobalContext(message="getDataFromSelection", doPrint=self.verbose):
             if inputVertices is not None:
-                inputVertices = map(int, inputVertices)
+                inputVertices = list(map(int, inputVertices))
             sel = cmds.ls(sl=True)
             if theDeformer is None or deformedShape is None:
                 theDeformer, deformedShape = self.getDeformerFromSel(

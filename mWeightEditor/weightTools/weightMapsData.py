@@ -14,6 +14,7 @@ from .utils import (
 
 from .abstractData import DataAbstract
 from six.moves import range
+from six.moves import zip
 
 
 class DataOfOneDimensionalAttrs(DataAbstract):
@@ -80,7 +81,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         indicesDifferents = np.nonzero(difference)
         values = fileArr[indicesDifferents]
 
-        vertsIndicesWeights = zip(indicesDifferents[0].tolist(), values.tolist())
+        vertsIndicesWeights = list(zip(indicesDifferents[0].tolist(), values.tolist()))
         self.setAttributeValues(self.listAttrs[colIndex], vertsIndicesWeights)
 
     # -----------------------------------------------------------------------------------------------------------
@@ -167,13 +168,13 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 indices = np.nonzero(self.sumMasks[:, colIndex])[0]
                 values = arrayForSetting[indices, colIndex]
                 verts = arrIndicesVerts[indices + self.Mtop]
-                vertsIndicesWeights = zip(verts.tolist(), values.tolist())
+                vertsIndicesWeights = list(zip(verts.tolist(), values.tolist()))
 
                 attsValues.append((self.listAttrs[colIndex], vertsIndicesWeights))
                 # now the undo values ------------------------------
                 if self.storeUndo:
                     valuesOrig = self.fullAttributesArr[verts.tolist(), colIndex]
-                    undoVertsIndicesWeights = zip(verts.tolist(), valuesOrig.tolist())
+                    undoVertsIndicesWeights = list(zip(verts.tolist(), valuesOrig.tolist()))
                     undoValues.append((self.listAttrs[colIndex], undoVertsIndicesWeights))
         if self.storeUndo:
             self.undoValues = undoValues
@@ -242,7 +243,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                     arrayForMeanMask = np.full((nbNonZero, self.maxNeighboors), False, dtype=bool)
                     if self.storeUndo:
                         valuesOrig = self.fullAttributesArr[verts.tolist(), colIndex]
-                        undoVertsIndicesWeights = zip(verts.tolist(), valuesOrig.tolist())
+                        undoVertsIndicesWeights = list(zip(verts.tolist(), valuesOrig.tolist()))
                         undoValues.append((self.listAttrs[colIndex], undoVertsIndicesWeights))
                     for _ in range(iteration):
                         for i, vertIndex in enumerate(verts):
@@ -264,7 +265,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                         meanValues = np.ma.mean(meanCopy, axis=1)
                         # update array:
                         self.fullAttributesArr[verts, colIndex] = meanValues
-                    vertsIndicesWeights = zip(verts.tolist(), meanValues.tolist())
+                    vertsIndicesWeights = list(zip(verts.tolist(), meanValues.tolist()))
                     attsValues.append((self.listAttrs[colIndex], vertsIndicesWeights))
             if self.storeUndo:
                 self.undoValues = undoValues
@@ -368,7 +369,7 @@ class DataOfBlendShape(DataOfOneDimensionalAttrs):
                 )
 
                 listAliasNme = (
-                    zip(listAlias[0::2], listAlias[1::2])
+                    list(zip(listAlias[0::2], listAlias[1::2]))
                     if listAlias
                     else [
                         ("targetWeights_{}".format(i), "weight[{}]".format(i))

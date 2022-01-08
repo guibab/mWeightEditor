@@ -7,6 +7,7 @@ import datetime
 from maya import OpenMaya
 import six
 from six.moves import range
+from six.moves import zip
 
 # -------------------------------------------------------------------------------------------
 # ------------------------ global functions -------------------------------------------------
@@ -381,7 +382,7 @@ def getComponentIndexList(componentList=[]):
             indexListV = OpenMaya.MIntArray()
             componentFn = OpenMaya.MFnDoubleIndexedComponent(componentObj)
             componentFn.getElements(indexListU, indexListV)
-            componentIndexList[selPath.partialPathName()] = zip(list(indexListU), list(indexListV))
+            componentIndexList[selPath.partialPathName()] = list(zip(list(indexListU), list(indexListV)))
         # LATTICE
         if selPath.apiType() == OpenMaya.MFn.kLattice:
             indexListS = OpenMaya.MIntArray()
@@ -389,9 +390,9 @@ def getComponentIndexList(componentList=[]):
             indexListU = OpenMaya.MIntArray()
             componentFn = OpenMaya.MFnTripleIndexedComponent(componentObj)
             componentFn.getElements(indexListS, indexListT, indexListU)
-            componentIndexList[selPath.partialPathName()] = zip(
+            componentIndexList[selPath.partialPathName()] = list(zip(
                 list(indexListS), list(indexListT), list(indexListU)
-            )
+            ))
     # Return Result
     return componentIndexList
 

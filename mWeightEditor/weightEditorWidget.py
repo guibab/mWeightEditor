@@ -8,6 +8,7 @@ import os
 import re
 import difflib
 import weakref
+from six.moves import zip
 
 try:
     from blurdev.gui import Window
