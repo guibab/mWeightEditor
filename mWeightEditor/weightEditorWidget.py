@@ -45,7 +45,7 @@ def getIcon(iconNm):
 def loadUndoPlugin():
     fileVar = os.path.realpath(__file__)
     uiFolder, filename = os.path.split(fileVar)
-    plugPth = os.path.join(uiFolder, "tools", "undoPlug.py")
+    plugPth = os.path.join(uiFolder, "weightTools", "undoPlug.py")
     cmds.loadPlugin(plugPth)
 
 
