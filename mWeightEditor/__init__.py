@@ -6,7 +6,7 @@ WEIGHT_EDITOR_ROOT = None
 
 def runMWeightEditor():
     from .utils import rootWindow
-    from .paintEditorWidget import SkinPaintWin
+    from .weightEditorWidget import SkinWeightWin
 
     # Keep global references around, otherwise they get GC'd
     global WEIGHT_EDITOR
@@ -15,7 +15,7 @@ def runMWeightEditor():
     # make and show the UI
     if WEIGHT_EDITOR_ROOT is None:
         WEIGHT_EDITOR_ROOT = rootWindow()
-    WEIGHT_EDITOR = SkinPaintWin(parent=WEIGHT_EDITOR_ROOT)
+    WEIGHT_EDITOR = SkinWeightWin(parent=WEIGHT_EDITOR_ROOT)
     WEIGHT_EDITOR.show()
 
 
