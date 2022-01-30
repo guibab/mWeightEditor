@@ -19,7 +19,7 @@ from .weightTools.skinData import DataOfSkin
 from .weightTools.abstractData import DataQuickSet
 from .weightTools.weightMapsData import DataOfBlendShape, DataOfDeformers
 
-from .weightTools.tableWidget import TableView, TableModel
+from .weightTools.tableWidget import FastTableView, TableModel
 from .weightTools.spinnerSlider import ValueSettingWE, ButtonWithValue
 from .weightTools.utils import (
     GlobalContext,
@@ -122,7 +122,7 @@ styleSheet = """
         font:italic;
         color:grey;
         }
-    TableView {
+    FastTableView {
          selection-background-color: #a0a0ff;
          background: #aba8a6;
          color: black;
@@ -133,7 +133,7 @@ styleSheet = """
         background:  transparent;
         border: 1px solid black;
     }
-    TableView::section {
+    FastTableView::section {
         background-color: #878787;
         color: black;
         border: 1px solid black;
@@ -180,7 +180,7 @@ class SkinWeightWin(Window):
 
         self.get_data_frame()
         self.createWindow()
-        self.setStyleSheet(styleSheet)
+        #self.setStyleSheet(styleSheet)
 
         self.addCallBacks()
         self.setWindowDisplay()
@@ -298,7 +298,7 @@ class SkinWeightWin(Window):
         self._tm = TableModel(self)
         self._tm.update(self.dataOfDeformer)
 
-        self._tv = TableView(self, colWidth=self.colWidth)
+        self._tv = FastTableView(self, colWidth=self.colWidth)
         self._tv.setModel(self._tm)
         self.unLock = True
         self.lockBTN.setIcon(_icons["unlock"])

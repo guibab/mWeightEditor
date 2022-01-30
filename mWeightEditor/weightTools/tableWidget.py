@@ -3,8 +3,11 @@ from ..Qt import QtGui, QtCore, QtWidgets
 from functools import partial
 from maya import cmds, mel
 import numpy as np
+import string
 from six.moves import range
 
+
+TOL = 1e-5
 
 class TableModel(QtCore.QAbstractTableModel):
     def __init__(self, parent=None, *args):
@@ -36,40 +39,44 @@ class TableModel(QtCore.QAbstractTableModel):
         return self.datatable.columnsNames
 
     def data(self, index, role=QtCore.Qt.DisplayRole):
-        try:
-            if role == QtCore.Qt.DisplayRole:
-                return round(self.realData(index) * 100, 1)
-            elif role == QtCore.Qt.EditRole:
-                ff = self.realData(index) * 100
-                return "{0:.3f}".format(ff).rstrip("0") + "0"[0 : (ff % 1 == 0)]
-            elif role == QtCore.Qt.TextAlignmentRole:
-                return QtCore.Qt.AlignCenter
-            elif role == QtCore.Qt.BackgroundRole:
-                if self.isSumColumn(index):
-                    return (
-                        self.sumBrush
-                        if round(self.realData(index) * 100, 1) == 100
-                        else self.redBrush
-                    )
-                elif self.isLocked(index):
-                    return self.greyBrush
-                elif self.realData(index) != 0.0:
-                    return self.brownBrush
-            elif role == QtCore.Qt.ForegroundRole:
-                if self.isSumColumn(index):
-                    return self.whiteBrush
-                elif self.isLocked(index):
-                    return self.greyDarkerBrush
-            else:
-                return None
-        except Exception:
-            self.parent().deselectAll()
+        if role == QtCore.Qt.EditRole:
+            editData = self.realData(index) * 100
+            return editData
+        elif role == QtCore.Qt.DisplayRole:
+            ff = self.realData(index) * 100
+            ff = "{0:.2f}".format(ff)
+            if ff[-2:] == "00":
+                ff = ff[:-1]
+            return ff
+        elif role == QtCore.Qt.TextAlignmentRole:
+            return QtCore.Qt.AlignCenter
+        elif role == QtCore.Qt.BackgroundRole:
+            if self.isSumColumn(index):
+                return (
+                    self.sumBrush
+                    if np.isclose(self.realData(index), 1.0, atol=TOL)
+                    else self.redBrush
+                )
+            elif self.isLocked(index):
+                return self.greyBrush
+            elif not np.isclose(self.realData(index), 0.0, atol=TOL):
+                return self.brownBrush
+
+        elif role == QtCore.Qt.ForegroundRole:
+            if self.isSumColumn(index):
+                return self.whiteBrush
+            elif self.isLocked(index):
+                return self.greyDarkerBrush
+        return None
 
     def setData(self, index, value, role=QtCore.Qt.EditRole):
-        self.parent().prepareToSetValue()
-        self.parent().doAddValue(value / 100.0, forceAbsolute=True)
-        self.parent().postSetValue()
-        return True
+        if role == QtCore.Qt.EditRole:
+            par = self.parent()
+            par.prepareToSetValue()
+            par.doAddValue(value / 100.0, forceAbsolute=True)
+            par.postSetValue()
+            return True
+        return False
 
     def isLocked(self, index):
         row = index.row()
@@ -124,13 +131,17 @@ class TableModel(QtCore.QAbstractTableModel):
             if not index.isValid():
                 return QtCore.Qt.ItemIsEnabled
             column = index.column()
-            if self.datatable.isSkinData and column == self.datatable.nbDrivers:  # sum column
+            if (
+                self.datatable.isSkinData and column == self.datatable.nbDrivers
+            ):  # sum column
                 result = QtCore.Qt.ItemIsEnabled
             elif self.isLocked(index):
                 result = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
             else:
                 result = (
-                    QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
+                    QtCore.Qt.ItemIsEnabled
+                    | QtCore.Qt.ItemIsSelectable
+                    | QtCore.Qt.ItemIsEditable
                 )
             return QtCore.Qt.ItemFlags(result)
         except Exception:
@@ -140,25 +151,31 @@ class TableModel(QtCore.QAbstractTableModel):
 
 class HighlightDelegate(QtWidgets.QStyledItemDelegate):
     def createEditor(self, parent, option, index):
-        # print "createEditor"
         editor = QtWidgets.QDoubleSpinBox(parent)
-        editor.setStyleSheet("QDoubleSpinBox { background-color: yellow; color : black; }")
+        editor.setStyleSheet("QDoubleSpinBox {background-color: yellow; color : black;}")
         editor.setMaximum(100)
         editor.setMinimum(0)
         editor.setMinimumWidth(50)
         editor.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
         return editor
 
+    def setEditorData(self, editor, index):
+        editor.setValue(index.data(role=QtCore.Qt.EditRole))
+
     def paint(self, painter, rawOption, index):
         if not index.isValid():
             return super(HighlightDelegate, self).paint(painter, rawOption, index)
         model = index.model()
         realData = model.realData(index)
-        if realData == 0.00:
+        if np.isclose(realData, 0.0, atol=TOL):
             return super(HighlightDelegate, self).paint(painter, rawOption, index)
         option = QtWidgets.QStyleOptionViewItem(rawOption)
         pal = option.palette
-        pal.setColor(pal.currentColorGroup(), QtGui.QPalette.Highlight, QtGui.QColor(140, 140, 235))
+        pal.setColor(
+            pal.currentColorGroup(),
+            QtGui.QPalette.Highlight,
+            QtGui.QColor(140, 140, 235),
+        )
 
         return super(HighlightDelegate, self).paint(painter, option, index)
 
@@ -351,7 +368,9 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         if self.model().datatable.isSkinData:
             return [
                 255.0 * el
-                for el in cmds.getAttr(self.model().fullColumnNames()[ind] + ".wireColorRGB")[0]
+                for el in cmds.getAttr(
+                    self.model().fullColumnNames()[ind] + ".wireColorRGB"
+                )[0]
             ]
         else:
             return [255, 155, 55]
@@ -372,7 +391,9 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         for item in sel:
             chunks = np.union1d(chunks, list(range(item.left(), item.right() + 1)))
 
-        selectedIndices = [indCol for indCol in chunks if not self.isSectionHidden(indCol)]
+        selectedIndices = [
+            indCol for indCol in chunks if not self.isSectionHidden(indCol)
+        ]
         if self.model().datatable.isSkinData:
             lastCol = self.count() - 1
             if lastCol in selectedIndices:
@@ -462,7 +483,9 @@ class HorizHeaderView(QtWidgets.QHeaderView):
                 chbox = QtWidgets.QCheckBox(columnNames[ind], subMenuFollow)
 
                 chbox.setChecked(not self.isSectionHidden(ind))
-                chbox.toggled.connect(partial(self.toggledColumn, ind, columnNames[ind]))
+                chbox.toggled.connect(
+                    partial(self.toggledColumn, ind, columnNames[ind])
+                )
 
                 checkableAction = QtWidgets.QWidgetAction(subMenuFollow)
                 checkableAction.setDefaultWidget(chbox)
@@ -484,7 +507,8 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         if not rect.isValid():
             return
         isLastColumn = (
-            self.model().datatable.isSkinData and index >= self.model().datatable.nbDrivers
+            self.model().datatable.isSkinData
+            and index >= self.model().datatable.nbDrivers
         )
         data = self._get_data(index)
 
@@ -514,9 +538,15 @@ class HorizHeaderView(QtWidgets.QHeaderView):
 
             side = self.model().getColumnSide(index)
             defaultBGInd = "RLMX".index(side)
-            defaultBG = [self.blueBG, self.redBG, self.yellowBG, self.regularBG][defaultBGInd]
+            defaultBG = [self.blueBG, self.redBG, self.yellowBG, self.regularBG][
+                defaultBGInd
+            ]
 
-            theBGBrush = self.greyBG if self.model().datatable.isColumnLocked(index) else defaultBG
+            theBGBrush = (
+                self.greyBG
+                if self.model().datatable.isColumnLocked(index)
+                else defaultBG
+            )
 
             painter.setBrush(theBGBrush)
             painter.drawRect(x + 1, y - 1, rect.height() - 1, rect.width())
@@ -532,10 +562,14 @@ class HorizHeaderView(QtWidgets.QHeaderView):
             )
 
     def sizeHint(self):
-        return QtCore.QSize(10, self._get_text_width() + 2 * self._margin + self._colorDrawHeight)
+        return QtCore.QSize(
+            10, self._get_text_width() + 2 * self._margin + self._colorDrawHeight
+        )
 
     def _get_text_width(self):
-        allMetrics = [self._metrics.width(colName) for colName in self.model().columnNames()]
+        allMetrics = [
+            self._metrics.width(colName) for colName in self.model().columnNames()
+        ]
         if allMetrics:
             return max(allMetrics) + 15
         else:
@@ -545,17 +579,13 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         return self.model().getColumnText(index)
 
 
-class TableView(QtWidgets.QTableView):
-    """
-    A simple table to demonstrate the QComboBox delegate.
-    """
-
+class FastTableView(QtWidgets.QTableView):
     selEmptied = QtCore.Signal(bool, name="selEmptied")
 
     def __init__(self, parent, colWidth=10):
         self.ignoreReselect = False
 
-        QtWidgets.QTableView.__init__(self, parent)
+        super(FastTableView, self).__init__(parent)
         self.mainWindow = parent
         self._hd = HighlightDelegate(self)
         self.setItemDelegate(self._hd)
@@ -579,11 +609,11 @@ class TableView(QtWidgets.QTableView):
 
     def keyPressEvent(self, event):
         txt = event.text()
-        isIn = txt and txt in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        isIn = txt and txt in string.ascii_letters
         if isIn:
             return
 
-        super(TableView, self).keyPressEvent(event)
+        super(FastTableView, self).keyPressEvent(event)
 
     def rmvRedrawButton(self):
         btn = self.findChild(QtWidgets.QAbstractButton)
@@ -599,7 +629,9 @@ class TableView(QtWidgets.QTableView):
         opt.text = btn.text()
         s = QtCore.QSize(
             btn.style()
-            .sizeFromContents(QtWidgets.QStyle.CT_HeaderSection, opt, QtCore.QSize(), btn)
+            .sizeFromContents(
+                QtWidgets.QStyle.CT_HeaderSection, opt, QtCore.QSize(), btn
+            )
             .expandedTo(QtWidgets.QApplication.globalStrut())
         )
 
@@ -608,7 +640,7 @@ class TableView(QtWidgets.QTableView):
         self.repaint()
 
     def selectionChanged(self, selected, deselected):
-        super(TableView, self).selectionChanged(selected, deselected)
+        super(FastTableView, self).selectionChanged(selected, deselected)
         if not self.ignoreReselect:
             sel = self.selectionModel().selection()
             if self.HHeaderView.letVerticesDraw:
@@ -620,24 +652,20 @@ class TableView(QtWidgets.QTableView):
                 self.HHeaderView.displayVertices(doSelect=False)
             self.selEmptied.emit(not sel.isEmpty())
 
-    def createPixMap(self, rect):
+    def drawRotatedText(self, rect):
         thePixmap = QtGui.QPixmap(500, 500)
-        painter = QtGui.QPainter()
-        painter.begin(thePixmap)
-
-        painter.rotate(-90)
         x = -rect.height()
         y = rect.left()
-
+        w = rect.width()
         data = self.model().datatable.shapeShortName
 
+        painter = QtGui.QPainter()
+        painter.begin(thePixmap)
+        painter.rotate(-90)
         painter.setBrush(self.regularBG)
         painter.setFont(self._font)
-        painter.drawRect(x + 1, y - 1, rect.height() - 1, rect.width())
-
-        painter.drawText(
-            -rect.height() + self._margin, rect.left() + (rect.width() + self._descent) / 2, data
-        )
+        painter.drawRect(x + 1, y - 1, -x - 1, w)
+        painter.drawText(x + self._margin, y + (w + self._descent) / 2, data)
         painter.end()
 
         return thePixmap
@@ -665,9 +693,11 @@ class TableView(QtWidgets.QTableView):
         # This line is the only difference to QTableCornerButton
         # opt.text = obj.text()
         # opt.textAlignment = QtCore.Qt.AlignBottom | QtCore.Qt.AlignHCenter
+
+        # Draw header names vertically
         opt.position = QtWidgets.QStyleOptionHeader.OnlyOneSection
         painter = QtWidgets.QStylePainter(obj)
-        painter.drawItemPixmap(opt.rect, 1, self.createPixMap(opt.rect))
+        painter.drawItemPixmap(opt.rect, 1, self.drawRotatedText(opt.rect))
         painter.drawControl(QtWidgets.QStyle.CE_Header, opt)
 
         return True

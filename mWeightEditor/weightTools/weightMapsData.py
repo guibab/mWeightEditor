@@ -1,5 +1,4 @@
-from __future__ import print_function
-from __future__ import absolute_import
+from __future__ import print_function, absolute_import
 from maya import OpenMaya
 import maya.api.OpenMaya as OpenMaya2
 
@@ -13,8 +12,7 @@ from .utils import (
 )
 
 from .abstractData import DataAbstract
-from six.moves import range
-from six.moves import zip
+from six.moves import range, zip
 
 
 class DataOfOneDimensionalAttrs(DataAbstract):
@@ -34,9 +32,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
             createDisplayLocator=createDisplayLocator, mainWindow=mainWindow
         )
 
-    # -----------------------------------------------------------------------------------------------------------
-    # export import  -------------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # export import
     def exportColumns(self, colIndices):
         # 1 re-get the values
         self.getAttributesValues(onlyfullArr=True)
@@ -84,9 +80,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         vertsIndicesWeights = list(zip(indicesDifferents[0].tolist(), values.tolist()))
         self.setAttributeValues(self.listAttrs[colIndex], vertsIndicesWeights)
 
-    # -----------------------------------------------------------------------------------------------------------
-    # Attrs functions -------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # Attrs functions
     def getListPaintableAttributes(self, theNodeShape):
         listDeformersTypes = cmds.nodeType("geometryFilter", derived=True, isTypeName=True)
         listShapesTypes = cmds.nodeType("shape", derived=True, isTypeName=True)
@@ -100,7 +94,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
 
         self.dicDisplayNames = {}
         self.attributesToPaint = {}
-        toSel = ""
         for itemToPaint in paintableItems:
             if not itemToPaint:
                 continue
@@ -149,7 +142,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 ]
             else:
                 self.raw2dArray = self.fullAttributesArr
-            # ---- reorder --------------------------------------------
+            # reorder
             if self.softOn:  # order with indices
                 self.display2dArray = self.raw2dArray[self.sortedIndices]
             else:
@@ -158,7 +151,6 @@ class DataOfOneDimensionalAttrs(DataAbstract):
     def setValueInDeformer(self, arrayForSetting):
         arrIndicesVerts = np.array(self.vertices)
         editedColumns = np.any(self.sumMasks, axis=0).tolist()
-        rows = arrayForSetting.shape[0]
         attsValues = []
         if self.storeUndo:
             undoValues = []
@@ -171,7 +163,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                 vertsIndicesWeights = list(zip(verts.tolist(), values.tolist()))
 
                 attsValues.append((self.listAttrs[colIndex], vertsIndicesWeights))
-                # now the undo values ------------------------------
+                # now the undo values
                 if self.storeUndo:
                     valuesOrig = self.fullAttributesArr[verts.tolist(), colIndex]
                     undoVertsIndicesWeights = list(zip(verts.tolist(), valuesOrig.tolist()))
@@ -226,18 +218,16 @@ class DataOfOneDimensionalAttrs(DataAbstract):
         if self.storeUndo:
             undoValues = []
         with GlobalContext(message="smoothVertices", doPrint=True):
-            new2dArray = np.copy(self.orig2dArray)
 
             editedColumns = np.any(self.sumMasks, axis=0).tolist()
-            rows = new2dArray.shape[0]
             for colIndex, isColumnChanged in enumerate(editedColumns):
                 if isColumnChanged:
-                    # get indices to set ---------------------------------------
+                    # get indices to set
                     indices = np.nonzero(self.sumMasks[:, colIndex])[0]
-                    # get vertices to set ------------------------------------
+                    # get vertices to set
                     verts = arrIndicesVerts[indices + self.Mtop]
 
-                    # prepare array for mean -----------------------------------
+                    # prepare array for mean
                     nbNonZero = np.count_nonzero(self.sumMasks[:, colIndex])
                     arrayForMean = np.full((nbNonZero, self.maxNeighboors), 0)
                     arrayForMeanMask = np.full((nbNonZero, self.maxNeighboors), False, dtype=bool)
@@ -255,7 +245,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                                 ]
                                 dicOfVertsSubArray[vertIndex] = connectedVerticesExtended
 
-                                arrayForMeanMask[i, 0 : self.nbNeighBoors[vertIndex]] = True
+                                arrayForMeanMask[i, :self.nbNeighBoors[vertIndex]] = True
                             else:
                                 connectedVerticesExtended = dicOfVertsSubArray[vertIndex]
                             arrayForMean[i] = self.fullAttributesArr[
@@ -273,9 +263,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
             self.redoValues = attsValues
             self.setAttsValues(attsValues)
 
-    # -----------------------------------------------------------------------------------------------------------
-    # redefine abstract data functions -------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # redefine abstract data functions
     def setUsingUVs(self, using_U, normalize, opposite):
         print("using_U {}, normalize {}, opposite {}".format(using_U, normalize, opposite))
         axis = "u" if using_U else "v"
@@ -298,9 +286,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
             self.setAttributeValues(attr, vertsIndicesWeights)
         self.getAttributesValues()
 
-    # -----------------------------------------------------------------------------------------------------------
-    # redefine abstract data functions -------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # redefine abstract data functions
     def postGetData(
         self, displayLocator=True, force=True, inputVertices=None, prevDeformedShape=""
     ):
@@ -345,9 +331,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
 
 
 class DataOfBlendShape(DataOfOneDimensionalAttrs):
-    # -----------------------------------------------------------------------------------------------------------
-    # blendShape functions -------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # blendShape functions
     def getBlendShapesAttributes(self, BSnode, theNodeShape):
         with GlobalContext(message="getBlendShapesAttributes", doPrint=False):
             lsGeomsOrig = cmds.blendShape(BSnode, q=True, geometry=True)
@@ -362,7 +346,7 @@ class DataOfBlendShape(DataOfOneDimensionalAttrs):
                 listAttrShortName.append("baseWeights")
                 listAttrs.append("{}.inputTarget[{}].baseWeights".format(BSnode, inputTarget))
 
-                # get the alias -------------------------------------------------------
+                # get the alias
                 listAlias = cmds.aliasAttr(BSnode, q=True)
                 listAliasIndices = cmds.getAttr(
                     BSnode + ".inputTarget[{}].inputTargetGroup".format(inputTarget), mi=True
@@ -379,7 +363,7 @@ class DataOfBlendShape(DataOfOneDimensionalAttrs):
                 dicIndex = {}
                 for el, wght in listAliasNme:
                     dicIndex[int(re.findall(r"\b\d+\b", wght)[0])] = el
-                # end alias -------------------------------------------------------------
+                # end alias
 
                 for channelIndex in listAliasIndices:
                     attrShortName = dicIndex[channelIndex]
@@ -389,16 +373,14 @@ class DataOfBlendShape(DataOfOneDimensionalAttrs):
 
                     listAttrShortName.append(attrShortName)
                     listAttrs.append(attr)
-                # for paintable --------------
+                # for paintable
                 for shortName in listAttrShortName:
                     self.attributesToPaint[shortName] = "blendShape.{}.baseWeights".format(BSnode)
                 return listAttrShortName, listAttrs
             else:
                 return [], []
 
-    # -----------------------------------------------------------------------------------------------------------
-    # redefine abstract data functions -------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # redefine abstract data functions
     def getAllData(self, displayLocator=True, force=True, inputVertices=None):
         with GlobalContext(message="getAllData BlendShapes", doPrint=self.verbose):
             prevDeformedShape = self.deformedShape
@@ -453,9 +435,7 @@ class DataOfDeformers(DataOfOneDimensionalAttrs):
                     listAttrs.append(self.dicDisplayNames[dfmNm])
         return lstDeformersRtn, listAttrs
 
-    # -----------------------------------------------------------------------------------------------------------
-    # redefine abstract data functions -------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # redefine abstract data functions
     def getAllData(self, displayLocator=True, force=True, inputVertices=None, **kwargs):
         prevDeformedShape = self.deformedShape
 
