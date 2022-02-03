@@ -71,89 +71,6 @@ _icons = {
 }
 
 
-styleSheet = """
-    QWidget {
-        background:  #aba8a6;
-        color:black;
-        selection-background-color: #a0a0ff;
-    }
-    QCheckBox:hover
-    {
-      background:rgb(120, 120, 120);
-    }
-    QMenu::item:disabled {
-        color:grey;
-        font: italic;
-    }
-    QMenu::item:selected  {
-        background-color:rgb(120, 120, 120);
-    }
-    QPushButton {
-        color:  black;
-    }
-    QComboBox {
-        color:  black;
-        border: 1px solid grey;
-    }
-
-    QPushButton:checked{
-        background-color: rgb(100, 100, 100);
-        color:white;
-        border: none;
-    }
-    QPushButton:hover{
-        background-color: grey;
-        border-style: outset;
-    }
-    QPushButton:pressed {
-        background-color: rgb(130, 130, 130);
-        color:white;
-        border-style: inset;
-    }
-    QPushButton:disabled {
-        font:italic;
-        color:grey;
-        }
-    QRadioButton:disabled {
-        font:italic;
-        color:grey;
-        }
-    QCheckBox:disabled {
-        font:italic;
-        color:grey;
-        }
-    FastTableView {
-         selection-background-color: #a0a0ff;
-         background: #aba8a6;
-         color: black;
-         selection-color: black;
-         border: 0px;
-     }
-    QTableView QTableCornerButton::section {
-        background:  transparent;
-        border: 1px solid black;
-    }
-    FastTableView::section {
-        background-color: #878787;
-        color: black;
-        border: 1px solid black;
-    }
-    QHeaderView::section {
-        background-color: #878787;
-        color: black;
-        border: 1px solid black;
-    }
-    VertHeaderView{
-        color: black;
-        border: 0px solid black;
-    }
-    HorizHeaderView{
-        color: black;
-        border: 0px solid black;
-    }
-"""
-
-
 class SkinWeightWin(Window):
     colWidth = 30
     maxWidthCentralWidget = 340
@@ -180,7 +97,8 @@ class SkinWeightWin(Window):
 
         self.get_data_frame()
         self.createWindow()
-        #self.setStyleSheet(styleSheet)
+        styleSheet = open(os.path.join(os.path.dirname(__file__), "xsi.css"), 'r').read()
+        self.setStyleSheet(styleSheet)
 
         self.addCallBacks()
         self.setWindowDisplay()

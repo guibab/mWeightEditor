@@ -1,9 +1,10 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 from ..Qt import QtGui, QtCore, QtWidgets
 from functools import partial
 from maya import cmds, mel
 import numpy as np
 import string
+import math
 from six.moves import range
 
 
@@ -13,12 +14,6 @@ class TableModel(QtCore.QAbstractTableModel):
     def __init__(self, parent=None, *args):
         super(TableModel, self).__init__(parent)
         self.datatable = None
-        self.brownBrush = QtGui.QBrush(QtGui.QColor(130, 130, 90))
-        self.greyBrush = QtGui.QBrush(QtGui.QColor(140, 140, 140))
-        self.greyDarkerBrush = QtGui.QBrush(QtGui.QColor(80, 80, 80))
-        self.sumBrush = QtGui.QBrush(QtGui.QColor(100, 100, 100))
-        self.redBrush = QtGui.QBrush(QtGui.QColor(150, 100, 100))
-        self.whiteBrush = QtGui.QBrush(QtGui.QColor(200, 200, 200))
 
     def update(self, dataIn):
         self.datatable = dataIn
@@ -43,37 +38,20 @@ class TableModel(QtCore.QAbstractTableModel):
             editData = self.realData(index) * 100
             return editData
         elif role == QtCore.Qt.DisplayRole:
-            ff = self.realData(index) * 100
+            ff = math.floor(self.realData(index) * 10000) / 100
             ff = "{0:.2f}".format(ff)
             if ff[-2:] == "00":
                 ff = ff[:-1]
             return ff
         elif role == QtCore.Qt.TextAlignmentRole:
             return QtCore.Qt.AlignCenter
-        elif role == QtCore.Qt.BackgroundRole:
-            if self.isSumColumn(index):
-                return (
-                    self.sumBrush
-                    if np.isclose(self.realData(index), 1.0, atol=TOL)
-                    else self.redBrush
-                )
-            elif self.isLocked(index):
-                return self.greyBrush
-            elif not np.isclose(self.realData(index), 0.0, atol=TOL):
-                return self.brownBrush
-
-        elif role == QtCore.Qt.ForegroundRole:
-            if self.isSumColumn(index):
-                return self.whiteBrush
-            elif self.isLocked(index):
-                return self.greyDarkerBrush
         return None
 
     def setData(self, index, value, role=QtCore.Qt.EditRole):
         if role == QtCore.Qt.EditRole:
             par = self.parent()
             par.prepareToSetValue()
-            par.doAddValue(value / 100.0, forceAbsolute=True)
+            par.doAddValue(value / 100, forceAbsolute=True)
             par.postSetValue()
             return True
         return False
@@ -152,7 +130,6 @@ class TableModel(QtCore.QAbstractTableModel):
 class HighlightDelegate(QtWidgets.QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         editor = QtWidgets.QDoubleSpinBox(parent)
-        editor.setStyleSheet("QDoubleSpinBox {background-color: yellow; color : black;}")
         editor.setMaximum(100)
         editor.setMinimum(0)
         editor.setMinimumWidth(50)
@@ -162,22 +139,43 @@ class HighlightDelegate(QtWidgets.QStyledItemDelegate):
     def setEditorData(self, editor, index):
         editor.setValue(index.data(role=QtCore.Qt.EditRole))
 
-    def paint(self, painter, rawOption, index):
+    def initStyleOption(self, option, index):
+        super(HighlightDelegate, self).initStyleOption(option, index)
         if not index.isValid():
-            return super(HighlightDelegate, self).paint(painter, rawOption, index)
-        model = index.model()
-        realData = model.realData(index)
-        if np.isclose(realData, 0.0, atol=TOL):
-            return super(HighlightDelegate, self).paint(painter, rawOption, index)
-        option = QtWidgets.QStyleOptionViewItem(rawOption)
-        pal = option.palette
-        pal.setColor(
-            pal.currentColorGroup(),
-            QtGui.QPalette.Highlight,
-            QtGui.QColor(140, 140, 235),
-        )
+            return
 
-        return super(HighlightDelegate, self).paint(painter, option, index)
+        model = index.model()
+        pal = option.palette
+        view = self.parent()
+
+        realData = model.realData(index)
+        isZero = np.isclose(realData, 0.0, atol=TOL)
+        isOne = np.isclose(realData, 1.0, atol=TOL)
+
+        hilightColor = pal.color(QtGui.QPalette.Highlight)
+
+        if model.isSumColumn(index):
+            bgColor = view.sumColumnBG if isOne else view.sumColumnERROR
+            fgColor = view.sumColumnFG
+        elif model.isLocked(index):
+            bgColor = view.lockedBG
+            fgColor = view.lockedFG
+        else:
+            if not isZero:
+                bgColor = view.nonzeroBG
+                fgColor = view.nonzeroFG
+                hilightColor = view.nonzeroHI
+            else:
+                bgColor = view.zeroBG
+                fgColor = view.zeroFG
+                hilightColor = view.zeroHI
+
+        pal.setColor(QtGui.QPalette.Background, bgColor)
+        pal.setColor(QtGui.QPalette.Foreground, fgColor)
+        pal.setColor(QtGui.QPalette.Text, fgColor)
+        pal.setColor(QtGui.QPalette.WindowText, fgColor)
+        pal.setColor(QtGui.QPalette.Highlight, hilightColor)
+        option.backgroundBrush = QtGui.QBrush(pal.color(QtGui.QPalette.Background))
 
 
 class VertHeaderView(QtWidgets.QHeaderView):
@@ -579,14 +577,44 @@ class HorizHeaderView(QtWidgets.QHeaderView):
         return self.model().getColumnText(index)
 
 
+def _autoProp(name, typ=QtGui.QColor, default=None):
+    """ A convenience function that gets/sets properties in a dictionary on a class
+    This lets me set up a bunch of QtCore.Property objects without having
+    to define getter/setter methods for each property
+    """
+    if default is None:
+        default = typ()
+    return QtCore.Property(
+        typ,
+        lambda obj: obj._multiStore.get(name, default),
+        lambda obj, val: obj._multiStore.update({name: val})
+    )
+
+
 class FastTableView(QtWidgets.QTableView):
     selEmptied = QtCore.Signal(bool, name="selEmptied")
 
+    # make the meta properties to hold the data passed in from the stylesheet
+    sumColumnBG = _autoProp("sumColumnBG")
+    sumColumnFG = _autoProp("sumColumnFG")
+    sumColumnERROR = _autoProp("sumColumnERROR")
+    lockedBG = _autoProp("lockedBG")
+    lockedFG = _autoProp("lockedFG")
+    nonzeroBG = _autoProp("nonzeroBG")
+    nonzeroFG = _autoProp("nonzeroFG")
+    nonzeroHI = _autoProp("nonzeroHI")
+    zeroBG = _autoProp("zeroBG")
+    zeroFG = _autoProp("zeroFG")
+    zeroHI = _autoProp("zeroHI")
+    regularBG = _autoProp("regularBG")
+
     def __init__(self, parent, colWidth=10):
         self.ignoreReselect = False
+        self._multiStore = {}
 
         super(FastTableView, self).__init__(parent)
         self.mainWindow = parent
+
         self._hd = HighlightDelegate(self)
         self.setItemDelegate(self._hd)
         self.HHeaderView = HorizHeaderView(self.mainWindow, colWidth)
@@ -596,15 +624,11 @@ class FastTableView(QtWidgets.QTableView):
         self.setVerticalHeader(self.VHeaderView)
 
         self.verticalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
-        self._font = QtGui.QFont("Myriad Pro", 10)
-        self._font.setBold(False)
-        self._metrics = QtGui.QFontMetrics(self._font)
-        self._descent = self._metrics.descent()
+
         self._margin = 5
         self._colorDrawHeight = 20
-        self.regularBG = QtGui.QBrush(QtGui.QColor(130, 130, 130))
 
-        self.__nw_heading = "Vtx"
+        self._nw_heading = "Vtx"
         self.addRedrawButton()
 
     def keyPressEvent(self, event):
@@ -622,7 +646,7 @@ class FastTableView(QtWidgets.QTableView):
 
     def addRedrawButton(self):
         btn = self.findChild(QtWidgets.QAbstractButton)
-        btn.setText(self.__nw_heading)
+        btn.setText(self._nw_heading)
         btn.setToolTip("Toggle selecting all table cells")
         btn.installEventFilter(self)
         opt = QtWidgets.QStyleOptionHeader()
@@ -653,52 +677,55 @@ class FastTableView(QtWidgets.QTableView):
             self.selEmptied.emit(not sel.isEmpty())
 
     def drawRotatedText(self, rect):
-        thePixmap = QtGui.QPixmap(500, 500)
-        x = -rect.height()
-        y = rect.left()
-        w = rect.width()
+        thePixmap = QtGui.QPixmap(rect.width(), rect.height())
+        thePixmap.fill(QtGui.QColor(0, 0, 0))
+
+        descent = self.fontMetrics().descent()
+
         data = self.model().datatable.shapeShortName
 
         painter = QtGui.QPainter()
         painter.begin(thePixmap)
-        painter.rotate(-90)
         painter.setBrush(self.regularBG)
-        painter.setFont(self._font)
-        painter.drawRect(x + 1, y - 1, -x - 1, w)
-        painter.drawText(x + self._margin, y + (w + self._descent) / 2, data)
+
+        # Draw a filled rectangle inset from the edges
+        painter.drawRect(rect.adjusted(0, 0, -1, -1))
+
+        # Rotate the coordinate system and put 0,0 at the bottom left corner
+        painter.rotate(-90)
+        painter.translate(-rect.height(), 0)
+
+        # Build a rotated rectangle to draw the text in
+        rotRect = QtCore.QRectF(0, 0, rect.height(), rect.width())
+        # Offset the rectangle a bit to visually center the text
+        rotRect = rotRect.adjusted(self._margin, -descent, 0, 0)
+
+        # paint the text
+        painter.setFont(self.font())
+        textOpt = QtGui.QTextOption(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        painter.drawText(rotRect, data, textOpt)
+
         painter.end()
 
         return thePixmap
 
     def eventFilter(self, obj, event):
-        try:
-            if event.type() != QtCore.QEvent.Paint or not isinstance(
-                obj, QtWidgets.QAbstractButton
-            ):
-                return False
-        except Exception:
+        # The only QAbstractButton that gets painted by this view is the upper left corner
+        # button, so add an event filter to intercept its paint event
+        if event.type() != QtCore.QEvent.Paint:
             return False
-        # Paint by hand (borrowed from QTableCornerButton)
+
+        if not isinstance(obj, QtWidgets.QAbstractButton):
+            return False
+
+        # Look at the QTableCornerButton code from the QTableView.cpp source
+        # and re-implement some of that code
         opt = QtWidgets.QStyleOptionHeader()
         opt.initFrom(obj)
-        styleState = QtWidgets.QStyle.State_None
-        if obj.isEnabled():
-            styleState |= QtWidgets.QStyle.State_Enabled
-        if obj.isActiveWindow():
-            styleState |= QtWidgets.QStyle.State_Active
-        if obj.isDown():
-            styleState |= QtWidgets.QStyle.State_Sunken
-        opt.state = styleState
         opt.rect = obj.rect()
-        # This line is the only difference to QTableCornerButton
-        # opt.text = obj.text()
-        # opt.textAlignment = QtCore.Qt.AlignBottom | QtCore.Qt.AlignHCenter
-
-        # Draw header names vertically
         opt.position = QtWidgets.QStyleOptionHeader.OnlyOneSection
         painter = QtWidgets.QStylePainter(obj)
         painter.drawItemPixmap(opt.rect, 1, self.drawRotatedText(opt.rect))
-        painter.drawControl(QtWidgets.QStyle.CE_Header, opt)
 
         return True
 
