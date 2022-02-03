@@ -551,7 +551,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
 
             theColor = self.color(index)
             painter.setBrush(QtGui.QBrush(QtGui.QColor(*theColor)))
-            painter.drawRect(x + 1, y - 1, 20, rect.width())
+            painter.drawRect(x + 1, y - 1, self._colorDrawHeight, rect.width())
 
             painter.drawText(
                 -rect.height() + self._margin + self._colorDrawHeight,
