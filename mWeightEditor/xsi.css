@@ -1,5 +1,3 @@
-
-
 QWidget {
     background: #aba8a6;
     color:black;
@@ -68,6 +66,7 @@ FastTableView {
     qproperty-nonzeroFG: rgb(200, 200, 200);
     qproperty-nonzeroHI: rgb(140, 140, 235);
     qproperty-regularBG: rgb(130, 130, 130);
+    qproperty-sepCOL: rgb(0, 0, 0);
 }
 FastTableView QTableCornerButton::section {
     background: transparent;
@@ -90,8 +89,18 @@ QHeaderView::section {
 VertHeaderView {
     color: black;
     border: 0px solid black;
+    qproperty-regularBG: rgb(130, 130, 130);
+    qproperty-greyBG: rgb(100, 100, 100);
+    qproperty-sepCOL: rgb(0, 0, 0);
 }
 HorizHeaderView {
     color: black;
     border: 0px solid black;
+    qproperty-totalFG: rgb(200, 200, 200);
+    qproperty-totalBG: rgb(100, 100, 100);
+    qproperty-rightSideObjectBG: rgb(112, 124, 137);
+    qproperty-leftSideObjectBG: rgb(134, 119, 127);
+    qproperty-midSideObjectBG: rgb(144, 144, 122);
+    qproperty-unsidedObjectBG: rgb(130, 130, 130);
+    qproperty-sepCOL: rgb(0, 0, 0);
 }
