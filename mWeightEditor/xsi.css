@@ -98,6 +98,7 @@ HorizHeaderView {
     border: 0px solid black;
     qproperty-totalFG: rgb(200, 200, 200);
     qproperty-totalBG: rgb(100, 100, 100);
+    qproperty-lockedBG: rgb(100, 100, 100);
     qproperty-rightSideObjectBG: rgb(112, 124, 137);
     qproperty-leftSideObjectBG: rgb(134, 119, 127);
     qproperty-midSideObjectBG: rgb(144, 144, 122);

@@ -310,6 +310,7 @@ class VertHeaderView(QtWidgets.QHeaderView):
 class HorizHeaderView(QtWidgets.QHeaderView):
     totalFG = _autoProp("totalFG")
     totalBG = _autoProp("totalBG")
+    lockedBG = _autoProp("lockedBG")
     rightSideObjectBG = _autoProp("rightSideObjectBG")
     leftSideObjectBG = _autoProp("leftSideObjectBG")
     midSideObjectBG = _autoProp("midSideObjectBG")
@@ -374,14 +375,18 @@ class HorizHeaderView(QtWidgets.QHeaderView):
 
     def color(self, ind):
         if self.model().datatable.isSkinData:
-            return [
-                255.0 * el
-                for el in cmds.getAttr(
-                    self.model().fullColumnNames()[ind] + ".wireColorRGB"
-                )[0]
-            ]
+            obj = self.model().fullColumnNames()[ind]
+            if cmds.getAttr(obj + ".useObjectColor"):
+                ocAttr = obj + ".objectColor"
+                colorIdx = cmds.getAttr(ocAttr)
+                # Why is the joint color index ofsetted by 24??
+                els = cmds.colorIndex(colorIdx + 24, query=True)
+            else:
+                attr = obj + ".wireColorRGB"
+                els = cmds.getAttr(attr)[0]
+            return [255.0 * el for el in els]
         else:
-            return [255, 155, 55]
+            return [255.0, 155.0, 55.0]
 
     def setColor(self, pos, index):
         menu = ColorMenu(self)
@@ -528,7 +533,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
             painter.setBrush(QtGui.QBrush(self.sepCOL))
             painter.drawRect(rect.adjusted(0, 0, -1, 0))
 
-            painter.setBrush(QtGui.QBrush(self.greyBG))
+            painter.setBrush(QtGui.QBrush(self.totalBG))
             painter.drawRect(rect.adjusted(-1, 0, -1, -2))
             painter.restore()
 
@@ -555,7 +560,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
             ][defaultBGInd]
 
             theBGBrush = (
-                self.greyBG
+                self.lockedBG
                 if self.model().datatable.isColumnLocked(index)
                 else defaultBG
             )
@@ -566,7 +571,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
 
             # Draw the background color
             painter.setBrush(QtGui.QBrush(theBGBrush))
-            painter.drawRect(rect.adjusted(-1, 0, -1, 0))
+            painter.drawRect(rect.adjusted(-1, 0, -1, -1))
 
             # Translate to the top-left corner of the swatch
             painter.translate(rect.left(), rect.height() - self._colorDrawHeight)
@@ -574,7 +579,7 @@ class HorizHeaderView(QtWidgets.QHeaderView):
             # Draw the color swatch
             theColor = self.color(index)
             painter.setBrush(QtGui.QBrush(QtGui.QColor(*theColor)))
-            painter.drawRect(0, 0, rect.width(), self._colorDrawHeight)
+            painter.drawRect(0, 0, rect.width() - 2, self._colorDrawHeight - 2)
 
             # Build a rotated rectangle to draw the text in
             painter.rotate(-90)
