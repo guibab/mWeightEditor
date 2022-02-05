@@ -239,7 +239,7 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                         for i, vertIndex in enumerate(verts):
                             if vertIndex not in dicOfVertsSubArray:
                                 # print vertIndex
-                                connectedVertices = self.vertNeighboors[vertIndex]
+                                connectedVertices = self.vertNeighbors[vertIndex]
                                 connectedVerticesExtended = (connectedVertices + padder)[
                                     : self.maxNeighboors
                                 ]

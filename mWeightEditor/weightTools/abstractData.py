@@ -5,19 +5,12 @@ from maya import OpenMaya
 import maya.api.OpenMaya as OpenMaya2
 from maya import cmds
 
-from ctypes import c_float, c_int
-
+#from ctypes import c_float, c_int
+from .mayaToNumpy import mayaToNumpy, numpyToMaya
 import numpy as np
 from .utils import GlobalContext, getSoftSelectionValuesNEW, getThreeIndices
 import six
 from six.moves import range, map
-
-
-def isin(element, test_elements, assume_unique=False, invert=False):
-    element = np.asarray(element)
-    return np.in1d(
-        element, test_elements, assume_unique=assume_unique, invert=invert
-    ).reshape(element.shape)
 
 
 # GLOBAL FUNCTIONS
@@ -30,6 +23,13 @@ class DataAbstract(object):
         self.pointsDisplayTrans = None
         self.shapePath = None
         self.deformedShape = None
+        self.vertNeighbors = None
+
+
+        self.isNurbsSurface = False
+        self.isNurbsCurve = False
+        self.isLattice = False
+        self.isMesh = False
 
         if createDisplayLocator:
             sel = cmds.ls(sl=True)
@@ -40,6 +40,9 @@ class DataAbstract(object):
 
     # locator Functions
     def createDisplayLocator(self, forceSelection=False):
+        """ Create the pointsDisplay node that we can connect to
+        to draw vertex selection, and paint color highlighting
+        """
         self.pointsDisplayTrans = None
         if not cmds.pluginInfo("blurSkin", query=True, loaded=True):
             cmds.loadPlugin("blurSkin")
@@ -56,7 +59,8 @@ class DataAbstract(object):
         cmds.setAttr(pointsDisplayNode + ".pointWidth", 5)
         cmds.setAttr(pointsDisplayNode + ".inputColor", 0.0, 1.0, 1.0)
 
-        # add to the Isolate of all
+        # If any panels are in object isloation mode, make sure that this locator
+        # is part of the isolated group so we can ... ya know ... see it
         if forceSelection:
             cmds.select(self.pointsDisplayTrans, add=True)
             # that's added because the isolate doesnt work otherwise, it's dumb I know
@@ -78,10 +82,12 @@ class DataAbstract(object):
             # that's added because the isolate doesnt work otherwise, it's dumb I know
 
     def removeDisplayLocator(self):
+        """ Delete the display locator, and remove the reference to it from the class """
         self.deleteDisplayLocator()
         self.pointsDisplayTrans = None
 
     def deleteDisplayLocator(self):
+        """ Delete the display locator if it exists """
         if not self.pointsDisplayTrans:
             return
         if cmds.objExists(self.pointsDisplayTrans):
@@ -90,61 +96,60 @@ class DataAbstract(object):
     def connectDisplayLocator(self):
         if not self.pointsDisplayTrans:
             return
-        isMesh = (
-            self.shapePath is not None
-            and self.shapePath.apiType() == OpenMaya.MFn.kMesh
-        )
-        if cmds.objExists(self.pointsDisplayTrans):
-            self.updateDisplayVerts([])
-            if isMesh:
-                geoType = "mesh"
-                outPlug = ".outMesh"
-                inPlug = ".inMesh"
-            elif self.isLattice:
-                geoType = "lattice"
-                outPlug = ".worldLattice"
-                inPlug = ".latticeInput"
-            else:  # self.isNurbsSurface:
-                geoType = "nurbsSurface" if self.isNurbsSurface else "nurbsCurve"
-                outPlug = ".worldSpace"
-                inPlug = ".create"
-            if cmds.nodeType(self.deformedShape) != geoType:
-                return  # something weird happening, not expected geo
 
-            (pointsDisplayNode,) = cmds.listRelatives(
-                self.pointsDisplayTrans, path=True, type="pointsDisplay"
+        if not cmds.objExists(self.pointsDisplayTrans):
+            return 
+
+        self.updateDisplayVerts([])
+        if self.isMesh:
+            geoType = "mesh"
+            outPlug = ".outMesh"
+            inPlug = ".inMesh"
+        elif self.isLattice:
+            geoType = "lattice"
+            outPlug = ".worldLattice"
+            inPlug = ".latticeInput"
+        else:  # self.isNurbsSurface:
+            geoType = "nurbsSurface" if self.isNurbsSurface else "nurbsCurve"
+            outPlug = ".worldSpace"
+            inPlug = ".create"
+        if cmds.nodeType(self.deformedShape) != geoType:
+            return  # something weird happening, not expected geo
+
+        (pointsDisplayNode,) = cmds.listRelatives(
+            self.pointsDisplayTrans, path=True, type="pointsDisplay"
+        )
+        pdt_geometry = cmds.listRelatives(
+            self.pointsDisplayTrans, path=True, type=geoType
+        )
+        if pdt_geometry:
+            pdt_geometry = pdt_geometry[0]
+            inGeoConn = cmds.listConnections(
+                pointsDisplayNode + ".inGeometry", s=True, d=False, p=True
             )
-            pdt_geometry = cmds.listRelatives(
-                self.pointsDisplayTrans, path=True, type=geoType
+            if not inGeoConn or inGeoConn[0] != pdt_geometry + outPlug:
+                cmds.connectAttr(
+                    pdt_geometry + outPlug,
+                    pointsDisplayNode + ".inGeometry",
+                    f=True,
+                )
+            inConn = cmds.listConnections(
+                pdt_geometry + inPlug, s=True, d=False, p=True, scn=True
             )
-            if pdt_geometry:
-                pdt_geometry = pdt_geometry[0]
-                inGeoConn = cmds.listConnections(
-                    pointsDisplayNode + ".inGeometry", s=True, d=False, p=True
+            if not inConn or inConn[0] != self.deformedShape + outPlug:
+                cmds.connectAttr(
+                    self.deformedShape + outPlug, pdt_geometry + inPlug, f=True
                 )
-                if not inGeoConn or inGeoConn[0] != pdt_geometry + outPlug:
-                    cmds.connectAttr(
-                        pdt_geometry + outPlug,
-                        pointsDisplayNode + ".inGeometry",
-                        f=True,
-                    )
-                inConn = cmds.listConnections(
-                    pdt_geometry + inPlug, s=True, d=False, p=True, scn=True
+        else:  # for the lattice direct connections
+            inConn = cmds.listConnections(
+                pointsDisplayNode + ".inGeometry", s=True, d=False, p=True, scn=True
+            )
+            if not inConn or inConn[0] != self.deformedShape + outPlug:
+                cmds.connectAttr(
+                    self.deformedShape + outPlug,
+                    pointsDisplayNode + ".inGeometry",
+                    f=True,
                 )
-                if not inConn or inConn[0] != self.deformedShape + outPlug:
-                    cmds.connectAttr(
-                        self.deformedShape + outPlug, pdt_geometry + inPlug, f=True
-                    )
-            else:  # for the lattice direct connections
-                inConn = cmds.listConnections(
-                    pointsDisplayNode + ".inGeometry", s=True, d=False, p=True, scn=True
-                )
-                if not inConn or inConn[0] != self.deformedShape + outPlug:
-                    cmds.connectAttr(
-                        self.deformedShape + outPlug,
-                        pointsDisplayNode + ".inGeometry",
-                        f=True,
-                    )
 
     def updateDisplayVerts(self, rowsSel):
         if not self.pointsDisplayTrans:
@@ -155,10 +160,6 @@ class DataAbstract(object):
             return
         if not cmds.objExists(self.deformedShape):
             return
-        isMesh = (
-            self.shapePath is not None
-            and self.shapePath.apiType() == OpenMaya.MFn.kMesh
-        )
         if cmds.objExists(self.pointsDisplayTrans):
             pointsDisplayTransChildren = cmds.listRelatives(
                 self.pointsDisplayTrans, path=True, type="pointsDisplay"
@@ -167,7 +168,7 @@ class DataAbstract(object):
                 return
             pointsDisplayNode = pointsDisplayTransChildren[0]
             if rowsSel != []:
-                if isMesh:
+                if self.isMesh:
                     selVertices = self.orderMelList(
                         [self.vertices[ind] for ind in rowsSel]
                     )
@@ -176,8 +177,8 @@ class DataAbstract(object):
                     inList = []
                     selectedVertices = [self.vertices[ind] for ind in rowsSel]
                     for indVtx in selectedVertices:
-                        indexV = indVtx % self.numCVsInV_
-                        indexU = indVtx / self.numCVsInV_
+                        indexV = indVtx % self.numCVsInV
+                        indexU = indVtx / self.numCVsInV
                         inList.append("cv[{0}][{1}]".format(indexU, indexV))
                 elif self.isLattice:
                     inList = []
@@ -202,125 +203,147 @@ class DataAbstract(object):
                     type="componentList"
                 )
 
+
+
+
+
+
     # functions utils
     def getDeformerFromSel(self, sel, typeOfDeformer="skinCluster"):
+        """ Get the deformers that are deforming the passed in object
+        It is technically possible for the deformed shape not to be a child of
+        `sel`, but it's extremely unlikely
+
+        Arguments:
+            sel (str): The object to get the deformer of
+            typeOfDeformer (str): The deformer type to look for
+
+        Returns:
+            str: The name of the deformer node. Empty string if no deformer found
+            str: The name of the deformed shape. Empty string if no shape found
+        """
         with GlobalContext(message="getDeformerFromSel", doPrint=self.verbose):
-            if sel:
-                selShape = cmds.ls(sel, objectsOnly=True)[0]
-                if cmds.ls(selShape, tr=True):  # if it's a transform get the shape
-                    selShape = (
-                        cmds.listRelatives(
-                            selShape, shapes=True, path=True, noIntermediate=True
-                        )
-                        or [""]
-                    )[0]
-                if not cmds.ls(selShape, shapes=True):
-                    return "", ""
-                hist = cmds.listHistory(
-                    selShape, lv=0, pruneDagObjects=True, interestLevel=True
+            if not sel:
+                return "", ""
+
+            selShape = cmds.ls(sel, objectsOnly=True)[0]
+            if cmds.ls(selShape, transforms=True):  # if it's a transform get the shape
+                selShape = cmds.listRelatives(
+                    selShape, shapes=True, path=True, noIntermediate=True
                 )
-                if typeOfDeformer is not None and hist:
-                    deformers = cmds.ls(hist, type=typeOfDeformer)
-                    if deformers:
-                        theDeformer = deformers[0]
-                        theDeformedShape = cmds.ls(
-                            cmds.listHistory(theDeformer, af=True, f=True), type="shape"
-                        )
-                        return theDeformer, theDeformedShape[0]
-                return "", selShape
-            return "", ""
+                selShape = selShape[0] if selShape else ""
+            if not cmds.ls(selShape, shapes=True):
+                return "", ""
+            hist = cmds.listHistory(
+                selShape, levels=0, pruneDagObjects=True, interestLevel=True
+            )
+            if typeOfDeformer is not None and hist:
+                deformers = cmds.ls(hist, type=typeOfDeformer)
+                if deformers:
+                    theDeformer = deformers[0]
+                    theDeformedShape = cmds.ls(
+                        cmds.listHistory(theDeformer, allFuture=True, future=True), type="shape"
+                    )
+                    return theDeformer, theDeformedShape[0]
+            return "", selShape
 
     def getSoftSelectionVertices(self, inputVertices=None):
-        dicOfSel = getSoftSelectionValuesNEW()
-        res = (
-            dicOfSel[self.deformedShape_longName]
-            if self.deformedShape_longName in dicOfSel
-            else []
-        )
+        """ Get the current soft selection weights, or the weights of a passed
+        set of vertices on the current deformed shape, and store that data
+        on the class
+        """
         if inputVertices is not None:
             res = inputVertices
+        else:
+            dicOfSel = getSoftSelectionValuesNEW()
+            res = dicOfSel.get(self.deformedShape_longName, [])
+
         if isinstance(res, tuple):
             self.vertices, self.verticesWeight = res
-            arr = np.argsort(self.verticesWeight)
-            self.sortedIndices = arr[::-1]
+            self.sortedIndices = np.argsort(self.verticesWeight)[::-1]
             self.opposite_sortedIndices = np.argsort(self.sortedIndices)
             # do the sorting
-            self.vertices = [self.vertices[ind] for ind in self.sortedIndices]
-            self.verticesWeight = [
-                self.verticesWeight[ind] for ind in self.sortedIndices
-            ]
+            self.vertices = self.vertices[self.sortedIndices]
+            self.verticesWeight = self.verticesWeight[self.sortedIndices]
         else:
             self.vertices = res
             self.verticesWeight = [1.0] * len(self.vertices)
             self.sortedIndices = list(range(len(self.vertices)))
             self.opposite_sortedIndices = list(range(len(self.vertices)))
 
-    def orderMelListValues(self, vertsIndicesWeights):
+    @staticmethod
+    def orderMelListValues(vertsIndicesWeights):
+        """ Convert the index/weight pairs into [range/weights] groups
+        The range is a (start, stop) *INCLUSIVE* pair, and the weights
+        are just a list of weights. If the range is only one long, then
+        the range will be an int, and the weight will be a float.
+
+        Doing `zip(range(start, stop+1), weights)` will recreate the
+        input list. Gotta handle the single cases though.
+
+        Arguments:
+            vertsIndicesWeights (list): A list of index/weight pairs
+
+        Returns:
+            list: The list of ranges and their weights as described above
+        """
+        # Separate the idxs and weights
         vertsIndicesWeights.sort(key=lambda x: x[0])
-        it = iter(vertsIndicesWeights)
-        currentIndex, currentWeight = next(it)
-        toReturn = []
-        while True:
-            try:
-                firstIndex, indexPlusOne = currentIndex, currentIndex
-                lstWeights = []
-                while currentIndex == indexPlusOne:
-                    lstWeights.append(currentWeight)
-                    indexPlusOne += 1
-                    currentIndex, currentWeight = next(it)
-                if firstIndex != (indexPlusOne - 1):
-                    toAppend = [(firstIndex, (indexPlusOne - 1)), lstWeights]
-                else:
-                    toAppend = [firstIndex, lstWeights[0]]
-                toReturn.append(toAppend)
-            except StopIteration:
-                if firstIndex != (indexPlusOne - 1):
-                    toAppend = [(firstIndex, (indexPlusOne - 1)), lstWeights]
-                else:
-                    toAppend = [firstIndex, lstWeights[0]]
-                toReturn.append(toAppend)
-                break
-        return toReturn
+        idxs, weights = zip(*vertsIndicesWeights)
+        idxs = np.array(idxs)
 
-    def orderMelList(self, listInd, onlyStr=True):
-        listInds = []
-        listIndString = []
+        # Split the array where adjacent numders differ by more than 1
+        cuts = np.where(idxs[1:] - idxs[:-1] != 1)[0]
+        splits = np.split(idxs, cuts + 1)
+        pointer = 0
+        out = []
 
-        it = iter(listInd)
-        currentValue = next(it)
-        while True:
-            try:
-                firstVal = currentValue
-                theVal = firstVal
-                while currentValue == theVal:
-                    currentValue = next(it)
-                    theVal += 1
-                theVal -= 1
-                if firstVal != theVal:
-                    toAppend = [firstVal, theVal]
-                else:
-                    toAppend = [firstVal]
-                if onlyStr:
-                    listIndString.append(":".join(map(six.text_type, toAppend)))
-                else:
-                    listInds.append(toAppend)
-            except StopIteration:
-                if firstVal != theVal:
-                    toAppend = [firstVal, theVal]
-                else:
-                    toAppend = [firstVal]
-                if onlyStr:
-                    listIndString.append(":".join(map(six.text_type, toAppend)))
-                else:
-                    listInds.append(toAppend)
-                break
+        # Use the split index chunks to make the range/weight pairs
+        for sp in splits:
+            if len(sp) == 1:
+                out.append((sp[0], weights[pointer]))
+            else:
+                out.append(((sp[0], sp[-1]), weights[pointer: pointer + len(sp)]))
+            pointer += len(sp)
+        return out
+
+    @staticmethod
+    def orderMelList(listInd, onlyStr=True):
+        """ Group listInd into compact chunks
+        If onlyStr is True, return the string values that would go into
+        the brackets in a mel selection
+
+        Arguments:
+            listInd (list): A list of integers
+            onlyStr (bool): Whether or not to return the mel string representation
+
+        Returns:
+            list: A list of *INCLUSIVE* ranges. If onlyStr == True, then those
+                ranges will be what would go into a mel selection bracket
+                Otherwise, the ranges will be pairs (or singles) of numbers
+        """
+        listInd = np.array(sorted(listInd))
+
+        # Split the array where adjacent numders differ by more than 1
+        cuts = np.where(listInd[1:] - listInd[:-1] != 1)[0]
+        splits = np.split(listInd, cuts + 1)
+        ranges = [[sp[0]] if len(sp) == 1 else [sp[0], sp[-1]] for sp in splits]
         if onlyStr:
-            return listIndString
-        else:
-            return listInds
+            ranges = [':'.join(map(str, rng)) for rng in ranges]
+        return ranges
 
     # functions for MObjects
-    def getMObject(self, nodeName, returnDagPath=True):
+    @staticmethod
+    def getMObject(nodeName, returnDagPath=True):
+        """ Get the MObject or MDagPath from a full path of a mesh shape node
+
+        Arguments:
+            nodeName (str): The full path to a mesh shape
+            returnDagPath (bool): Whether to return the dag path or MObject
+
+        Returns:
+            (MDagPath or MObject): The requested maya api object
+        """
         # We expect here the fullPath of a shape mesh
         selList = OpenMaya.MSelectionList()
         OpenMaya.MGlobal.getSelectionListByName(nodeName, selList)
@@ -334,17 +357,19 @@ class DataAbstract(object):
         return mshPath
 
     def getShapeInfo(self):
+        """ Store the info about the current shape node onto self """
         self.isNurbsSurface = False
         self.isLattice = False
+        self.isMesh = False
+        self.isNurbsCurve = False
 
         self.shapePath = self.getMObject(self.deformedShape)
         if self.shapePath.apiType() == OpenMaya.MFn.kNurbsSurface:
             self.isNurbsSurface = True
             MfnSurface = OpenMaya.MFnNurbsSurface(self.shapePath)
-            self.numCVsInV_ = MfnSurface.numCVsInV()
-            self.numCVsInU_ = MfnSurface.numCVsInU()
-
-            self.nbVertices = self.numCVsInV_ * self.numCVsInU_
+            self.numCVsInV = MfnSurface.numCVsInV()
+            self.numCVsInU = MfnSurface.numCVsInU()
+            self.nbVertices = self.numCVsInV * self.numCVsInU
         elif self.shapePath.apiType() == OpenMaya.MFn.kLattice:
             self.isLattice = True
             div_s = cmds.getAttr(self.deformedShape + ".sDivisions")
@@ -356,32 +381,72 @@ class DataAbstract(object):
                 self.deformedShape + ".degree"
             ) + cmds.getAttr(self.deformedShape + ".spans")
         elif self.shapePath.apiType() == OpenMaya.MFn.kMesh:
+            self.isMesh = True
             self.nbVertices = cmds.polyEvaluate(self.deformedShape, vertex=True)
+        elif self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve:
+            self.isNurbsCurve = True
+
+    @staticmethod
+    def _getLatticePoints(theMObject, cvPoints):
+        """ Fill an MPointArray for a lattice defined in theMObject """
+        s_util = OpenMaya.MScriptUtil()
+        t_util = OpenMaya.MScriptUtil()
+        u_util = OpenMaya.MScriptUtil()
+
+        s_util.createFromInt(0)
+        t_util.createFromInt(0)
+        u_util.createFromInt(0)
+
+        s_ptr = s_util.asIntPtr()
+        t_ptr = t_util.asIntPtr()
+        u_ptr = u_util.asIntPtr()
+
+        latticeFn = OpenMaya.MFnLattice(theMObject)
+        latticeFn.getDivisions(s_ptr, t_ptr, u_ptr)
+
+        s_num = s_util.getInt(s_ptr)
+        t_num = t_util.getInt(t_ptr)
+        u_num = u_util.getInt(u_ptr)
+
+        cvPoints.setLength(s_num, t_num, u_num)
+        idx = 0
+        for s in range(s_num):
+            for t in range(t_num):
+                for u in range(u_num):
+                    cvPoints[idx] = latticeFn.point(s, t, u)
+                    idx += 1
 
     def getVerticesShape(self, theMObject):
-        if self.shapePath.apiType() == OpenMaya.MFn.kMesh:
+        """ Get the vertices from the shape """
+        cvPoints = OpenMaya.MPointArray()
+        if self.isMesh:
             theMesh = OpenMaya.MFnMesh(theMObject)
-            lent = theMesh.numVertices() * 3
+            theMesh.getPoints(cvPoints)
+        elif self.isNurbsCurve:
+            crvFn = OpenMaya.MFnNurbsCurve(theMObject)
+            crvFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
+        elif self.isNurbsSurface:
+            surfaceFn = OpenMaya.MFnNurbsSurface(theMObject)
+            surfaceFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
+        elif self.isLattice:
+            self._getLatticePoints(theMObject, cvPoints)
 
-            cta = (c_float * lent).from_address(int(theMesh.getRawPoints()))
-            arr = np.ctypeslib.as_array(cta)
-            theVertices = np.reshape(arr, (-1, 3))
-        else:
-            cvPoints = OpenMaya.MPointArray()
-            if self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve:
-                crvFn = OpenMaya.MFnNurbsCurve(theMObject)
-                crvFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
-            elif self.shapePath.apiType() == OpenMaya.MFn.kNurbsSurface:
-                surfaceFn = OpenMaya.MFnNurbsSurface(theMObject)
-                surfaceFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
-            pointList = []
-            for i in range(cvPoints.length()):
-                pointList.append([cvPoints[i][0], cvPoints[i][1], cvPoints[i][2]])
-            theVertices = np.array(pointList)
-        verticesPosition = np.take(theVertices, self.vertices, axis=0)
-        return verticesPosition
+        theVertices = mayaToNumpy(cvPoints)
+        theVertices = theVertices[:, :3]
+        return np.take(theVertices, self.vertices, axis=0)
+
+
+
+
+
+
+
+    # STARRT HERE
+
+
 
     def getConnectVertices(self):
+        """ Get the neighbors of all the vertices in a mesh """
         if self.shapePath.apiType() != OpenMaya.MFn.kMesh:
             return
         if self.verbose:
@@ -389,42 +454,30 @@ class DataAbstract(object):
         theMeshFn = OpenMaya.MFnMesh(self.shapePath)
         vertexCount = OpenMaya.MIntArray()
         vertexList = OpenMaya.MIntArray()
-
         theMeshFn.getVertices(vertexCount, vertexList)
-        # sum it cumulative
-        vertCount = self.getMIntArray(vertexCount).tolist()
-        vertexList = self.getMIntArray(vertexList).tolist()
+        vertCount = mayaToNumpy(vertexCount).tolist()
+        vertexList = mayaToNumpy(vertexList).tolist()
 
-        self.vertNeighboors = {}
+        self.vertNeighbors = {}
         sumVerts = 0
         for nbVertsInFace in vertCount:
-            QApplication.processEvents()
             verticesInPolygon = vertexList[sumVerts: sumVerts + nbVertsInFace]
             for i in range(nbVertsInFace):
-                self.vertNeighboors.setdefault(verticesInPolygon[i], []).extend(
-                    verticesInPolygon[:i] + verticesInPolygon[i + 1 :]
+                self.vertNeighbors.setdefault(verticesInPolygon[i], []).extend(
+                    verticesInPolygon[:i] + verticesInPolygon[i + 1:]
                 )
             sumVerts += nbVertsInFace
         theMax = 0
         self.nbNeighBoors = {}
-        for vtx, lst in six.iteritems(self.vertNeighboors):
-            QApplication.processEvents()
-            self.vertNeighboors[vtx] = list(set(lst))
-            newMax = len(self.vertNeighboors[vtx])
+        for vtx, lst in six.iteritems(self.vertNeighbors):
+            self.vertNeighbors[vtx] = list(set(lst))
+            newMax = len(self.vertNeighbors[vtx])
             self.nbNeighBoors[vtx] = newMax
             if newMax > theMax:
                 theMax = newMax
         self.maxNeighboors = theMax
         if self.verbose:
             print("end - getConnectVertices")
-
-    def getMIntArray(self, theArr):
-        res = OpenMaya.MScriptUtil(theArr)
-        ptr = res.asIntPtr()
-        ptCount = theArr.length()
-        cta = (c_int * ptCount).from_address(int(ptr))
-        out = np.ctypeslib.as_array(cta)
-        return np.copy(out)
 
     # functions for numpy
     def printArrayData(self, theArr):
@@ -698,8 +751,8 @@ class DataAbstract(object):
         if self.isNurbsSurface:
             self.rowText = []
             for indVtx in self.vertices:
-                indexV = indVtx % self.numCVsInV_
-                indexU = indVtx / self.numCVsInV_
+                indexV = indVtx % self.numCVsInV
+                indexU = indVtx / self.numCVsInV
                 self.rowText.append(" {0} - {1} ".format(indexU, indexV))
         elif self.isLattice:
             self.rowText = []
@@ -735,8 +788,8 @@ class DataAbstract(object):
         if self.isNurbsSurface:
             toSel = []
             for indVtx in selectedVertices:
-                indexV = indVtx % self.numCVsInV_
-                indexU = indVtx / self.numCVsInV_
+                indexV = indVtx % self.numCVsInV
+                indexU = indVtx / self.numCVsInV
                 toSel += ["{0}.cv[{1}][{2}]".format(self.deformedShape, indexU, indexV)]
         elif self.isLattice:
             toSel = []

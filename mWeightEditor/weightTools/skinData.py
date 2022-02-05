@@ -51,8 +51,8 @@ class DataOfSkin(DataAbstract):
         if self.isNurbsSurface:
             listCVsIndices = []
             for indVtx in selectedVertices:
-                indexV = indVtx % self.numCVsInV_
-                indexU = indVtx / self.numCVsInV_
+                indexV = indVtx % self.numCVsInV
+                indexU = indVtx / self.numCVsInV
                 listCVsIndices.append((indexU, indexV))
             cmds.blurSkinCmd(
                 command="smooth",
@@ -690,16 +690,16 @@ class DataOfSkin(DataAbstract):
             componentAlreadyBuild = True
             componentType = OpenMaya.MFn.kSurfaceCVComponent
             MfnSurface = OpenMaya.MFnNurbsSurface(self.shapePath)
-            self.numCVsInV_ = MfnSurface.numCVsInV()
-            numCVsInU_ = MfnSurface.numCVsInU()
+            self.numCVsInV = MfnSurface.numCVsInV()
+            numCVsInU = MfnSurface.numCVsInU()
             fnComponent = OpenMaya.MFnDoubleIndexedComponent()
             self.fullComponent = fnComponent.create(componentType)
             if not indices:
-                fnComponent.setCompleteData(numCVsInU_, self.numCVsInV_)
+                fnComponent.setCompleteData(numCVsInU, self.numCVsInV)
             else:
                 for indVtx in revertSortedIndices:
-                    indexV = indVtx % self.numCVsInV_
-                    indexU = indVtx / self.numCVsInV_
+                    indexV = indVtx % self.numCVsInV
+                    indexU = indVtx / self.numCVsInV
                     fnComponent.addElement(indexU, indexV)
         elif self.shapePath.apiType() == OpenMaya.MFn.kLattice:  # lattice
             self.isLattice = True
@@ -933,8 +933,8 @@ class DataOfSkin(DataAbstract):
             self.userComponents = fnComponent.create(componentType)
 
             for indVtx in self.indicesVertices:
-                indexV = int(indVtx % self.numCVsInV_)
-                indexU = int(indVtx / self.numCVsInV_)
+                indexV = int(indVtx % self.numCVsInV)
+                indexU = int(indVtx / self.numCVsInV)
                 fnComponent.addElement(indexU, indexV)
         elif self.isLattice:
             componentType = OpenMaya.MFn.kLatticeComponent
@@ -1042,8 +1042,8 @@ class DataOfSkin(DataAbstract):
         if self.isNurbsSurface:
             toSel = []
             for indVtx in selectedVertices:
-                indexV = indVtx % self.numCVsInV_
-                indexU = indVtx / self.numCVsInV_
+                indexV = indVtx % self.numCVsInV
+                indexU = indVtx / self.numCVsInV
                 toSel += ["{0}.cv[{1}][{2}]".format(self.deformedShape, indexU, indexV)]
         elif self.isLattice:
             toSel = []

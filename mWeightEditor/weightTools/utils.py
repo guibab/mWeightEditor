@@ -228,7 +228,7 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
                             elementIndices.append(singleFn.element(i))
                             elementWeights.append(weight)
                 elif componentFn.componentType() == OpenMaya.MFn.kSurfaceCVComponent:
-                    numCVsInV_ = cmds.getAttr(depNode_name + ".spansV") + cmds.getAttr(
+                    numCVsInV = cmds.getAttr(depNode_name + ".spansV") + cmds.getAttr(
                         depNode_name + ".degreeV"
                     )
 
@@ -239,7 +239,7 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
                         u = uVal.getInt(ptru)
                         v = vVal.getInt(ptrv)
                         if returnSimpleIndices:
-                            elementIndices.append(numCVsInV_ * u + v)
+                            elementIndices.append(numCVsInV * u + v)
                         else:
                             elementIndices.append((u, v))
                         elementWeights.append(weight)
