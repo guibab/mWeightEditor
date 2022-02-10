@@ -1,6 +1,5 @@
 # https://github.com/chadmv/cmt/blob/master/scripts/cmt/deform/skinio.py
-from __future__ import print_function
-from __future__ import absolute_import
+from __future__ import print_function, absolute_import
 from ..Qt.QtWidgets import QApplication
 from maya import OpenMaya
 import maya.api.OpenMaya as OpenMaya2
@@ -11,66 +10,71 @@ from ctypes import c_float, c_int
 import numpy as np
 from .utils import GlobalContext, getSoftSelectionValuesNEW, getThreeIndices
 import six
-from six.moves import range
+from six.moves import range, map
 
 
 def isin(element, test_elements, assume_unique=False, invert=False):
     element = np.asarray(element)
-    return np.in1d(element, test_elements, assume_unique=assume_unique, invert=invert).reshape(
-        element.shape
-    )
+    return np.in1d(
+        element, test_elements, assume_unique=assume_unique, invert=invert
+    ).reshape(element.shape)
 
 
-###################################################################################
-#
-#   GLOBAL FUNCTIONS
-#
-###################################################################################
+# GLOBAL FUNCTIONS
 class DataAbstract(object):
     verbose = False
 
     def __init__(self, createDisplayLocator=True, mainWindow=None):
         self.mainWindow = mainWindow
         self.isSkinData = False
-        sel = cmds.ls(sl=True)
-        hil = cmds.ls(hilite=True)
         self.pointsDisplayTrans = None
-        if createDisplayLocator:
-            self.createDisplayLocator()
-        cmds.select(sel)
-        cmds.hilite(hil)
+        self.shapePath = None
+        self.deformedShape = None
 
-    # -----------------------------------------------------------------------------------------------------------
-    # locator Functions ----------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+        if createDisplayLocator:
+            sel = cmds.ls(sl=True)
+            hil = cmds.ls(hilite=True)
+            self.createDisplayLocator()
+            cmds.select(sel)
+            cmds.hilite(hil)
+
+    # locator Functions
     def createDisplayLocator(self, forceSelection=False):
         self.pointsDisplayTrans = None
         if not cmds.pluginInfo("blurSkin", query=True, loaded=True):
             cmds.loadPlugin("blurSkin")
+
         if cmds.ls("MSkinWeightEditorDisplay*"):
             cmds.delete(cmds.ls("MSkinWeightEditorDisplay*"))
         self.pointsDisplayTrans = cmds.createNode(
-            "transform", n="MSkinWeightEditorDisplay", skipSelect=True
+            "transform", name="MSkinWeightEditorDisplay", skipSelect=True
         )
 
         pointsDisplayNode = cmds.createNode(
-            "pointsDisplay", p=self.pointsDisplayTrans, skipSelect=True
+            "pointsDisplay", parent=self.pointsDisplayTrans, skipSelect=True
         )
-        # add to the Isolate of all ---------------------------------------------------------
+        cmds.setAttr(pointsDisplayNode + ".pointWidth", 5)
+        cmds.setAttr(pointsDisplayNode + ".inputColor", 0.0, 1.0, 1.0)
+
+        # add to the Isolate of all
         if forceSelection:
             cmds.select(self.pointsDisplayTrans, add=True)
             # that's added because the isolate doesnt work otherwise, it's dumb I know
         listModelPanels = [
-            el for el in cmds.getPanel(vis=True) if cmds.getPanel(to=el) == "modelPanel"
+            el
+            for el in cmds.getPanel(visiblePanels=True)
+            if cmds.getPanel(typeOf=el) == "modelPanel"
         ]
         for thePanel in listModelPanels:
-            if cmds.isolateSelect(thePanel, q=True, state=True):
-                cmds.isolateSelect(thePanel, addDagObject=self.pointsDisplayTrans)  # doesnt work
-        cmds.setAttr(pointsDisplayNode + ".pointWidth", 5)
-        cmds.setAttr(pointsDisplayNode + ".inputColor", 0.0, 1.0, 1.0)
+            if cmds.isolateSelect(thePanel, query=True, state=True):
+                cmds.isolateSelect(
+                    thePanel, addDagObject=self.pointsDisplayTrans
+                )  # doesnt work
 
         if forceSelection:
-            cmds.evalDeferred(lambda: cmds.select(self.pointsDisplayTrans, d=True))
+            cmds.evalDeferred(
+                lambda: cmds.select(self.pointsDisplayTrans, deselect=True)
+            )
             # that's added because the isolate doesnt work otherwise, it's dumb I know
 
     def removeDisplayLocator(self):
@@ -87,8 +91,7 @@ class DataAbstract(object):
         if not self.pointsDisplayTrans:
             return
         isMesh = (
-            "shapePath" in self.__dict__
-            and self.shapePath is not None
+            self.shapePath is not None
             and self.shapePath.apiType() == OpenMaya.MFn.kMesh
         )
         if cmds.objExists(self.pointsDisplayTrans):
@@ -111,7 +114,9 @@ class DataAbstract(object):
             (pointsDisplayNode,) = cmds.listRelatives(
                 self.pointsDisplayTrans, path=True, type="pointsDisplay"
             )
-            pdt_geometry = cmds.listRelatives(self.pointsDisplayTrans, path=True, type=geoType)
+            pdt_geometry = cmds.listRelatives(
+                self.pointsDisplayTrans, path=True, type=geoType
+            )
             if pdt_geometry:
                 pdt_geometry = pdt_geometry[0]
                 inGeoConn = cmds.listConnections(
@@ -119,20 +124,26 @@ class DataAbstract(object):
                 )
                 if not inGeoConn or inGeoConn[0] != pdt_geometry + outPlug:
                     cmds.connectAttr(
-                        pdt_geometry + outPlug, pointsDisplayNode + ".inGeometry", f=True
+                        pdt_geometry + outPlug,
+                        pointsDisplayNode + ".inGeometry",
+                        f=True,
                     )
                 inConn = cmds.listConnections(
                     pdt_geometry + inPlug, s=True, d=False, p=True, scn=True
                 )
                 if not inConn or inConn[0] != self.deformedShape + outPlug:
-                    cmds.connectAttr(self.deformedShape + outPlug, pdt_geometry + inPlug, f=True)
-            else:  # for the lattice direct connections -------------------------------------
+                    cmds.connectAttr(
+                        self.deformedShape + outPlug, pdt_geometry + inPlug, f=True
+                    )
+            else:  # for the lattice direct connections
                 inConn = cmds.listConnections(
                     pointsDisplayNode + ".inGeometry", s=True, d=False, p=True, scn=True
                 )
                 if not inConn or inConn[0] != self.deformedShape + outPlug:
                     cmds.connectAttr(
-                        self.deformedShape + outPlug, pointsDisplayNode + ".inGeometry", f=True
+                        self.deformedShape + outPlug,
+                        pointsDisplayNode + ".inGeometry",
+                        f=True,
                     )
 
     def updateDisplayVerts(self, rowsSel):
@@ -140,13 +151,12 @@ class DataAbstract(object):
             return
         if isinstance(rowsSel, np.ndarray):
             rowsSel = rowsSel.tolist()
-        if "deformedShape" not in self.__dict__:
+        if self.deformedShape is None:
             return
         if not cmds.objExists(self.deformedShape):
             return
         isMesh = (
-            "shapePath" in self.__dict__
-            and self.shapePath is not None
+            self.shapePath is not None
             and self.shapePath.apiType() == OpenMaya.MFn.kMesh
         )
         if cmds.objExists(self.pointsDisplayTrans):
@@ -158,7 +168,9 @@ class DataAbstract(object):
             pointsDisplayNode = pointsDisplayTransChildren[0]
             if rowsSel != []:
                 if isMesh:
-                    selVertices = self.orderMelList([self.vertices[ind] for ind in rowsSel])
+                    selVertices = self.orderMelList(
+                        [self.vertices[ind] for ind in rowsSel]
+                    )
                     inList = ["vtx[{0}]".format(el) for el in selVertices]
                 elif self.isNurbsSurface:
                     inList = []
@@ -177,7 +189,9 @@ class DataAbstract(object):
                         s, t, u = getThreeIndices(div_s, div_t, div_u, indVtx)
                         inList.append("pt[{0}][{1}][{2}]".format(s, t, u))
                 else:
-                    selVertices = self.orderMelList([self.vertices[ind] for ind in rowsSel])
+                    selVertices = self.orderMelList(
+                        [self.vertices[ind] for ind in rowsSel]
+                    )
                     inList = ["cv[{0}]".format(el) for el in selVertices]
             else:
                 inList = []
@@ -188,21 +202,23 @@ class DataAbstract(object):
                     type="componentList"
                 )
 
-    # -----------------------------------------------------------------------------------------------------------
-    # functions utils ------------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # functions utils
     def getDeformerFromSel(self, sel, typeOfDeformer="skinCluster"):
         with GlobalContext(message="getDeformerFromSel", doPrint=self.verbose):
             if sel:
                 selShape = cmds.ls(sel, objectsOnly=True)[0]
                 if cmds.ls(selShape, tr=True):  # if it's a transform get the shape
                     selShape = (
-                        cmds.listRelatives(selShape, shapes=True, path=True, noIntermediate=True)
+                        cmds.listRelatives(
+                            selShape, shapes=True, path=True, noIntermediate=True
+                        )
                         or [""]
                     )[0]
                 if not cmds.ls(selShape, shapes=True):
                     return "", ""
-                hist = cmds.listHistory(selShape, lv=0, pruneDagObjects=True, interestLevel=True)
+                hist = cmds.listHistory(
+                    selShape, lv=0, pruneDagObjects=True, interestLevel=True
+                )
                 if typeOfDeformer is not None and hist:
                     deformers = cmds.ls(hist, type=typeOfDeformer)
                     if deformers:
@@ -217,7 +233,9 @@ class DataAbstract(object):
     def getSoftSelectionVertices(self, inputVertices=None):
         dicOfSel = getSoftSelectionValuesNEW()
         res = (
-            dicOfSel[self.deformedShape_longName] if self.deformedShape_longName in dicOfSel else []
+            dicOfSel[self.deformedShape_longName]
+            if self.deformedShape_longName in dicOfSel
+            else []
         )
         if inputVertices is not None:
             res = inputVertices
@@ -228,7 +246,9 @@ class DataAbstract(object):
             self.opposite_sortedIndices = np.argsort(self.sortedIndices)
             # do the sorting
             self.vertices = [self.vertices[ind] for ind in self.sortedIndices]
-            self.verticesWeight = [self.verticesWeight[ind] for ind in self.sortedIndices]
+            self.verticesWeight = [
+                self.verticesWeight[ind] for ind in self.sortedIndices
+            ]
         else:
             self.vertices = res
             self.verticesWeight = [1.0] * len(self.vertices)
@@ -237,9 +257,8 @@ class DataAbstract(object):
 
     def orderMelListValues(self, vertsIndicesWeights):
         vertsIndicesWeights.sort(key=lambda x: x[0])
-        # print vertsIndicesWeights
         it = iter(vertsIndicesWeights)
-        currentIndex, currentWeight = it.next()
+        currentIndex, currentWeight = next(it)
         toReturn = []
         while True:
             try:
@@ -248,7 +267,7 @@ class DataAbstract(object):
                 while currentIndex == indexPlusOne:
                     lstWeights.append(currentWeight)
                     indexPlusOne += 1
-                    currentIndex, currentWeight = it.next()
+                    currentIndex, currentWeight = next(it)
                 if firstIndex != (indexPlusOne - 1):
                     toAppend = [(firstIndex, (indexPlusOne - 1)), lstWeights]
                 else:
@@ -268,13 +287,13 @@ class DataAbstract(object):
         listIndString = []
 
         it = iter(listInd)
-        currentValue = it.next()
+        currentValue = next(it)
         while True:
             try:
                 firstVal = currentValue
                 theVal = firstVal
                 while currentValue == theVal:
-                    currentValue = it.next()
+                    currentValue = next(it)
                     theVal += 1
                 theVal -= 1
                 if firstVal != theVal:
@@ -300,9 +319,7 @@ class DataAbstract(object):
         else:
             return listInds
 
-    # -----------------------------------------------------------------------------------------------------------
-    # functions for MObjects  ----------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # functions for MObjects
     def getMObject(self, nodeName, returnDagPath=True):
         # We expect here the fullPath of a shape mesh
         selList = OpenMaya.MSelectionList()
@@ -321,32 +338,28 @@ class DataAbstract(object):
         self.isLattice = False
 
         self.shapePath = self.getMObject(self.deformedShape)
-        if (
-            self.shapePath.apiType() == OpenMaya.MFn.kNurbsSurface
-        ):
+        if self.shapePath.apiType() == OpenMaya.MFn.kNurbsSurface:
             self.isNurbsSurface = True
             MfnSurface = OpenMaya.MFnNurbsSurface(self.shapePath)
             self.numCVsInV_ = MfnSurface.numCVsInV()
             self.numCVsInU_ = MfnSurface.numCVsInU()
 
             self.nbVertices = self.numCVsInV_ * self.numCVsInU_
-        elif self.shapePath.apiType() == OpenMaya.MFn.kLattice:  # lattice
+        elif self.shapePath.apiType() == OpenMaya.MFn.kLattice:
             self.isLattice = True
             div_s = cmds.getAttr(self.deformedShape + ".sDivisions")
             div_t = cmds.getAttr(self.deformedShape + ".tDivisions")
             div_u = cmds.getAttr(self.deformedShape + ".uDivisions")
             self.nbVertices = div_s * div_t * div_u
-        elif self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve:  # curve
-            self.nbVertices = cmds.getAttr(self.deformedShape + ".degree") + cmds.getAttr(
-                self.deformedShape + ".spans"
-            )
-        elif self.shapePath.apiType() == OpenMaya.MFn.kMesh:  # mesh
+        elif self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve:
+            self.nbVertices = cmds.getAttr(
+                self.deformedShape + ".degree"
+            ) + cmds.getAttr(self.deformedShape + ".spans")
+        elif self.shapePath.apiType() == OpenMaya.MFn.kMesh:
             self.nbVertices = cmds.polyEvaluate(self.deformedShape, vertex=True)
 
     def getVerticesShape(self, theMObject):
-        if (
-            self.shapePath.apiType() == OpenMaya.MFn.kMesh
-        ):
+        if self.shapePath.apiType() == OpenMaya.MFn.kMesh:
             theMesh = OpenMaya.MFnMesh(theMObject)
             lent = theMesh.numVertices() * 3
 
@@ -355,14 +368,10 @@ class DataAbstract(object):
             theVertices = np.reshape(arr, (-1, 3))
         else:
             cvPoints = OpenMaya.MPointArray()
-            if (
-                self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve
-            ):
+            if self.shapePath.apiType() == OpenMaya.MFn.kNurbsCurve:
                 crvFn = OpenMaya.MFnNurbsCurve(theMObject)
                 crvFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
-            elif (
-                self.shapePath.apiType() == OpenMaya.MFn.kNurbsSurface
-            ):
+            elif self.shapePath.apiType() == OpenMaya.MFn.kNurbsSurface:
                 surfaceFn = OpenMaya.MFnNurbsSurface(theMObject)
                 surfaceFn.getCVs(cvPoints, OpenMaya.MSpace.kObject)
             pointList = []
@@ -382,7 +391,7 @@ class DataAbstract(object):
         vertexList = OpenMaya.MIntArray()
 
         theMeshFn.getVertices(vertexCount, vertexList)
-        # sum it cumulative -------------------------------------------
+        # sum it cumulative
         vertCount = self.getMIntArray(vertexCount).tolist()
         vertexList = self.getMIntArray(vertexList).tolist()
 
@@ -390,38 +399,34 @@ class DataAbstract(object):
         sumVerts = 0
         for nbVertsInFace in vertCount:
             QApplication.processEvents()
-            verticesInPolygon = vertexList[sumVerts : sumVerts + nbVertsInFace]
+            verticesInPolygon = vertexList[sumVerts: sumVerts + nbVertsInFace]
             for i in range(nbVertsInFace):
                 self.vertNeighboors.setdefault(verticesInPolygon[i], []).extend(
-                    verticesInPolygon[0:i] + verticesInPolygon[i + 1 :]
+                    verticesInPolygon[:i] + verticesInPolygon[i + 1 :]
                 )
             sumVerts += nbVertsInFace
         theMax = 0
         self.nbNeighBoors = {}
-        for vtx, lst in self.vertNeighboors.iteritems():
+        for vtx, lst in six.iteritems(self.vertNeighboors):
             QApplication.processEvents()
             self.vertNeighboors[vtx] = list(set(lst))
             newMax = len(self.vertNeighboors[vtx])
             self.nbNeighBoors[vtx] = newMax
             if newMax > theMax:
                 theMax = newMax
-        # print "theMax ", theMax
         self.maxNeighboors = theMax
         if self.verbose:
             print("end - getConnectVertices")
 
     def getMIntArray(self, theArr):
         res = OpenMaya.MScriptUtil(theArr)
-        util = OpenMaya.MScriptUtil()
         ptr = res.asIntPtr()
         ptCount = theArr.length()
         cta = (c_int * ptCount).from_address(int(ptr))
         out = np.ctypeslib.as_array(cta)
         return np.copy(out)
 
-    # -----------------------------------------------------------------------------------------------------------
-    # functions for numpy --------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # functions for numpy
     def printArrayData(self, theArr):
         rows = theArr.shape[0]
         cols = theArr.shape[1]
@@ -440,11 +445,13 @@ class DataAbstract(object):
             print(toPrint)
         print("\n")
 
-    # -----------------------------------------------------------------------------------------------------------
-    # get the data --------------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # get the data
     def clearData(self):
-        self.deformedShape, self.shapeShortName, self.deformedShape_longName = "", "", ""
+        self.deformedShape, self.shapeShortName, self.deformedShape_longName = (
+            "",
+            "",
+            "",
+        )
         self.theDeformer = ""
         self.isNurbsSurface = False
 
@@ -469,11 +476,11 @@ class DataAbstract(object):
         self.usedDeformersIndices = []
         self.hideColumnIndices = []
         self.fullShapeIsUsed = False
-        # for soft order ----------------
+        # for soft order
         self.sortedIndices = []
         self.opposite_sortedIndices = []
 
-        # undo stack --------------------
+        # undo stack
         self.storeUndo = True
         self.undoValues = None
         self.redoValues = None
@@ -490,7 +497,7 @@ class DataAbstract(object):
     ):
         with GlobalContext(message="getDataFromSelection", doPrint=self.verbose):
             if inputVertices is not None:
-                inputVertices = map(int, inputVertices)
+                inputVertices = list(map(int, inputVertices))
             sel = cmds.ls(sl=True)
             if theDeformer is None or deformedShape is None:
                 theDeformer, deformedShape = self.getDeformerFromSel(
@@ -517,19 +524,19 @@ class DataAbstract(object):
             if not force and isPreloaded:
                 return False
             self.shapeShortName = (
-                cmds.listRelatives(deformedShape, p=True)[0].split(":")[-1].split("|")[-1]
+                cmds.listRelatives(deformedShape, p=True)[0]
+                .split(":")[-1]
+                .split("|")[-1]
             )
             splt = self.shapeShortName.split("_")
             if len(splt) > 5:
                 self.shapeShortName = "_".join(splt[-7:-4])
-            (self.deformedShape_longName,) = cmds.ls(deformedShape, l=True)
+            (self.deformedShape_longName,) = cmds.ls(deformedShape, long=True)
 
             self.raw2dArray = None
             return True
 
-    # -----------------------------------------------------------------------------------------------------------
-    # values setting -------------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # values setting
     def pruneOnArray(self, theArray, theMask, pruneValue):
         unLock = np.ma.array(theArray.copy(), mask=theMask, fill_value=0)
         np.copyto(theArray, np.full(unLock.shape, 0), where=unLock < pruneValue)
@@ -552,18 +559,18 @@ class DataAbstract(object):
 
             np.copyto(new2dArray, absValues, where=self.sumMasks)
             if self.softOn:  # mult soft Value
-                new2dArray = (
-                    new2dArray * self.indicesWeights[:, np.newaxis]
-                    + self.orig2dArray * (1.0 - self.indicesWeights)[:, np.newaxis]
-                )
+                iw = self.indicesWeights[:, np.newaxis]
+                new2dArray = new2dArray * iw + self.orig2dArray * (1.0 - iw)
             self.commandForDoIt(new2dArray)
 
-    def doAdd(self, val, percent=False, autoPrune=False, average=False, autoPruneValue=0.0001):
+    def doAdd(
+        self, val, percent=False, autoPrune=False, average=False, autoPruneValue=0.0001
+    ):
         with GlobalContext(message="absoluteVal", doPrint=self.verbose):
             new2dArray = np.copy(self.orig2dArray)
             selectArr = np.copy(self.orig2dArray)
 
-            # remaining array 
+            # remaining array
             remainingArr = np.copy(self.orig2dArray)
             remainingData = np.ma.array(remainingArr, mask=~self.rmMasks, fill_value=0)
             sum_remainingData = remainingData.sum(axis=1)
@@ -573,15 +580,12 @@ class DataAbstract(object):
             sumMasksUpdate = self.sumMasks.copy()
             sumMasksUpdate[zeroRemainingIndices, :] = False
 
-            # add the values 
+            # add the values
             theMask = sumMasksUpdate if val < 0.0 else self.sumMasks
 
             if percent:
-                addValues = (
-                    np.ma.array(selectArr, mask=~theMask, fill_value=0)
-                    + np.ma.array(selectArr, mask=~theMask, fill_value=0) * val
-                )
-
+                maskAry = np.ma.array(selectArr, mask=~theMask, fill_value=0)
+                addValues = maskAry + maskAry * val
             else:
                 addValues = np.ma.array(selectArr, mask=~theMask, fill_value=0) + val
             # clip it
@@ -591,16 +595,14 @@ class DataAbstract(object):
                 self.pruneOnArray(addValues, addValues.mask, autoPruneValue)
             np.copyto(new2dArray, addValues, where=~addValues.mask)
             if self.softOn:  # mult soft Value
-                new2dArray = (
-                    new2dArray * self.indicesWeights[:, np.newaxis]
-                    + self.orig2dArray * (1.0 - self.indicesWeights)[:, np.newaxis]
-                )
+                iw = self.indicesWeights[:, np.newaxis]
+                new2dArray = new2dArray * iw + self.orig2dArray * (1.0 - iw)
             self.commandForDoIt(new2dArray)
 
     def preSettingValuesFn(self, chunks, actualyVisibleColumns):
-        self.storeUndo = (
-            True  # it tells us that before the first set we need to store values for the undo
-        )
+        # this tells us that before the first set we need to store values for the undo
+        self.storeUndo = True
+
         # MASK selection array
         lstTopBottom = []
         for top, bottom, left, right in chunks:
@@ -611,15 +613,15 @@ class DataAbstract(object):
         nbRows = self.Mbottom - self.Mtop + 1
 
         # GET the sub ARRAY
-        self.sub2DArrayToSet = self.display2dArray[
-            self.Mtop : self.Mbottom + 1,
-        ]
+        self.sub2DArrayToSet = self.display2dArray[self.Mtop: self.Mbottom + 1]
         self.orig2dArray = np.copy(self.sub2DArrayToSet)
 
         # GET the mask ARRAY
         maskSelection = np.full(self.orig2dArray.shape, False, dtype=bool)
         for top, bottom, left, right in chunks:
-            maskSelection[top - self.Mtop : bottom - self.Mtop + 1, left : right + 1] = True
+            maskSelection[
+                top - self.Mtop: bottom - self.Mtop + 1, left: right + 1
+            ] = True
         maskOppSelection = ~maskSelection
         # remove from mask hiddenColumns indices
         hiddenColumns = np.setdiff1d(self.hideColumnIndices, actualyVisibleColumns)
@@ -632,7 +634,9 @@ class DataAbstract(object):
         # get the mask of the locks
         self.lockedMask = np.tile(self.lockedColumns, (nbRows, 1))
         lockedRows = [
-            ind for ind in range(nbRows) if self.vertices[ind + self.Mtop] in self.lockedVertices
+            ind
+            for ind in range(nbRows)
+            if self.vertices[ind + self.Mtop] in self.lockedVertices
         ]
         self.lockedMask[lockedRows] = True
 
@@ -646,7 +650,10 @@ class DataAbstract(object):
             [self.vertices[indRow] for indRow in range(self.Mtop, self.Mbottom + 1)]
         )
         self.indicesWeights = np.array(
-            [self.verticesWeight[indRow] for indRow in range(self.Mtop, self.Mbottom + 1)]
+            [
+                self.verticesWeight[indRow]
+                for indRow in range(self.Mtop, self.Mbottom + 1)
+            ]
         )
         self.subOpposite_sortedIndices = np.argsort(self.indicesVertices)
 
@@ -660,19 +667,20 @@ class DataAbstract(object):
         return self.display2dArray[row][column]
 
     def commandForDoIt(self, arrayForSetting):
-        # doIt:
         self.setValueInDeformer(arrayForSetting)
-        # self.orig2dArray is the undo values
         if self.sub2DArrayToSet.any():
-            np.put(self.sub2DArrayToSet, range(self.sub2DArrayToSet.size), arrayForSetting)
+            np.put(
+                self.sub2DArrayToSet, range(self.sub2DArrayToSet.size), arrayForSetting
+            )
 
     def getChunksFromVertices(self, listVertices):
         verts = self.vertices
-        vertsIndices = [verts.index(vertId) for vertId in listVertices if vertId in verts]
+        vertsIndices = [
+            verts.index(vertId) for vertId in listVertices if vertId in verts
+        ]
         if not vertsIndices:
             return None
         selVertices = self.orderMelList(vertsIndices, onlyStr=False)
-        # print selVertices
         chunks = []
         for coupleVtx in selVertices:
             if len(coupleVtx) == 1:
@@ -685,9 +693,7 @@ class DataAbstract(object):
     def getFullChunks(self):
         return [(0, self.rowCount - 1, 0, self.columnCount)]
 
-    # -----------------------------------------------------------------------------------------------------------
-    # function to get display  texts ----------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # function to get display texts
     def createRowText(self):
         if self.isNurbsSurface:
             self.rowText = []
@@ -706,14 +712,11 @@ class DataAbstract(object):
         else:
             self.rowText = [" {0} ".format(ind) for ind in self.vertices]
 
-    # -----------------------------------------------------------------------------------------------------------
-    # ------ selection  ----------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # selection
     def getZeroRows(self, selectedColumns):
         res = self.display2dArray[:, selectedColumns]
         myAny = np.any(res, axis=1)
         noneZeroRows = np.where(myAny)[0]
-        zeroRows = np.where(~myAny)[0]
         return noneZeroRows
 
     def selectVertsOfColumns(self, selectedColumns, doSelect=True):
@@ -751,22 +754,26 @@ class DataAbstract(object):
         else:
             toSel = self.orderMelList(selectedVertices, onlyStr=True)
             if cmds.nodeType(self.deformedShape) == "mesh":
-                toSel = ["{0}.vtx[{1}]".format(self.deformedShape, vtx) for vtx in toSel]
+                toSel = [
+                    "{0}.vtx[{1}]".format(self.deformedShape, vtx) for vtx in toSel
+                ]
             else:  # nurbsCurve
                 toSel = ["{0}.cv[{1}]".format(self.deformedShape, vtx) for vtx in toSel]
         cmds.select(toSel, r=True)
 
-    # -----------------------------------------------------------------------------------------------------------
-    # locks ----------------------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # locks
     def addLockVerticesAttribute(self):
-        if not cmds.attributeQuery("lockedVertices", node=self.deformedShape, exists=True):
-            cmds.addAttr(self.deformedShape, longName="lockedVertices", dataType="Int32Array")
+        if not cmds.attributeQuery(
+            "lockedVertices", node=self.deformedShape, exists=True
+        ):
+            cmds.addAttr(
+                self.deformedShape, longName="lockedVertices", dataType="Int32Array"
+            )
 
     def getLocksInfo(self):
         self.lockedColumns = []
         self.lockedVertices = []
-        # now vertices ------------------
+        # now vertices
         if self.theDeformer != "":
             self.addLockVerticesAttribute()
         att = self.deformedShape + ".lockedVertices"
@@ -790,7 +797,11 @@ class DataAbstract(object):
             lockVtx.difference_update(selectedVertices)
 
         self.lockedVertices = sorted(list(lockVtx))
-        cmds.setAttr(self.deformedShape + ".lockedVertices", self.lockedVertices, type="Int32Array")
+        cmds.setAttr(
+            self.deformedShape + ".lockedVertices",
+            self.lockedVertices,
+            type="Int32Array",
+        )
 
     def isRowLocked(self, row):
         return self.vertices[row] in self.lockedVertices
@@ -801,16 +812,11 @@ class DataAbstract(object):
     def isLocked(self, row, columnIndex):
         return self.isColumnLocked(columnIndex) or self.isRowLocked(row)
 
-    # -----------------------------------------------------------------------------------------------------------
-    # callBacks ------------------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # callBacks
     def renameCB(self, oldName, newName):
         return
-        print("weightEditor call back is Invoked: -{}-  to -{}- ".format(oldName, newName))
 
-    # -----------------------------------------------------------------------------------------------------------
-    # do and Undo ----------------------------------------------------------------------------------------------
-    # -----------------------------------------------------------------------------------------------------------
+    # do and Undo
     def undoRedoFunction(self, arraySetting, sub2DArrayToSet):
         print("! undoRedoFunction !")
         self.setValueInDeformer(arraySetting)
@@ -818,17 +824,35 @@ class DataAbstract(object):
             np.put(sub2DArrayToSet, range(sub2DArrayToSet.size), arraySetting)
 
 
-###################################################################################
-#
-#   UNDO REDO FUNCTIONS
-#
-###################################################################################
+# UNDO REDO FUNCTIONS
 class DataQuickSet(object):
-    def __init__(self, undoArgs, redoArgs, mainWindow=None, isSkin=False, **kwargs):
+    def __init__(
+        self,
+        undoArgs,
+        redoArgs,
+        mainWindow=None,
+        isSkin=False,
+        inListVertices=None,
+        influenceIndices=None,
+        shapePath=None,
+        sknFn=None,
+        theSkinCluster=None,
+        userComponents=None,
+    ):
         self.undoArgs = undoArgs
         self.redoArgs = redoArgs
-        self.__dict__.update({"mainWindow": mainWindow, "isSkin": isSkin})
-        self.__dict__.update(**kwargs)
+        self.mainWindow = mainWindow
+        self.isSkin = isSkin
+
+        self.inListVertices = inListVertices
+        self.influenceIndices = influenceIndices
+        self.shapePath = shapePath
+        self.sknFn = sknFn
+        self.theSkinCluster = theSkinCluster
+        self.userComponents = userComponents
+
+        self.blurSkinNode = None
+        self.normalizeWeights = None
 
     def doIt(self):
         pass
@@ -838,7 +862,9 @@ class DataQuickSet(object):
             self.setValues(*self.redoArgs)
         else:
             self.blurSkinNode = self.disConnectBlurskinDisplay(self.theSkinCluster)
-            self.normalizeWeights = cmds.getAttr(self.theSkinCluster + ".normalizeWeights")
+            self.normalizeWeights = cmds.getAttr(
+                self.theSkinCluster + ".normalizeWeights"
+            )
             self.setSkinValue(*self.redoArgs)
             self.postSkinSet(self.theSkinCluster, self.inListVertices)
         self.refreshWindow()
@@ -848,7 +874,9 @@ class DataQuickSet(object):
             self.setValues(*self.undoArgs)
         else:
             self.blurSkinNode = self.disConnectBlurskinDisplay(self.theSkinCluster)
-            self.normalizeWeights = cmds.getAttr(self.theSkinCluster + ".normalizeWeights")
+            self.normalizeWeights = cmds.getAttr(
+                self.theSkinCluster + ".normalizeWeights"
+            )
             self.setSkinValue(*self.undoArgs)
             self.postSkinSet(self.theSkinCluster, self.inListVertices)
         self.refreshWindow()
@@ -857,7 +885,11 @@ class DataQuickSet(object):
         if self.mainWindow:
             try:
                 self.mainWindow.refreshBtn()
-            except:
+            except Exception:
+                import traceback
+
+                traceback.print_exc()
+                print("Exception Occured, and was ignored")
                 return
 
     def setValues(self, attsValues):
@@ -874,12 +906,17 @@ class DataQuickSet(object):
     def disConnectBlurskinDisplay(self, theSkinCluster):
         if cmds.objExists(theSkinCluster):
             inConn = cmds.listConnections(
-                theSkinCluster + ".input[0].inputGeometry", s=True, d=False, type="blurSkinDisplay"
+                theSkinCluster + ".input[0].inputGeometry",
+                destination=False,
+                type="blurSkinDisplay",
             )
             if inConn:
                 blurSkinNode = inConn[0]
                 inConn = cmds.listConnections(
-                    theSkinCluster + ".weightList", s=True, d=False, p=True, type="blurSkinDisplay"
+                    theSkinCluster + ".weightList",
+                    destination=False,
+                    plugs=True,
+                    type="blurSkinDisplay",
                 )
                 if inConn:
                     cmds.disconnectAttr(inConn[0], theSkinCluster + ".weightList")
@@ -888,7 +925,6 @@ class DataQuickSet(object):
 
     def postSkinSet(self, theSkinCluster, inListVertices):
         cmds.setAttr(theSkinCluster + ".normalizeWeights", self.normalizeWeights)
-        # if connected
         if inListVertices and self.blurSkinNode and cmds.objExists(self.blurSkinNode):
             cmds.setAttr(
                 self.blurSkinNode + ".inputComponents",

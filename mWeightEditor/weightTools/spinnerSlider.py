@@ -203,13 +203,12 @@ class ValueSetting(QtWidgets.QWidget):
             theVal = (val - 50.0) / 50.0
         else:
             theVal = val / 100.0
-        # ------- SETTING FUNCTION ---------------------
+        # SETTING FUNCTION
         if self.theProgress.startDrag:
             self.doSet(theVal)
         else:
             self.postSet()
 
-        # else : # wheelEvent
         self.theSpinner.setValue(theVal * 100.0)
 
     def setAddMode(self, addMode, autoReset=True):
@@ -238,26 +237,39 @@ class ValueSettingWE(ValueSetting):
 
 
 class ProgressItem(QtWidgets.QProgressBar):
-    theStyleSheet = """QProgressBar {{color: black; background-color:{bgColor} ; border: 1px solid black;text-align: center;
-    border-bottom-right-radius: {szrad}px;
-    border-bottom-left-radius: {szrad}px;
-    border-top-right-radius: {szrad}px;
-    border-top-left-radius: {szrad}px;}}
-    QProgressBar:disabled {{color: black; background-color:{bgColorDisabled} ; border: 1px solid black;text-align: center;
-    border-bottom-right-radius: {szrad}px;
-    border-bottom-left-radius: {szrad}px;
-    border-top-right-radius: {szrad}px;
-    border-top-left-radius: {szrad}px;}}            
-    QProgressBar::chunk {{background:{chunkColor};
-    border-bottom-right-radius: {szrad}px;
-    border-bottom-left-radius: {szrad}px;
-    border-top-right-radius: {szrad}px;
-    border-top-left-radius: {szrad}px;}}
-    QProgressBar::chunk:disabled {{background:{chunkColorDisabled};
-    border-bottom-right-radius: {szrad}px;
-    border-bottom-left-radius: {szrad}px;
-    border-top-right-radius: {szrad}px;
-    border-top-left-radius: {szrad}px;}}
+    theStyleSheet = """
+    QProgressBar {{
+        color: black;
+        background-color:{bgColor};
+        border: 1px solid black;text-align: center;
+        border-bottom-right-radius: {szrad}px;
+        border-bottom-left-radius: {szrad}px;
+        border-top-right-radius: {szrad}px;
+        border-top-left-radius: {szrad}px;
+    }}
+    QProgressBar:disabled {{
+        color: black;
+        background-color:{bgColorDisabled};
+        border: 1px solid black;text-align: center;
+        border-bottom-right-radius: {szrad}px;
+        border-bottom-left-radius: {szrad}px;
+        border-top-right-radius: {szrad}px;
+        border-top-left-radius: {szrad}px;
+    }}
+    QProgressBar::chunk {{
+        background:{chunkColor};
+        border-bottom-right-radius: {szrad}px;
+        border-bottom-left-radius: {szrad}px;
+        border-top-right-radius: {szrad}px;
+        border-top-left-radius: {szrad}px;
+    }}
+    QProgressBar::chunk:disabled {{
+        background:{chunkColorDisabled};
+        border-bottom-right-radius: {szrad}px;
+        border-bottom-left-radius: {szrad}px;
+        border-top-right-radius: {szrad}px;
+        border-top-left-radius: {szrad}px;
+    }}
     """
     prt = None
     shiftKeyValue = 0.0
@@ -312,7 +324,6 @@ class ProgressItem(QtWidgets.QProgressBar):
         val *= 100.0
         self.punched.emit(val)
         self.setValue(val)
-
 
     startDrag = False
 
@@ -382,7 +393,6 @@ class ProgressItem(QtWidgets.QProgressBar):
         self.applyVal(val)
 
     def mouseMoveEvent(self, event):
-        isLeft = event.button() == QtCore.Qt.LeftButton
         if self.startDrag:
             self.applyTheEvent(event)
         super(ProgressItem, self).mouseMoveEvent(event)

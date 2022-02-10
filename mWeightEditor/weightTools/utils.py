@@ -7,6 +7,7 @@ import datetime
 from maya import OpenMaya
 import six
 from six.moves import range
+from six.moves import zip
 
 # -------------------------------------------------------------------------------------------
 # ------------------------ global functions -------------------------------------------------
@@ -253,9 +254,7 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
                         s = uVal.getInt(ptru)
                         t = vVal.getInt(ptrv)
                         u = wVal.getInt(ptrw)
-                        simpleIndex = getThreeIndices(
-                            div_s, div_t, div_u, s, t, u
-                        )
+                        simpleIndex = getThreeIndices(div_s, div_t, div_u, s, t, u)
                         weight = componentFn.weight(i).influence() if softOn else 1
 
                         if returnSimpleIndices:
@@ -339,29 +338,24 @@ def getComponentIndexList(componentList=[]):
             # Surface
             elif selPath.apiType() == OpenMaya.MFn.kNurbsSurface:
                 surfaceFn = OpenMaya.MFnNurbsSurface(selPath.node())
-                componentSelList.add(
-                    objName
-                    + ".cv[0:"
-                    + str(surfaceFn.numCVsInU() - 1)
-                    + "][0:"
-                    + str(surfaceFn.numCVsInV() - 1)
-                    + "]"
+                toAdd = "{0}.cv[0:{1}][0:{2}]".format(
+                    objName,
+                    surfaceFn.numCVsInU() - 1,
+                    surfaceFn.numCVsInV() - 1,
                 )
+                componentSelList.add(toAdd)
+
             # Lattice
             elif selPath.apiType() == OpenMaya.MFn.kLattice:
                 sDiv = cmds.getAttr(objName + ".sDivisions")
                 tDiv = cmds.getAttr(objName + ".tDivisions")
                 uDiv = cmds.getAttr(objName + ".uDivisions")
-                componentSelList.add(
-                    objName
-                    + ".pt[0:"
-                    + str(sDiv - 1)
-                    + "][0:"
-                    + str(tDiv - 1)
-                    + "][0:"
-                    + str(uDiv - 1)
-                    + "]"
+
+                toAdd = "{0}.pt[0:{1}][0:{2}][0:{3}]".format(
+                    objName, sDiv - 1, tDiv - 1, uDiv - 1
                 )
+                componentSelList.add(toAdd)
+
             # Get object component MObject
             componentSelList.getDagPath(0, selPath, componentObj)
         # =======================
@@ -381,7 +375,9 @@ def getComponentIndexList(componentList=[]):
             indexListV = OpenMaya.MIntArray()
             componentFn = OpenMaya.MFnDoubleIndexedComponent(componentObj)
             componentFn.getElements(indexListU, indexListV)
-            componentIndexList[selPath.partialPathName()] = zip(list(indexListU), list(indexListV))
+            componentIndexList[selPath.partialPathName()] = list(
+                zip(list(indexListU), list(indexListV))
+            )
         # LATTICE
         if selPath.apiType() == OpenMaya.MFn.kLattice:
             indexListS = OpenMaya.MIntArray()
@@ -389,8 +385,8 @@ def getComponentIndexList(componentList=[]):
             indexListU = OpenMaya.MIntArray()
             componentFn = OpenMaya.MFnTripleIndexedComponent(componentObj)
             componentFn.getElements(indexListS, indexListT, indexListU)
-            componentIndexList[selPath.partialPathName()] = zip(
-                list(indexListS), list(indexListT), list(indexListU)
+            componentIndexList[selPath.partialPathName()] = list(
+                zip(list(indexListS), list(indexListT), list(indexListU))
             )
     # Return Result
     return componentIndexList
@@ -435,7 +431,8 @@ def getMapForSelectedVerticesFromSelection(normalize=True, opp=False, axis="uv")
         diffU = maxU - minU
 
         indicesValues = [
-            (vert, (u - minU) / diffU, (v - minU) / diffV) for (vert, u, v) in indicesValues
+            (vert, (u - minU) / diffU, (v - minU) / diffV)
+            for (vert, u, v) in indicesValues
         ]
     if opp:
         indicesValues = [(vert, -1.0 * u, -1.0 * v) for (vert, u, v) in indicesValues]
@@ -469,7 +466,8 @@ def getMapForSelectedVertices(vertIter, normalize=True, opp=False, axis="uv"):
         diffU = maxU - minU
 
         indicesValues = [
-            (vert, (u - minU) / diffU, (v - minU) / diffV) for (vert, u, v) in indicesValues
+            (vert, (u - minU) / diffU, (v - minU) / diffV)
+            for (vert, u, v) in indicesValues
         ]
     if opp:
         indicesValues = [(vert, 1.0 - u, 1.0 - v) for (vert, u, v) in indicesValues]
@@ -491,7 +489,7 @@ def deleteTheJobs(toSearch="BrushFunctions.callAfterPaint"):
 
 
 def addNameChangedCallback(callback):
-    def omcallback(mobject, oldname, _):  # (1)
+    def omcallback(mobject, oldname, _):
         newname = OpenMaya.MFnDependencyNode(mobject).name()
         callback(oldname, newname)  #
 
@@ -500,7 +498,7 @@ def addNameChangedCallback(callback):
 
 
 def addNameDeletedCallback(callback):
-    def omcallback(mobject, _):  # (1)
+    def omcallback(mobject, _):
         nodeName = OpenMaya.MFnDependencyNode(mobject).name()
         callback(nodeName)  #
 

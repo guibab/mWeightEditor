@@ -8,6 +8,7 @@ import os
 import re
 import difflib
 import weakref
+from six.moves import zip
 
 try:
     from blurdev.gui import Window
@@ -18,7 +19,7 @@ from .weightTools.skinData import DataOfSkin
 from .weightTools.abstractData import DataQuickSet
 from .weightTools.weightMapsData import DataOfBlendShape, DataOfDeformers
 
-from .weightTools.tableWidget import TableView, TableModel
+from .weightTools.tableWidget import FastTableView, TableModel
 from .weightTools.spinnerSlider import ValueSettingWE, ButtonWithValue
 from .weightTools.utils import (
     GlobalContext,
@@ -44,7 +45,7 @@ def getIcon(iconNm):
 def loadUndoPlugin():
     fileVar = os.path.realpath(__file__)
     uiFolder, filename = os.path.split(fileVar)
-    plugPth = os.path.join(uiFolder, "tools", "undoPlug.py")
+    plugPth = os.path.join(uiFolder, "weightTools", "undoPlug.py")
     cmds.loadPlugin(plugPth)
 
 
@@ -68,89 +69,6 @@ _icons = {
     "zeroOff": getIcon("zeroOff"),
     "option": getIcon("option"),
 }
-
-
-styleSheet = """
-    QWidget {
-        background:  #aba8a6;
-        color:black;
-        selection-background-color: #a0a0ff;
-    }
-    QCheckBox:hover
-    {
-      background:rgb(120, 120, 120);
-    }
-    QMenu::item:disabled {
-        color:grey;
-        font: italic;
-    }
-    QMenu::item:selected  {
-        background-color:rgb(120, 120, 120);
-    }
-    QPushButton {
-        color:  black;
-    }
-    QComboBox {
-        color:  black;
-        border: 1px solid grey;
-    }
-
-    QPushButton:checked{
-        background-color: rgb(100, 100, 100);
-        color:white;
-        border: none;
-    }
-    QPushButton:hover{
-        background-color: grey;
-        border-style: outset;
-    }
-    QPushButton:pressed {
-        background-color: rgb(130, 130, 130);
-        color:white;
-        border-style: inset;
-    }
-    QPushButton:disabled {
-        font:italic;
-        color:grey;
-        }
-    QRadioButton:disabled {
-        font:italic;
-        color:grey;
-        }
-    QCheckBox:disabled {
-        font:italic;
-        color:grey;
-        }
-    TableView {
-         selection-background-color: #a0a0ff;
-         background: #aba8a6;
-         color: black;
-         selection-color: black;
-         border: 0px;
-     }
-    QTableView QTableCornerButton::section {
-        background:  transparent;
-        border: 1px solid black;
-    }
-    TableView::section {
-        background-color: #878787;
-        color: black;
-        border: 1px solid black;
-    }
-    QHeaderView::section {
-        background-color: #878787;
-        color: black;
-        border: 1px solid black;
-    }
-    VertHeaderView{
-        color: black;
-        border: 0px solid black;
-    }
-    HorizHeaderView{
-        color: black;
-        border: 0px solid black;
-    }
-"""
 
 
 class SkinWeightWin(Window):
@@ -179,6 +97,7 @@ class SkinWeightWin(Window):
 
         self.get_data_frame()
         self.createWindow()
+        styleSheet = open(os.path.join(os.path.dirname(__file__), "xsi.css"), 'r').read()
         self.setStyleSheet(styleSheet)
 
         self.addCallBacks()
@@ -297,7 +216,7 @@ class SkinWeightWin(Window):
         self._tm = TableModel(self)
         self._tm.update(self.dataOfDeformer)
 
-        self._tv = TableView(self, colWidth=self.colWidth)
+        self._tv = FastTableView(self, colWidth=self.colWidth)
         self._tv.setModel(self._tm)
         self.unLock = True
         self.lockBTN.setIcon(_icons["unlock"])

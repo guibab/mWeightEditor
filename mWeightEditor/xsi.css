@@ -1,0 +1,107 @@
+QWidget {
+    background: #aba8a6;
+    color:black;
+    selection-background-color: #a0a0ff;
+    font-family: "Myriad Pro";
+    font-size: 11px;
+}
+QCheckBox:hover {
+    background:rgb(120, 120, 120);
+}
+QMenu::item:disabled {
+    font-style: italic;
+    color:grey;
+}
+QMenu::item:selected {
+    background-color:rgb(120, 120, 120);
+}
+QPushButton {
+    color: black;
+}
+QComboBox {
+    color: black;
+    border: 1px solid grey;
+}
+QPushButton:checked {
+    background-color: rgb(100, 100, 100);
+    color:white;
+    border: none;
+}
+QPushButton:hover {
+    background-color: grey;
+    border-style: outset;
+}
+QPushButton:pressed {
+    background-color: rgb(130, 130, 130);
+    color:white;
+    border-style: inset;
+}
+QPushButton:disabled {
+    font-style:italic;
+    color:grey;
+}
+QRadioButton:disabled {
+    font-style:italic;
+    color:grey;
+}
+QCheckBox:disabled {
+    font-style:italic;
+    color:grey;
+}
+FastTableView {
+    selection-background-color: #a0a0ff;
+    background: #aba8a6;
+    color: black;
+    selection-color: black;
+    border: 0px;
+    qproperty-sumColumnBG: rgb(100, 100, 100);
+    qproperty-sumColumnFG: rgb(200, 200, 200);
+    qproperty-sumColumnERROR: rgb(150, 100, 100);
+    qproperty-lockedBG: rgb(140, 140, 140);
+    qproperty-lockedFG: rgb(80, 80, 80);
+    qproperty-zeroBG: rgb(20, 20, 20);
+    qproperty-zeroFG: rgb(200, 200, 200);
+    qproperty-zeroHI: rgb(160, 160, 255);
+    qproperty-nonzeroBG: rgb(130, 130, 90);
+    qproperty-nonzeroFG: rgb(200, 200, 200);
+    qproperty-nonzeroHI: rgb(140, 140, 235);
+    qproperty-regularBG: rgb(130, 130, 130);
+    qproperty-sepCOL: rgb(0, 0, 0);
+}
+FastTableView QTableCornerButton::section {
+    background: transparent;
+    border: 1px solid black;
+}
+FastTableView QDoubleSpinBox {
+    background-color: yellow;
+    color : black;
+}
+FastTableView::section {
+    background-color: #878787;
+    color: black;
+    border: 1px solid black;
+}
+QHeaderView::section {
+    background-color: #878787;
+    color: black;
+    border: 1px solid black;
+}
+VertHeaderView {
+    color: black;
+    border: 0px solid black;
+    qproperty-regularBG: rgb(130, 130, 130);
+    qproperty-greyBG: rgb(100, 100, 100);
+    qproperty-sepCOL: rgb(0, 0, 0);
+}
+HorizHeaderView {
+    color: black;
+    border: 0px solid black;
+    qproperty-totalFG: rgb(200, 200, 200);
+    qproperty-totalBG: rgb(100, 100, 100);
+    qproperty-lockedBG: rgb(100, 100, 100);
+    qproperty-rightSideObjectBG: rgb(112, 124, 137);
+    qproperty-leftSideObjectBG: rgb(134, 119, 127);
+    qproperty-midSideObjectBG: rgb(144, 144, 122);
+    qproperty-unsidedObjectBG: rgb(130, 130, 130);
+    qproperty-sepCOL: rgb(0, 0, 0);
+}
