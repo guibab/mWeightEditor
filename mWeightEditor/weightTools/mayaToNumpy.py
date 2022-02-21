@@ -1,6 +1,7 @@
 from maya import OpenMaya as om
 import numpy as np
 from ctypes import c_float, c_double, c_int, c_uint
+import six
 
 _CONVERT_DICT = {
     om.MPointArray: (float, 4, c_double, om.MScriptUtil.asDouble4Ptr),
@@ -20,12 +21,12 @@ def _swigConnect(mArray, count, util):
     Make sure to get the MScriptUtil from outside this function, otherwise
     it may be garbage collected
     The _CONVERT_DICT holds {mayaType: (pyType, numComps, cType, ptrType)} where
-            pyType: The type that is used to fill the MScriptUtil array.
-            numComps: The number of components. So a double4Ptr would be 4
-            cType: The ctypes type used to read the data
-            ptrType: An unbound method on MScriptUtil to cast the pointer to the correct type
-                    I can still call that unbound method by manually passing the usually-implicit
-                    self argument (which will be an instance of MScriptUtil)
+        pyType: The type that is used to fill the MScriptUtil array.
+        numComps: The number of components. So a double4Ptr would be 4
+        cType: The ctypes type used to read the data
+        ptrType: An unbound method on MScriptUtil to cast the pointer to the correct type
+            I can still call that unbound method by manually passing the usually-implicit
+            self argument (which will be an instance of MScriptUtil)
     """
     pyTyp, comps, ctp, ptrTyp = _CONVERT_DICT[type(mArray)]
     cc = count * comps
@@ -58,12 +59,12 @@ def mayaToNumpy(mArray):
     Parameters
     ----------
     ary : MArray
-            The maya array to convert to a numpy array
+        The maya array to convert to a numpy array
 
     Returns
     -------
     : np.array :
-            A numpy array that contains the data from mArray
+        A numpy array that contains the data from mArray
 
     """
     util = om.MScriptUtil()
@@ -78,15 +79,15 @@ def numpyToMaya(ary, mType):
     Parameters
     ----------
     ary : np.array
-            The numpy array to convert to a maya array
+        The numpy array to convert to a maya array
     mType : type
-            The maya type to convert to out of: MPointArray, MFloatPointArray, MVectorArray,
-            MFloatVectorArray, MDoubleArray, MFloatArray, MIntArray, MUintArray
+        The maya type to convert to out of: MPointArray, MFloatPointArray, MVectorArray,
+        MFloatVectorArray, MDoubleArray, MFloatArray, MIntArray, MUintArray
 
     Returns
     -------
     : mType :
-            An array of the provided type that contains the data from ary
+        An array of the provided type that contains the data from ary
 
     """
     util = om.MScriptUtil()
@@ -153,16 +154,16 @@ def getNumpyAttr(attrName):
     Parameters
     ----------
     attrName : str or om.MPlug
-            The name of the attribute to get (For instance "pSphere2.translate", or "group1.pim[0]")
-            Or the MPlug itself
+        The name of the attribute to get (For instance "pSphere2.translate", or "group1.pim[0]")
+        Or the MPlug itself
 
     Returns
     -------
     : object :
-            The numerical data from the provided plug. A np.array, float, int, or tuple
+        The numerical data from the provided plug. A np.array, float, int, or tuple
 
     """
-    if isinstance(attrName, basestring):
+    if isinstance(attrName, six.string_types):
         sl = om.MSelectionList()
         sl.add(attrName)
         plug = om.MPlug()
@@ -205,7 +206,7 @@ def getNumpyAttr(attrName):
             fnPmo = om.MFnComponentListData(pmo)
             mirs = []
             mir = om.MIntArray()
-            for attrIndex in xrange(fnPmo.length()):
+            for attrIndex in range(fnPmo.length()):
                 fnEL = om.MFnSingleIndexedComponent(fnPmo[attrIndex])
                 fnEL.getElements(mir)
                 mirs.append(mayaToNumpy(mir))
@@ -239,7 +240,7 @@ def setNumpyAttr(attrName, value):
     value : int, float, tuple, np.array
             The correctly typed value to set on the attribute
     """
-    if isinstance(attrName, basestring):
+    if isinstance(attrName, six.string_types):
         sl = om.MSelectionList()
         sl.add(attrName)
         plug = om.MPlug()

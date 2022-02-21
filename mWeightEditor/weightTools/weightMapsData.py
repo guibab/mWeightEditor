@@ -211,8 +211,8 @@ class DataOfOneDimensionalAttrs(DataAbstract):
 
         arrIndicesVerts = np.array(self.vertices)
 
-        # for the extended neighBoors
-        padder = list(range(self.maxNeighboors))
+        # for the extended Neighbors
+        padder = list(range(self.maxNeighbors))
         dicOfVertsSubArray = {}
         attsValues = []
         if self.storeUndo:
@@ -229,8 +229,8 @@ class DataOfOneDimensionalAttrs(DataAbstract):
 
                     # prepare array for mean
                     nbNonZero = np.count_nonzero(self.sumMasks[:, colIndex])
-                    arrayForMean = np.full((nbNonZero, self.maxNeighboors), 0)
-                    arrayForMeanMask = np.full((nbNonZero, self.maxNeighboors), False, dtype=bool)
+                    arrayForMean = np.full((nbNonZero, self.maxNeighbors), 0)
+                    arrayForMeanMask = np.full((nbNonZero, self.maxNeighbors), False, dtype=bool)
                     if self.storeUndo:
                         valuesOrig = self.fullAttributesArr[verts.tolist(), colIndex]
                         undoVertsIndicesWeights = list(zip(verts.tolist(), valuesOrig.tolist()))
@@ -241,11 +241,11 @@ class DataOfOneDimensionalAttrs(DataAbstract):
                                 # print vertIndex
                                 connectedVertices = self.vertNeighbors[vertIndex]
                                 connectedVerticesExtended = (connectedVertices + padder)[
-                                    : self.maxNeighboors
+                                    : self.maxNeighbors
                                 ]
                                 dicOfVertsSubArray[vertIndex] = connectedVerticesExtended
 
-                                arrayForMeanMask[i, :self.nbNeighBoors[vertIndex]] = True
+                                arrayForMeanMask[i, :self.nbNeighbors[vertIndex]] = True
                             else:
                                 connectedVerticesExtended = dicOfVertsSubArray[vertIndex]
                             arrayForMean[i] = self.fullAttributesArr[
