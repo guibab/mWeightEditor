@@ -995,6 +995,8 @@ class DataAbstract(object):
 
 # UNDO REDO FUNCTIONS
 class DataQuickSet(object):
+    """ A class for quickly setting data in Maya """
+
     def __init__(
         self,
         undoArgs,
@@ -1024,13 +1026,15 @@ class DataQuickSet(object):
         self.normalizeWeights = None
 
     def doIt(self):
+        """ The maya command doIt function """
         pass
 
     def redoIt(self):
+        """ The maya command redoIt function """
         if not self.isSkin:
             self.setValues(*self.redoArgs)
         else:
-            self.blurSkinNode = self.disConnectBlurskinDisplay(self.theSkinCluster)
+            self.blurSkinNode = self.disconnectBlurskinDisplay(self.theSkinCluster)
             self.normalizeWeights = cmds.getAttr(
                 self.theSkinCluster + ".normalizeWeights"
             )
@@ -1039,10 +1043,11 @@ class DataQuickSet(object):
         self.refreshWindow()
 
     def undoIt(self):
+        """ The maya command undoIt function """
         if not self.isSkin:
             self.setValues(*self.undoArgs)
         else:
-            self.blurSkinNode = self.disConnectBlurskinDisplay(self.theSkinCluster)
+            self.blurSkinNode = self.disconnectBlurskinDisplay(self.theSkinCluster)
             self.normalizeWeights = cmds.getAttr(
                 self.theSkinCluster + ".normalizeWeights"
             )
@@ -1051,6 +1056,7 @@ class DataQuickSet(object):
         self.refreshWindow()
 
     def refreshWindow(self):
+        """ Refresh the window """
         if self.mainWindow:
             try:
                 self.mainWindow.refreshBtn()
@@ -1058,10 +1064,17 @@ class DataQuickSet(object):
                 import traceback
 
                 traceback.print_exc()
-                print("Exception Occured, and was ignored")
+                print("Exception Occured while refreshing window, and was ignored")
                 return
 
-    def setValues(self, attsValues):
+    @staticmethod
+    def setValues(attsValues):
+        """ Set given values to given attributes
+
+        Arguments:
+            attsValues (list): A list of tuples of (attribute, values)
+
+        """
         if not attsValues:
             return
         for att, vertsIndicesWeights in attsValues:
@@ -1072,7 +1085,15 @@ class DataQuickSet(object):
             for indVtx, value in vertsIndicesWeights:
                 plg2.elementByLogicalIndex(indVtx).setFloat(value)
 
-    def disConnectBlurskinDisplay(self, theSkinCluster):
+    def disconnectBlurskinDisplay(self, theSkinCluster):
+        """ Disconnect the blurskin display node from the given skincluster
+
+        Arguments:
+            theSkinCluster (str): The skincluster node name
+
+        Returns:
+            str: The blurSkinDisplay node that was disconnected, or an empty string
+        """
         if cmds.objExists(theSkinCluster):
             inConn = cmds.listConnections(
                 theSkinCluster + ".input[0].inputGeometry",
@@ -1093,6 +1114,12 @@ class DataQuickSet(object):
         return ""
 
     def postSkinSet(self, theSkinCluster, inListVertices):
+        """ A function to clean up after setting skin data
+
+        Arguments:
+            theSkinCluster (str): The skinCluster node name
+            inListVertices (list): The input components
+        """
         cmds.setAttr(theSkinCluster + ".normalizeWeights", self.normalizeWeights)
         if inListVertices and self.blurSkinNode and cmds.objExists(self.blurSkinNode):
             cmds.setAttr(
@@ -1102,6 +1129,11 @@ class DataQuickSet(object):
             )
 
     def setSkinValue(self, newArray):
+        """ Set data to the skin array
+
+        Arguments:
+            newArray (om.MDoubleArray): The maya array to set to the skincluster
+        """
         cmds.setAttr(self.theSkinCluster + ".normalizeWeights", 0)
 
         normalize = False
