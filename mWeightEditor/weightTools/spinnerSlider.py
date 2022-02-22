@@ -7,6 +7,9 @@ import math
 
 
 class ButtonWithValue(QtWidgets.QPushButton):
+    """ A button that allows for a middle-click drag to change precision
+    and a scroll wheel to change values
+    """
     _valueChanged = QtCore.Signal(int, name="valChanged")
 
     def __init__(

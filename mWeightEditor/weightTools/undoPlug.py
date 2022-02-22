@@ -7,6 +7,12 @@ import six
 
 
 class PythonCommand(OpenMayaMPx.MPxCommand):
+    """ A Plugin that lets you connect the doIt, undoIt and redoIt
+    methods to any generic python class that has those methods.
+
+    This means you don't have to create a bajillion MPxCommands just
+    to be able to use undo
+    """
     s_name = "pythonCommand"
 
     def __init__(self):

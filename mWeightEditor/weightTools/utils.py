@@ -1,9 +1,12 @@
 from __future__ import print_function
 from __future__ import absolute_import
 import sys
-from maya import cmds
 import time
 import datetime
+from contextlib import contextmanager
+
+
+from maya import cmds
 from maya import OpenMaya
 import six
 from six.moves import range
@@ -12,107 +15,138 @@ from six.moves import zip
 # -------------------------------------------------------------------------------------------
 # ------------------------ global functions -------------------------------------------------
 # -------------------------------------------------------------------------------------------
-class SettingWithRedraw(object):
-    def __init__(self, theWindow, raise_error=True):
-        self.theWindow = theWindow
-
-    def __enter__(self):
-        self.theWindow.storeSelection()
-        self.theWindow._tm.beginResetModel()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.theWindow._tm.endResetModel()
-        self.theWindow.retrieveSelection()
-        # add a refresh of the locator ?
 
 
-class SettingVariable(object):
-    def __init__(self, variableHolder, variableName, valueOn=True, valueOut=False):
-        self.variableHolder = variableHolder
-        self.variableName = variableName
-        self.valueOn = valueOn
-        self.valueOut = valueOut
+@contextmanager
+def SettingWithRedraw(theWindow):
+    """ GUILLAUME
 
-    def __enter__(self):
-        if isinstance(self.variableHolder, dict):
-            self.variableHolder[self.variableName] = self.valueOn
+    Arguments:
+        theWindow (QMainWindow): GUILLAUME
+    """
+    theWindow.storeSelection()
+    theWindow._tm.beginResetModel()
+    try:
+        yield
+    finally:
+        theWindow._tm.endResetModel()
+        theWindow.retrieveSelection()
+
+
+@contextmanager
+def SettingVariable(variableHolder, variableName, valueOn=True, valueOut=False):
+    """ A context manager for temporarily setting a variable to a value on an object
+
+    Arguments:
+        variableHolder (object or dict): The object that will have its values set
+            If it's a dict, just set the value in the dict. If it's an object, then
+            use setattr to set the value
+        variableName (str): The name of the variable to set on the holder
+        valueOn (object): The value to store when entering the context
+        valueOut (object): The value to store when exiting the context
+    """
+    if isinstance(variableHolder, dict):
+        variableHolder[variableName] = valueOn
+    else:
+        setattr(variableHolder, variableName, valueOn)
+    try:
+        yield
+    finally:
+        if isinstance(variableHolder, dict):
+            variableHolder[variableName] = valueOut
         else:
-            self.variableHolder.__dict__[self.variableName] = self.valueOn
+            setattr(variableHolder, variableName, valueOut)
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if isinstance(self.variableHolder, dict):
-            self.variableHolder[self.variableName] = self.valueOut
+
+@contextmanager
+def ToggleHeaderVisibility(HH):
+    """ Hide the header while in this context
+
+    Arguments:
+        HH (QHeaderView): The header to hide/show
+    """
+    HH.hide()
+    try:
+        yield
+    finally:
+        HH.show()
+
+
+@contextmanager
+def GlobalContext(
+    message="processing",
+    raise_error=True,
+    openUndo=True,
+    suspendRefresh=False,
+    doPrint=True,
+):
+    """ A context for undos, refreshes, and timing
+    
+    Arguments:
+        message (str): A message to print with the timing data, and
+            the name of the chunk. Defaults to "processing"
+        raise_error (bool): Whether to raise any exceptions caught in the
+            context (True), or capture them and print (False), Defaults to True
+        openUndo (bool): Whether to wrap the context in an undo bead.
+            Defaults to True
+        suspendRefresh (bool): Turn off UI refreshing while running this context
+            Defaults to False
+        doPrint (bool): Print the time and message
+            Defaults to True
+
+
+    """
+    startTime = time.time()
+    cmds.waitCursor(state=True)
+    if openUndo:
+        cmds.undoInfo(openChunk=True, chunkName=message)
+    if suspendRefresh:
+        cmds.refresh(suspend=True)
+
+    try:
+        yield
+
+    except Exception as e:
+        if raise_error:
+            import traceback
+
+            traceback.print_exc()
+            raise
         else:
-            self.variableHolder.__dict__[self.variableName] = self.valueOut
+            sys.stderr.write("%s" % e)
 
-
-class ToggleHeaderVisibility(object):
-    def __init__(self, HH, raise_error=True):
-        self.HH = HH
-
-    def __enter__(self):
-        self.HH.hide()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.HH.show()
-
-
-class GlobalContext(object):
-    def __init__(
-        self,
-        message="processing",
-        raise_error=True,
-        openUndo=True,
-        suspendRefresh=False,
-        doPrint=True,
-    ):
-        self.raise_error = raise_error
-        self.openUndo = openUndo
-        self.suspendRefresh = suspendRefresh
-        self.message = message
-        self.doPrint = doPrint
-
-    def __enter__(self):
-        self.startTime = time.time()
-        cmds.waitCursor(state=True)
-        if self.openUndo:
-            cmds.undoInfo(openChunk=True, chunkName=self.message)
-        if self.suspendRefresh:
-            cmds.refresh(suspend=True)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    finally:
         if cmds.waitCursor(q=True, state=True):
             cmds.waitCursor(state=False)
-        if self.openUndo:
+        if openUndo:
             cmds.undoInfo(closeChunk=True)
-        if self.suspendRefresh:
+        if suspendRefresh:
             cmds.refresh(suspend=False)
             cmds.refresh()
-        completionTime = time.time() - self.startTime
+        completionTime = time.time() - startTime
         timeRes = str(datetime.timedelta(seconds=int(completionTime))).split(":")
-        if self.doPrint:
+        if doPrint:
             result = "{0} hours {1} mins {2} secs".format(*timeRes)
-            print("{0} executed in {1}[{2:.2f} secs]".format(self.message, result, completionTime))
-        if exc_type is not None:
-            if self.raise_error:
-                import traceback
-
-                traceback.print_tb(exc_tb)
-                raise exc_type(exc_val)
-            else:
-                sys.stderr.write("%s" % exc_val)
+            print(
+                "{0} executed in {1}[{2:.2f} secs]".format(
+                    message, result, completionTime
+                )
+            )
 
 
-class toggleBlockSignals(object):
-    def __init__(self, listWidgets, raise_error=True):
-        self.listWidgets = listWidgets
+@contextmanager
+def toggleBlockSignals(listOfWidgets):
+    """ Block signals for the given list of widgets
 
-    def __enter__(self):
-        for widg in self.listWidgets:
-            widg.blockSignals(True)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        for widg in self.listWidgets:
+    Arguments:
+        listOfWidgets (list): Block signals for these widgets
+    """
+    for widg in listOfWidgets:
+        widg.blockSignals(True)
+    try:
+        yield
+    finally:
+        for widg in listOfWidgets:
             widg.blockSignals(False)
 
 
@@ -120,6 +154,12 @@ class toggleBlockSignals(object):
 # ------------------------ softSelections ---------------------------------------------------
 # -------------------------------------------------------------------------------------------
 def getSoftSelectionValues():
+    """ Get the per-vertex weight values of the current soft selection
+
+    Returns:
+        list: The list of indices
+        list: The list of weights
+    """
     richSel = OpenMaya.MRichSelection()
     try:
         OpenMaya.MGlobal.getRichSelection(richSel)
@@ -143,6 +183,17 @@ def getSoftSelectionValues():
 
 
 def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False):
+    """ Get the per-vertex weight values of the current soft selection
+
+    Arguments:
+        returnSimpleIndices (bool): If True, return the index into the flattened array
+            otherwise return a tuple giving the index per component
+        forceReturnWeight (bool): If True, return the weights
+
+    Returns:
+        dict: A dictionary of {nodeName: data, ...} where data is either a list of indices
+            or a tuple of (indices, weights) depending on forceReturnWeight
+    """
     softOn = cmds.softSelect(q=True, softSelectEnabled=True)
     richSelList = OpenMaya.MSelectionList()
 
@@ -193,7 +244,10 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
                 ]:
                     singleFn = OpenMaya.MFnSingleIndexedComponent(component)
 
-                    if componentFn.componentType() == OpenMaya.MFn.kMeshPolygonComponent:
+                    if (
+                        componentFn.componentType()
+                        == OpenMaya.MFn.kMeshPolygonComponent
+                    ):
                         polyIter = OpenMaya.MItMeshPolygon(dagPath, component)
                         setOfVerts = set()
                         while not polyIter.isDone():
@@ -271,6 +325,16 @@ def getSoftSelectionValuesNEW(returnSimpleIndices=True, forceReturnWeight=False)
 
 
 def getThreeIndices(div_s, div_t, div_u, *args):
+    """ Convert to/from 3-component flattened indices
+
+    Arguments:
+        div_s (int): The length of indices in S
+        div_t (int): The length of indices in T
+        div_u (int): The length of indices in U
+        args (int or tuple): If an int is passed, treat it as the
+            flattened index, and convert it to a 3-tuple
+            If a 3-tuple is passed, convert it to a flattened index
+    """
     if len(args) == 1:
         (simpleIndex,) = args
         s = simpleIndex % div_s
@@ -283,13 +347,18 @@ def getThreeIndices(div_s, div_t, div_u, *args):
         return simpleIndex
 
 
-def getComponentIndexList(componentList=[]):
+def getComponentIndexList(componentList=None):
+    """ Return an list of integer component index values
+
+    Arguments:
+        componentList (list): A list of component names. if empty will default to selection.
+
+    Returns:
+        dict: A dictionary of {path: (components)}
+    """
     # https://github.com/bungnoid/glTools/blob/master/utils/component.py
-    """
-    Return an list of integer component index values
-    @param componentList: A list of component names. if empty will default to selection.
-    @type componentList: list
-    """
+    componentList = componentList or []
+
     # Initialize return dictionary
     componentIndexList = {}
 
@@ -334,7 +403,9 @@ def getComponentIndexList(componentList=[]):
             # Curve
             elif selPath.apiType() == OpenMaya.MFn.kNurbsCurve:
                 curveFn = OpenMaya.MFnNurbsCurve(selPath.node())
-                componentSelList.add(objName + ".cv[0:" + str(curveFn.numCVs() - 1) + "]")
+                componentSelList.add(
+                    objName + ".cv[0:" + str(curveFn.numCVs() - 1) + "]"
+                )
             # Surface
             elif selPath.apiType() == OpenMaya.MFn.kNurbsSurface:
                 surfaceFn = OpenMaya.MFnNurbsSurface(selPath.node())
@@ -395,6 +466,20 @@ def getComponentIndexList(componentList=[]):
 # -------------------------------------------------------------------------------------------
 # get UV Map
 def getMapForSelectedVerticesFromSelection(normalize=True, opp=False, axis="uv"):
+    """ GUILLAUME
+
+    Arguments:
+        normalize (bool): If true, normalize the values
+            Defaults to True
+        opp (bool): Return the opposite of the uv values
+            Defaults to False
+        axis ("uv" "u" or "v"): What data to return
+            Defaults to "uv"
+
+    Returns:
+        list:
+            A list of tuples of [(ind, u)] [(ind, v)] or [(ind, u, v)]
+    """
     # Get MSelectionList
     selList = OpenMaya.MSelectionList()
     OpenMaya.MGlobal.getActiveSelectionList(selList)
@@ -443,6 +528,20 @@ def getMapForSelectedVerticesFromSelection(normalize=True, opp=False, axis="uv")
 
 
 def getMapForSelectedVertices(vertIter, normalize=True, opp=False, axis="uv"):
+    """ GUILLAUME
+
+    Arguments:
+        normalize (bool): If true, normalize the values
+            Defaults to True
+        opp (bool): Return the opposite of the uv values
+            Defaults to False
+        axis ("uv" "u" or "v"): What data to return
+            Defaults to "uv"
+
+    Returns:
+        list:
+            A list of tuples of [(ind, u)] [(ind, v)] or [(ind, u, v)]
+    """
     # Get MSelectionList
     util = OpenMaya.MScriptUtil()
     util.createFromList([0.0, 0.0], 2)
@@ -481,6 +580,12 @@ def getMapForSelectedVertices(vertIter, normalize=True, opp=False, axis="uv"):
 # ------------------------ callBacks --------------------------------------------------------
 # -------------------------------------------------------------------------------------------
 def deleteTheJobs(toSearch="BrushFunctions.callAfterPaint"):
+    """ Delete the given scriptJobs
+
+    Arguments:
+        toSearch: The name of the scriptJob to delete
+            Defaults to "BrushFunctions.callAfterPaint"
+    """
     res = cmds.scriptJob(listJobs=True)
     for job in res:
         if toSearch in job:
@@ -489,6 +594,13 @@ def deleteTheJobs(toSearch="BrushFunctions.callAfterPaint"):
 
 
 def addNameChangedCallback(callback):
+    """ Add a callback for when an object gets renamed
+
+    Arguments:
+        callback (function): A function that will get called when an object
+            is renamed
+
+    """
     def omcallback(mobject, oldname, _):
         newname = OpenMaya.MFnDependencyNode(mobject).name()
         callback(oldname, newname)  #
@@ -498,6 +610,13 @@ def addNameChangedCallback(callback):
 
 
 def addNameDeletedCallback(callback):
+    """ Add a callback for when an object gets deleted
+
+    Arguments:
+        callback (function): A function that will get called when an object
+            is deleted
+
+    """
     def omcallback(mobject, _):
         nodeName = OpenMaya.MFnDependencyNode(mobject).name()
         callback(nodeName)  #
@@ -507,4 +626,10 @@ def addNameDeletedCallback(callback):
 
 
 def removeNameChangedCallback(callbackId):
+    """ Remove a callback by ID
+
+    Arguments:
+        callbackId (int): The ID of the callback to remove
+
+    """
     OpenMaya.MNodeMessage.removeCallback(callbackId)
