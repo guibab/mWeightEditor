@@ -413,7 +413,14 @@ class DataAbstract(object):
                     idx += 1
 
     def getVerticesShape(self, theMObject):
-        """ Get the vertices from the shape """
+        """ Get the vertices from the shape
+
+        Arguments:
+            theMObject (MObject): The shapenode MObject
+
+        Returns:
+            np.array: The vertex array
+        """
         cvPoints = OpenMaya.MPointArray()
         if self.isMesh:
             theMesh = OpenMaya.MFnMesh(theMObject)
@@ -710,11 +717,11 @@ class DataAbstract(object):
             self.commandForDoIt(new2dArray)
 
     def preSettingValuesFn(self, chunks, actualyVisibleColumns):
-        """Method to be called before setting values. Guillaume: Please fill this out some more
+        """Method to be called before setting values. GUILLAUME
 
         Arguments:
-            chunks (): Something!!!
-            actuallyVisibleColumns (): Something Else?
+            chunks (someType): GUILLAUME
+            actuallyVisibleColumns (someType): GUILLAUME
 
         """
         # this tells us that before the first set we need to store values for the undo
@@ -730,7 +737,7 @@ class DataAbstract(object):
         nbRows = self.Mbottom - self.Mtop + 1
 
         # GET the sub ARRAY
-        self.sub2DArrayToSet = self.display2dArray[self.Mtop : self.Mbottom + 1]
+        self.sub2DArrayToSet = self.display2dArray[self.Mtop: self.Mbottom + 1]
         self.orig2dArray = np.copy(self.sub2DArrayToSet)
 
         # GET the mask ARRAY
