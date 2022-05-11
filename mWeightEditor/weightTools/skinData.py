@@ -5,6 +5,7 @@ from maya import cmds
 
 from ctypes import c_double
 
+from .mayaToNumpy import mayaToNumpy, numpyToMaya
 import numpy as np
 import re
 from .utils import GlobalContext, getThreeIndices
@@ -22,6 +23,16 @@ class DataOfSkin(DataAbstract):
         createDisplayLocator=True,
         mainWindow=None,
     ):
+        """ Data interface for SkinCluster
+
+        Arguments:
+            useShortNames (bool): Whether to use the short (True) or long (False) names
+                Defaults to False
+            hideZeroColumn (bool): Whether to hide columns that are fully zero
+            createDisplayLocator (bool): Whether to create the display locator for showing
+                the custom painting data
+            mainWindow (QMainWindow): The qt main window that this connects to
+        """
         self.useShortestNames = useShortestNames
         self.hideZeroColumn = hideZeroColumn
         self.clearData()
@@ -31,9 +42,17 @@ class DataOfSkin(DataAbstract):
         self.isSkinData = True
 
     # MObject base function
-    def getVerticesOrigShape(self, outPut=False):
+    def getVerticesOrigShape(self, output=False):
+        """ Get the orig shape node for the deformer stack
+
+        Arguments:
+            output (bool): Whether to check the output or input of the skincluster
+
+        Returns:
+            np.array: The vertex array
+        """
         geometries = OpenMaya.MObjectArray()
-        if outPut:
+        if output:
             self.sknFn.getOutputGeometry(geometries)
         else:
             self.sknFn.getInputGeometry(geometries)
@@ -43,6 +62,13 @@ class DataOfSkin(DataAbstract):
 
     # functions
     def smoothSkin(self, selectedIndices, repeat=1, percentMvt=1):
+        """ Smooth the skin for the selected indices
+
+        Arguments:
+            selectedIndices (list): The indices to smooth
+            repeat (int): The number of times to repeat the smooth operation. Defaults to 1
+            percentMvt (int): GUILLLAUME. Defaults to 1
+        """
         rowsSel = []
         for item in selectedIndices:
             rowsSel += list(range(item[0], item[1] + 1))
@@ -51,8 +77,8 @@ class DataOfSkin(DataAbstract):
         if self.isNurbsSurface:
             listCVsIndices = []
             for indVtx in selectedVertices:
-                indexV = indVtx % self.numCVsInV_
-                indexU = indVtx / self.numCVsInV_
+                indexV = indVtx % self.numCVsInV
+                indexU = indVtx / self.numCVsInV
                 listCVsIndices.append((indexU, indexV))
             cmds.blurSkinCmd(
                 command="smooth",
@@ -73,6 +99,12 @@ class DataOfSkin(DataAbstract):
             )
 
     def fixAroundVertices(self, tolerance=3):
+        """ GUILLAUME
+
+        Arguments:
+            tolerance (int): GUILLAUME
+
+        """
         with GlobalContext(message="fixAroundVertices", doPrint=True):
             geometriesOut = OpenMaya.MObjectArray()
             self.sknFn.getOutputGeometry(geometriesOut)
@@ -108,6 +140,12 @@ class DataOfSkin(DataAbstract):
         return problemVerts
 
     def swapOneOnOne(self, indicesSources, indicesDest):
+        """ GUILLAUME
+
+        Arguments:
+            indicesSources (list): GUIILAUME
+            indicesDest (list): GUILLAUME
+        """
         indicesSources = list(indicesSources)
         indicesDest = list(indicesDest)
         print(indicesSources, indicesDest)
@@ -127,6 +165,7 @@ class DataOfSkin(DataAbstract):
         )
 
     def normalize(self):
+        """ Normalize the unlocked weights """
         with GlobalContext(message="normalize", doPrint=True):
             new2dArray = np.copy(self.orig2dArray)
             unLock = np.ma.array(new2dArray.copy(), mask=self.lockedMask, fill_value=0)
@@ -149,7 +188,17 @@ class DataOfSkin(DataAbstract):
             self.sknFn,
         )
 
-    def pruneOnArray(self, theArray, theMask, arraySumNormalize, pruneValue):
+    @staticmethod
+    def pruneOnArray(theArray, theMask, arraySumNormalize, pruneValue):
+        """ Prune the values of the array in-place based on the mask. Any unlocked
+        values less than pruneValue will be set to zero
+
+        Arguments:
+            theArray (np.array): The array to prune
+            theMask (np.array): The boolean mask array
+            arraySumNormalize (someType): GUILLAUME
+            pruneValue (float): Any unlocked values less than this will be set to zero
+        """
         unLock = np.ma.array(theArray.copy(), mask=theMask, fill_value=0)
         np.copyto(unLock, np.full(unLock.shape, 0), where=unLock < pruneValue)
         # normalize
@@ -161,6 +210,11 @@ class DataOfSkin(DataAbstract):
         np.copyto(theArray, unLockNormalized, where=~theMask)
 
     def pruneWeights(self, pruneValue):
+        """ Prune any skin weights, and set the values based on the pruneValue
+
+        Arguments:
+            pruneValue (float): Any unlocked values less than this will be set to zero
+        """
         with GlobalContext(message="pruneWeights", doPrint=True):
             new2dArray = np.copy(self.orig2dArray)
             self.pruneOnArray(
@@ -175,9 +229,18 @@ class DataOfSkin(DataAbstract):
             self.sknFn,
         )
 
-    def getArrayOppInfluences(
-        self, leftInfluence="*_L_*", rightInfluence="*_R_*", useRealIndices=False
-    ):
+    def getArrayOppInfluences(self, leftInfluence="*_L_*", rightInfluence="*_R_*"):
+        """ Get opposite influences
+
+        Arguments:
+            leftInfluence (str): Wildcard string to search for left sided influences
+                Defaults to "*_L_*"
+            rightInfluence (str): Wildcard string to search for right sided influences
+                Defaults to "*_R_*"
+
+        Returns:
+            list: The indices of the opposing drivers
+        """
         leftSpl = leftInfluence.split(" ")
         rightSpl = rightInfluence.split(" ")
         while "" in leftSpl:
@@ -187,12 +250,11 @@ class DataOfSkin(DataAbstract):
         if len(leftSpl) != len(rightSpl):
             return []
         oppDriverNames = {}
-        # useRealIndices is for when the array is sparse(some defomers have been deleted)
-        count = max(self.indicesJoints) + 1 if useRealIndices else len(self.driverNames)
+        count = len(self.driverNames)
         driverNames_oppIndices = [-1] * count
 
         for ind, influence in enumerate(self.driverNames):
-            indInfluence = self.indicesJoints[ind] if useRealIndices else ind
+            indInfluence = ind
 
             if driverNames_oppIndices[indInfluence] != -1:
                 continue
@@ -214,8 +276,6 @@ class DataOfSkin(DataAbstract):
                 oppDriverNames[oppInfluence] = influence
 
                 oppInfluenceIndex = self.driverNames.index(oppInfluence)
-                if useRealIndices:
-                    oppInfluenceIndex = self.indicesJoints[oppInfluenceIndex]
                 driverNames_oppIndices[indInfluence] = oppInfluenceIndex
                 driverNames_oppIndices[oppInfluenceIndex] = indInfluence
             else:
@@ -224,7 +284,15 @@ class DataOfSkin(DataAbstract):
         print(oppDriverNames)
         return driverNames_oppIndices
 
-    def mirrorArray(self, direction, leftInfluence="*_L_*", rightInfluence="*_R_*"):
+    def mirrorArray(self, leftInfluence="*_L_*", rightInfluence="*_R_*"):
+        """ Mirror the array
+
+        Arguments:
+            leftInfluence (str): Wildcard string to search for left sided influences
+                Defaults to "*_L_*"
+            rightInfluence (str): Wildcard string to search for right sided influences
+                Defaults to "*_R_*"
+        """
         prt = (
             cmds.listRelatives(self.deformedShape, path=-True, parent=True)[0]
             if not cmds.nodeType(self.deformedShape) == "transform"
@@ -287,6 +355,7 @@ class DataOfSkin(DataAbstract):
             )
 
     def copyArray(self):
+        """ Copy the array into temporary storage for later pasting """
         self.copiedArray = np.copy(self.sub2DArrayToSet)
         self.copiedVerticesPosition = np.copy(self.getVerticesOrigShape())
         self.copiedVerticesIndices = self.vertices + []
@@ -294,11 +363,16 @@ class DataOfSkin(DataAbstract):
         self.copiedVertsPos = self.copiedVerticesPosition[self.Mtop: self.Mbottom + 1].copy()
 
     def pasteArray(self):
+        """ Paste the array from temporary storage
+
+        Returns:
+            bool: Whether the paste was successful
+        """
         if self.columnCount != self.copiedColumnCount:
             return False
 
         pasteVerticesPosition = np.copy(self.getVerticesOrigShape())
-        pasteVertsPos = pasteVerticesPosition[self.Mtop: self.Mbottom + 1].copy()
+        pasteVertsPos = pasteVerticesPosition[self.Mtop : self.Mbottom + 1].copy()
 
         # make an array of distances
         a_min_b = pasteVertsPos[:, np.newaxis] - self.copiedVertsPos[np.newaxis, :]
@@ -321,10 +395,15 @@ class DataOfSkin(DataAbstract):
 
         return True
 
-    def reassignLocally(self, reassignValue=1.0, nbJointsReassign=2):
+    def reassignLocally(self, reassignValue=1.0):
+        """ Rebind any unlocked verts to their closest joints at a given percentage
+
+        Arguments:
+            reassignValue (float): The percentage to reassign
+        """
         # print "reassignLocally"
         with GlobalContext(message="reassignLocally", doPrint=True):
-            # 0 get orig shape
+            # 1 get orig shape
             self.origVerticesPosition = self.getVerticesOrigShape()
             self.origVertsPos = self.origVerticesPosition[self.Mtop: self.Mbottom + 1]
 
@@ -362,8 +441,7 @@ class DataOfSkin(DataAbstract):
             closestIndex1 = sorted_columns_indices[:, 0]
             closestIndex2 = sorted_columns_indices[:, 1]
             closestDriversVector = (
-                lstDriverPrePosition[closestIndex2]
-                - lstDriverPrePosition[closestIndex1]
+                lstDriverPrePosition[closestIndex2] - lstDriverPrePosition[closestIndex1]
             )
 
             # now get the closest vectors to the point
@@ -380,9 +458,7 @@ class DataOfSkin(DataAbstract):
             # we normalize, then  clip for the negative and substract from 1 to reverse the setting
             normalizedDotProduct = resDot / (lengthVectorB * lengthVectorB)
             normalizedDotProduct = normalizedDotProduct.clip(min=0.0, max=1.0)
-            ################################################################################################################
-            # FINISH #######################################################################################################
-            ################################################################################################################
+
             theMask = self.sumMasks
             # now set the values in the array correct if cross product is positive
             addValues = np.full(self.orig2dArray.shape, 0.0)
@@ -426,6 +502,11 @@ class DataOfSkin(DataAbstract):
         )
 
     def absoluteVal(self, val):
+        """ Override the unlocked verts with the given value
+
+        Arguments:
+            val (float): The value to override with
+        """
         with GlobalContext(message="absoluteVal", doPrint=self.verbose):
             new2dArray = np.copy(self.orig2dArray)
             selectArr = np.full(self.orig2dArray.shape, val)
@@ -454,7 +535,8 @@ class DataOfSkin(DataAbstract):
             np.copyto(
                 absValues,
                 absValuesNormalized,
-                where=sum_absValues[:, np.newaxis] > self.toNormalizeToSum[:, np.newaxis],
+                where=sum_absValues[:, np.newaxis]
+                > self.toNormalizeToSum[:, np.newaxis],
             )
             if val != 0.0:  # normalize where rest is zero
                 np.copyto(
@@ -493,6 +575,16 @@ class DataOfSkin(DataAbstract):
     def setSkinData(
         self, val, percent=False, autoPrune=False, average=False, autoPruneValue=0.0001
     ):
+        """ Set data to the skincluster
+
+        Arguments:
+            val (float): The value to set to the skincluster
+            percent (bool): Percent of the value to add to the array
+            autoPrune (bool): Whether to automatically prune the values being set
+            average (bool): Average the vertices being set
+            autoPruneValue (float): If autoPrune is true, values less than this will
+                be set to zero
+        """
         # if percent : print "percent"
 
         with GlobalContext(message="setSkinData", doPrint=self.verbose):
@@ -589,6 +681,7 @@ class DataOfSkin(DataAbstract):
         )
 
     def postSkinSet(self):
+        """ Function to run after setting the skin. Does some required housekeeping """
         cmds.setAttr(self.theSkinCluster + ".normalizeWeights", self.normalizeWeights)
         self.undoDic["inListVertices"] = []
         # if connected
@@ -614,6 +707,17 @@ class DataOfSkin(DataAbstract):
         shapePath,
         sknFn,
     ):
+        """ Actually set the given values to the skincluster
+
+        Arguments:
+            new2dArray (np.array): The new array to set
+            sub2DArrayToSet (np.array or None): Set a chunk of this array in-place
+            userComponents (MFnComponent): The components to set
+            influenceIndices (MIntArray): The influence indices to set
+            shapePath (MDagPath): The dag path pointing to the shape node
+            sknFn (MFnSkinCluster): The skincluster Function Set
+
+        """
         with GlobalContext(message="actuallySetValue", doPrint=self.verbose):
             if self.softOn:
                 arrayForSetting = np.copy(new2dArray[self.subOpposite_sortedIndices])
@@ -621,18 +725,7 @@ class DataOfSkin(DataAbstract):
                 arrayForSetting = np.copy(new2dArray)
             with GlobalContext(message="OpenMaya setWeights", doPrint=self.verbose):
                 doubles = arrayForSetting.flatten()
-                count = doubles.size
-                tempArrayForSize = OpenMaya.MDoubleArray()
-                tempArrayForSize.setLength(count)
-
-                res = OpenMaya.MScriptUtil(tempArrayForSize)
-                ptr = res.asDoublePtr()
-
-                # Cast the swig double pointer to a ctypes array
-                cta = (c_double * count).from_address(int(ptr))
-                out = np.ctypeslib.as_array(cta)
-                np.copyto(out, doubles)
-                newArray = OpenMaya.MDoubleArray(ptr, count)
+                newArray = numpyToMaya(doubles, OpenMaya.MDoubleArray)
 
                 # with GlobalContext(message = "sknFn.setWeights"):
                 normalize = False
@@ -656,7 +749,19 @@ class DataOfSkin(DataAbstract):
                 self.computeSumArray()
 
     # get data
-    def exposeSkinData(self, inputSkinCluster, indices=[], getskinWeights=True):
+    def exposeSkinData(self, inputSkinCluster, indices=None, getskinWeights=True):
+        """ GUILLAUME
+
+        Arguments:
+            inputSkinCluster (MFnSkinCluster): The skincluster function set
+            indices (list or None): The indices to get, or all indices if None
+            getSkinWeights (bool): Whether to get the skinweights
+
+        Returns:
+            MDoubleArray: The weights
+        """
+
+        indices = indices or []
         self.skinClusterObj = self.getMObject(inputSkinCluster, returnDagPath=False)
         self.sknFn = OpenMayaAnim.MFnSkinCluster(self.skinClusterObj)
 
@@ -690,16 +795,16 @@ class DataOfSkin(DataAbstract):
             componentAlreadyBuild = True
             componentType = OpenMaya.MFn.kSurfaceCVComponent
             MfnSurface = OpenMaya.MFnNurbsSurface(self.shapePath)
-            self.numCVsInV_ = MfnSurface.numCVsInV()
-            numCVsInU_ = MfnSurface.numCVsInU()
+            self.numCVsInV = MfnSurface.numCVsInV()
+            numCVsInU = MfnSurface.numCVsInU()
             fnComponent = OpenMaya.MFnDoubleIndexedComponent()
             self.fullComponent = fnComponent.create(componentType)
             if not indices:
-                fnComponent.setCompleteData(numCVsInU_, self.numCVsInV_)
+                fnComponent.setCompleteData(numCVsInU, self.numCVsInV)
             else:
                 for indVtx in revertSortedIndices:
-                    indexV = indVtx % self.numCVsInV_
-                    indexU = indVtx / self.numCVsInV_
+                    indexV = indVtx % self.numCVsInV
+                    indexU = indVtx / self.numCVsInV
                     fnComponent.addElement(indexU, indexV)
         elif self.shapePath.apiType() == OpenMaya.MFn.kLattice:  # lattice
             self.isLattice = True
@@ -716,7 +821,7 @@ class DataOfSkin(DataAbstract):
                 for indVtx in revertSortedIndices:
                     s, t, v = getThreeIndices(div_s, div_t, div_u, indVtx)
                     fnComponent.addElement(s, t, v)
-        elif self.shapePath.apiType() == OpenMaya.MFn.kMesh:  # mesh
+        elif self.shapePath.apiType() == OpenMaya.MFn.kMesh:
             componentType = OpenMaya.MFn.kMeshVertComponent
             mshFn = OpenMaya.MFnMesh(self.shapePath)
             vertexCount = mshFn.numVertices()
@@ -741,16 +846,17 @@ class DataOfSkin(DataAbstract):
         return weights
 
     def convertRawSkinToNumpyArray(self):
-        # deadFast
-        res = OpenMaya.MScriptUtil(self.rawSkinValues)
-        ptr = res.asDoublePtr()
+        """ Convert the raw skin data to a numpy array
 
-        lent = self.rawSkinValues.length()
+        Sets these values on the instance:
+            self.raw2dArray
+            self.display2dArray
+            self.usedDeformersIndices
+            self.hideColumnIndices
+        """
         with GlobalContext(message="convertingSkinValues", doPrint=self.verbose):
-            cta = (c_double * lent).from_address(int(ptr))
-            arr = np.ctypeslib.as_array(cta)
-            self.raw2dArray = np.copy(arr)
-            self.raw2dArray = np.reshape(self.raw2dArray, (-1, self.nbDrivers))
+            self.raw2dArray = mayaToNumpy(self.rawSkinValues).reshape((-1, self.nbDrivers))
+
         # reorder
         if self.softOn:  # order with indices
             self.display2dArray = self.raw2dArray[self.sortedIndices]
@@ -764,6 +870,10 @@ class DataOfSkin(DataAbstract):
         self.computeSumArray()
 
     def rebuildRawSkin(self):
+        """ Rebuild the raw skin data
+
+        Set the self.rawSkinValues property
+        """
         if self.fullShapeIsUsed:
             self.rawSkinValues = self.exposeSkinData(self.theSkinCluster)
         else:
@@ -772,30 +882,60 @@ class DataOfSkin(DataAbstract):
             )
 
     def getSkinClusterValues(self, skinCluster):
-        driverNames = cmds.skinCluster(skinCluster, q=True, inf=True)
+        """ Get a list of values from the skincluster
+
+        Arguments:
+            skinCluster (str): The name of the skincluster node
+
+        Returns:
+            list: The list of driver names
+            str: The type of skinning method
+            bool: Whether the weights are normalized
+        """
+        driverNames = cmds.skinCluster(skinCluster, query=True, influence=True)
         skinningMethod = cmds.getAttr(skinCluster + ".skinningMethod")
         normalizeWeights = cmds.getAttr(skinCluster + ".normalizeWeights")
-        return (driverNames, skinningMethod, normalizeWeights)
+        return driverNames, skinningMethod, normalizeWeights
 
     def computeSumArray(self):
+        """ Get the sum of the weights per vertex, and store it in self.sumArray """
         if self.raw2dArray is not None:
             self.sumArray = self.raw2dArray.sum(axis=1)
 
     def getNamesHighestColumns(self):
+        """ GUILLAUME
+
+        Returns:
+            list: List of the names of the drivers
+
+        """
         columnSum = -self.display2dArray.sum(axis=0)
         sorted_columns_indices = columnSum.argsort()
         return np.array(self.driverNames)[sorted_columns_indices].tolist()
 
-    def getDriversShortNames(self):
+    def getDriversShortNames(self, hidePrefix="Dfm_"):
+        """ Get the short names for all the drivers and store them in self.shortColumnsNames
+
+        Arguments:
+            hidePrefix: The prefix to hide in the short names
+        """
         self.shortColumnsNames = []
         for el in self.driverNames:
             shortName = el.split(":")[-1].split("|")[-1]
-            if self.useShortestNames and shortName.startswith("Dfm_"):
+            if self.useShortestNames and shortName.startswith(hidePrefix):
                 splt = shortName.split("_")
                 shortName = " ".join(splt[1:])
             self.shortColumnsNames.append(shortName)
 
     def getConnectedBlurskinDisplay(self, disconnectWeightList=False):
+        """ Get the blurSkinDisplay node connected to the current skincluster
+
+        Arguments:
+            disconnectWeightList (bool): Whether to disconnect the weight list
+
+        Returns:
+            str: The skin display node name
+        """
         self.blurSkinNode = ""
         if cmds.objExists(self.theSkinCluster):
             inConn = cmds.listConnections(
@@ -823,6 +963,7 @@ class DataOfSkin(DataAbstract):
 
     # redefine abstract data functions
     def clearData(self):
+        """ Clear the data from this instance """
         super(DataOfSkin, self).clearData()
         self.AllWght = []
         self.theSkinCluster = ""
@@ -844,6 +985,18 @@ class DataOfSkin(DataAbstract):
         inputVertices=None,
         **kwargs
     ):
+        """ Load all the data from the current selection into the current instance
+
+        Arguments:
+            displayLocator (bool): Whether to build and connect the displayLocator
+            getskinWeights (bool): Whether to load the skinWeight data
+            force (bool): Whether to set the data no matter what
+            inputVertices (list or None): The vertices to get data for
+            **kwargs (dict): Extra keyword arguments passed to self.getDataFromSelection
+
+        Returns:
+            bool: Whether the data was successfully set
+        """
         success = self.getDataFromSelection(
             typeOfDeformer="skinCluster",
             force=force,
@@ -872,7 +1025,7 @@ class DataOfSkin(DataAbstract):
 
         self.columnsNames = self.driverNames
 
-        # use vertex selection 
+        # use vertex selection
         with GlobalContext(message="rawSkinValues", doPrint=self.verbose):
             self.getSoftSelectionVertices(inputVertices=inputVertices)
 
@@ -911,6 +1064,12 @@ class DataOfSkin(DataAbstract):
         return True
 
     def preSettingValuesFn(self, chunks, actualyVisibleColumns):
+        """ A function to run before actually setting values
+
+        Arguments:
+            chunks (): GUILLAUME
+            actuallyVisibleColumns (): GUILLAUME
+        """
         # first check if connected
         self.getConnectedBlurskinDisplay(disconnectWeightList=True)
 
@@ -933,8 +1092,8 @@ class DataOfSkin(DataAbstract):
             self.userComponents = fnComponent.create(componentType)
 
             for indVtx in self.indicesVertices:
-                indexV = int(indVtx % self.numCVsInV_)
-                indexU = int(indVtx / self.numCVsInV_)
+                indexV = int(indVtx % self.numCVsInV)
+                indexU = int(indVtx / self.numCVsInV)
                 fnComponent.addElement(indexU, indexV)
         elif self.isLattice:
             componentType = OpenMaya.MFn.kLatticeComponent
@@ -972,6 +1131,15 @@ class DataOfSkin(DataAbstract):
         cmds.setAttr(self.theSkinCluster + ".normalizeWeights", 0)
 
     def getValue(self, row, column):
+        """ Get a value from a given row/column
+
+        Arguments:
+            row (int): The row to get data for
+            column (int): The column to get data for
+
+        Returns:
+            float: The requested value from the array
+        """
         return (
             self.display2dArray[row][column]
             if column < self.nbDrivers
@@ -979,6 +1147,13 @@ class DataOfSkin(DataAbstract):
         )
 
     def setValue(self, row, column, value):
+        """ Set the value to the row/column
+
+        Arguments:
+            row (int): The row to get data for
+            column (int): The column to get data for
+            value (float): The value to set to the data
+        """
         vertexIndex = self.vertices[row]
         deformerName = self.driverNames[column]
         theVtx = "{0}.vtx[{1}]".format(self.deformedShape, vertexIndex)
@@ -987,6 +1162,9 @@ class DataOfSkin(DataAbstract):
 
     # locks
     def getLocksInfo(self):
+        """ Get the influence lock info from the skindata and store it
+        in the self.lockedColumns property
+        """
         super(DataOfSkin, self).getLocksInfo()
 
         self.lockedColumns = []
@@ -997,12 +1175,31 @@ class DataOfSkin(DataAbstract):
             self.lockedColumns.append(isLocked)
 
     def isColumnLocked(self, columnIndex):
+        """ Check whether the given index is locked
+
+        Arguments:
+            columnIndex (int): The column to check
+
+        Returns:
+            bool: Whether the given column is locked
+        """
         return columnIndex >= self.nbDrivers or self.lockedColumns[columnIndex]
 
     def unLockColumns(self, selectedIndices):
+        """ Unlock the given columns
+
+        Arguments:
+            selectedIndices (list): The column indices to unlock
+        """
         self.lockColumns(selectedIndices, doLock=False)
 
     def lockColumns(self, selectedIndices, doLock=True):
+        """Lock the given columns
+
+        Arguments:
+            selectedIndices (list): The column indices to lock
+            doLock (bool): Whether to lock or unlock the columns
+        """
         for column in selectedIndices:
             if column < self.nbDrivers:
                 driver = self.driverNames[column]
@@ -1011,6 +1208,12 @@ class DataOfSkin(DataAbstract):
                     self.lockedColumns[column] = doLock
 
     def lockRows(self, selectedIndices, doLock=True):
+        """Lock the given rows
+
+        Arguments:
+            selectedIndices (list): The row indices to lock
+            doLock (bool): Whether to lock or unlock the rows
+        """
         super(DataOfSkin, self).lockRows(selectedIndices, doLock=doLock)
         if not self.blurSkinNode or not cmds.objExists(self.blurSkinNode):
             self.getConnectedBlurskinDisplay()
@@ -1020,12 +1223,26 @@ class DataOfSkin(DataAbstract):
 
     # selection
     def getZeroRows(self, selectedColumns):
+        """Get any rows that are zeroed out for the selected columns
+
+        Arguments:
+            selectedColumns (list): The columns to get zeroed rows for
+
+        Returns:
+            np.array: The rows that are zero for the selected columns
+        """
         res = self.display2dArray[:, selectedColumns]
         myAny = np.any(res, axis=1)
         noneZeroRows = np.where(myAny)[0]
         return noneZeroRows
 
     def selectVertsOfColumns(self, selectedColumns, doSelect=True):
+        """Get the vertices that have weights for the given columns
+
+        Arguments:
+            selectedColumns (list): The columns to check for weights
+            doSelect (bool): Whether to select the verts
+        """
         selectedIndices = self.getZeroRows(selectedColumns)
 
         if doSelect:
@@ -1034,6 +1251,11 @@ class DataOfSkin(DataAbstract):
             self.updateDisplayVerts(selectedIndices)
 
     def selectVerts(self, selectedIndices):
+        """Select some vertices
+
+        Arguments:
+            selectedIndices (list): The list of selected indices into our list of vertices
+        """
         selectedVertices = set([self.vertices[ind] for ind in selectedIndices])
         if not selectedVertices:
             cmds.select(clear=True)
@@ -1042,8 +1264,8 @@ class DataOfSkin(DataAbstract):
         if self.isNurbsSurface:
             toSel = []
             for indVtx in selectedVertices:
-                indexV = indVtx % self.numCVsInV_
-                indexU = indVtx / self.numCVsInV_
+                indexV = indVtx % self.numCVsInV
+                indexU = indVtx / self.numCVsInV
                 toSel += ["{0}.cv[{1}][{2}]".format(self.deformedShape, indexU, indexV)]
         elif self.isLattice:
             toSel = []
@@ -1069,6 +1291,11 @@ class DataOfSkin(DataAbstract):
         cmds.select(toSel, r=True)
 
     def selectDeformers(self, selectedIndices):
+        """ Select the deformers corresponding to the given indices
+        
+        Arguments:
+            selectedIndices (list): The influence indices to select
+        """
         toSel = [
             self.driverNames[column]
             for column in selectedIndices
@@ -1079,6 +1306,12 @@ class DataOfSkin(DataAbstract):
 
     # callBacks
     def renameCB(self, oldName, newName):
+        """Abstract callback for when an object is renamed
+
+        Arguments:
+            oldName (str): The old name of the object
+            newName (str): The new name of the object
+        """
         if not cmds.objExists(newName):
             return
         if oldName in self.driverNames:
